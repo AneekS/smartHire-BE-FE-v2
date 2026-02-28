@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Candidate Profile &amp; Settings | SmartHire AI</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,typography,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@400;500;600;700;800&amp;family=Plus+Jakarta+Sans:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        primary: "#6366f1",
+                        accent: "#f472b6",
+                        "background-light": "#fcfcfd",
+                        "background-dark": "#0b0f19",
+                    },
+                    fontFamily: {
+                        display: ["Bricolage Grotesque", "sans-serif"],
+                        body: ["Plus Jakarta Sans", "sans-serif"],
+                    },
+                    borderRadius: {
+                        DEFAULT: "0.75rem",
+                        'xl': '1.25rem',
+                        '2xl': '1.75rem',
+                        '3xl': '2.5rem',
+                    },
+                },
+            },
+        };
+    </script>
+<style type="text/tailwindcss">
+        @layer base {
+            body { font-family: 'Plus Jakarta Sans', sans-serif; }
+            h1, h2, h3, h4, h5, h6 { font-family: 'Bricolage Grotesque', sans-serif; }
+        }
+        .mesh-gradient-premium {
+            background-color: #6366f1;
+            background-image: 
+                radial-gradient(at 0% 0%, hsla(253,16%,15%,1) 0, transparent 50%), 
+                radial-gradient(at 50% 0%, hsla(280,70%,60%,0.4) 0, transparent 50%), 
+                radial-gradient(at 100% 0%, hsla(220,90%,60%,0.4) 0, transparent 50%),
+                radial-gradient(at 100% 100%, hsla(339,49%,50%,0.3) 0, transparent 50%),
+                radial-gradient(at 0% 100%, hsla(190,90%,50%,0.2) 0, transparent 50%);
+        }
+        .donut-chart-segment {
+            transition: stroke-dasharray 0.3s ease;
+        }
+        .skill-chip {
+            @apply px-3 py-1 rounded-full text-[11px] font-bold tracking-tight uppercase border;
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100 min-h-screen transition-colors duration-300">
+<nav class="sticky top-0 z-50 bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl border-b border-slate-200/60 dark:border-slate-800/60">
+<div class="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
+<div class="flex items-center gap-10">
+<div class="flex items-center gap-2">
+<div class="w-9 h-9 bg-primary rounded-lg flex items-center justify-center text-white shadow-lg shadow-primary/20">
+<span class="material-symbols-outlined !text-xl">bolt</span>
+</div>
+<span class="text-xl font-extrabold tracking-tight font-display">SmartHire AI</span>
+</div>
+<div class="hidden md:flex items-center gap-8 text-sm font-semibold text-slate-500 dark:text-slate-400">
+<a class="hover:text-primary transition-colors" href="#">Dashboard</a>
+<a class="hover:text-primary transition-colors" href="#">Mock Interviews</a>
+<a class="hover:text-primary transition-colors" href="#">Career Path</a>
+<a class="text-primary relative after:absolute after:bottom-[-28px] after:left-0 after:w-full after:h-0.5 after:bg-primary" href="#">Profile</a>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<button class="p-2.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors border border-transparent hover:border-slate-200 dark:hover:border-slate-700" onclick="document.documentElement.classList.toggle('dark')">
+<span class="material-symbols-outlined text-slate-600 dark:text-slate-400">dark_mode</span>
+</button>
+<div class="h-10 w-10 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden ring-2 ring-primary/20 ring-offset-2 dark:ring-offset-slate-900">
+<img alt="User Avatar" src="https://lh3.googleusercontent.com/aida-public/AB6AXuC3dZ5gIu7mlcXomrtMufOOlIzHs41DCU4UVGHjsQEyhJBJ0uDCVyHUd8VJb3Q2HPegb7qZjSxrPb99DcEsh0b3qiueAZBvDD30JCRvvmvmVRvkkA36pLefUQmiDJq4_eoiPDTzOUHYiJP1HoqAyk8Lkvd_9fZYpB2IIeJiHCFGg9dVzocEvFUONNTSitQHNmfH-ceZuy37FnNur4KgNkXdsaWVosUSnQyt5ZainogbuB-if7BzArb0ymlgzW-KZWeDG1b8sXeHyW8"/>
+</div>
+</div>
+</div>
+</nav>
+<main class="max-w-7xl mx-auto px-6 py-12">
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-10">
+<aside class="lg:col-span-4 space-y-8">
+<div class="bg-white dark:bg-slate-900 rounded-3xl shadow-sm border border-slate-200/60 dark:border-slate-800/60 overflow-hidden">
+<div class="h-40 mesh-gradient-premium relative">
+<div class="absolute -bottom-14 left-1/2 -translate-x-1/2">
+<div class="w-28 h-28 rounded-3xl border-[6px] border-white dark:border-slate-900 overflow-hidden shadow-2xl bg-white ring-1 ring-slate-100 dark:ring-slate-800">
+<img alt="Candidate profile" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuA0CDYISyByHfjp1HuiQpyeas-L6qJVmt1lHbFUjByFi6SSdFDaaCAjgEgnRrlpn5xefwQH9yfHDQjYpXV0G7jjgysfrP0W0IOOeSiJMOJHmKgsdcxzMPag47uDCh_AnXDyiXd_0TbAI-BfrtcroK80u2QsfGdy9MtGBPD9wdJEkWcS8IfJqEB7A2NMPc-QKXKm0em_3MBDfaFEHThfrdEaGnAHfVhCX2hbih2XQ-BZvkngpIP6Wyh5yrG6zewPqWTACrOddTzk1Oc"/>
+</div>
+</div>
+</div>
+<div class="pt-16 pb-8 px-8 text-center">
+<h2 class="text-2xl font-bold tracking-tight">Arjun Sharma</h2>
+<p class="text-slate-500 dark:text-slate-400 text-sm font-medium mt-1">Final Year, Computer Science</p>
+<div class="mt-2 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-100 dark:bg-slate-800 text-[11px] font-bold text-slate-600 dark:text-slate-400">
+<span class="material-symbols-outlined !text-xs">school</span>
+                        IIT Bombay • Class of 2025
+                    </div>
+<div class="flex justify-center gap-4 mt-8">
+<a class="w-11 h-11 flex items-center justify-center rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-200/50 dark:border-slate-700/50 hover:bg-primary hover:text-white transition-all duration-300 text-slate-500" href="#">
+<img alt="Github" class="w-5 h-5 dark:invert group-hover:invert-0" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDOZDSiJHUavwvApEYlY1ikSj15Q8_GMEw1GECOUW4XJ9kzlcmGdpUU-ZP37bU4CtdPbwRbvpjE_V8VB9Ba3Or9DDOdSpRSDRFNciDPrKCib2kw4rPRrrQf9roDXGHkeN9gM6qC-ml6CUBnzCyOFRC8_h-fNoRwvND_Oe9dasDBX2E-785liJdsRFfSBkzXVsvDMXfKVQ8Vvzfh1qInKcSlWrIDvgsKNh93-z1AKsL7_bgWS8pvtkRJ-6wt1A_fLBigZVXj99jXN_o"/>
+</a>
+<a class="w-11 h-11 flex items-center justify-center rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-200/50 dark:border-slate-700/50 hover:bg-primary hover:text-white transition-all duration-300 text-slate-500" href="#">
+<img alt="LinkedIn" class="w-5 h-5 dark:invert" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDHVPIgDLhZttdLvcB337czWy0wKfirplJk7Szvc5N-UsD3zTNom8DIa_1dENTdKjblyks3GQnv3Pnqm4Y_3zAEJdFGLhiy6rG1ztnJ3u7OEDPgKjWqAQsTHPwwrWJfvoLLuTPpCg3_W3LMnFrF0mw6jCLfmlTIcJqet7o9vokaWpt0GVuf-NatVYSN-_UgtzW0YG15bqHYBb2lhXGV8ge2VCNYEQz_4UKB8FLZ_nHLsarCaYJtV-e9zpOKnK4qzEvlwToq-o2_lAM"/>
+</a>
+<a class="w-11 h-11 flex items-center justify-center rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-200/50 dark:border-slate-700/50 hover:bg-primary hover:text-white transition-all duration-300 text-slate-500" href="#">
+<span class="material-symbols-outlined text-xl">language</span>
+</a>
+</div>
+</div>
+<div class="px-8 py-8 bg-slate-50/50 dark:bg-slate-800/30 border-t border-slate-100 dark:border-slate-800">
+<div class="flex items-center justify-between mb-8">
+<h3 class="font-bold text-sm tracking-tight text-slate-900 dark:text-white uppercase">Reputation Mastery</h3>
+<span class="text-[10px] text-white font-black bg-primary px-2.5 py-1 rounded-full shadow-lg shadow-primary/20">ELITE TOP 5%</span>
+</div>
+<div class="flex flex-col items-center gap-8">
+<div class="relative w-36 h-36">
+<svg class="w-full h-full -rotate-90" viewBox="0 0 36 36">
+<circle class="stroke-slate-200 dark:stroke-slate-700" cx="18" cy="18" fill="none" r="16" stroke-width="2.5"></circle>
+<circle class="stroke-primary donut-chart-segment" cx="18" cy="18" fill="none" r="16" stroke-dasharray="85, 100" stroke-linecap="round" stroke-width="2.5"></circle>
+</svg>
+<div class="absolute inset-0 flex flex-col items-center justify-center rotate-0">
+<span class="text-3xl font-black font-display tracking-tight">842</span>
+<span class="text-[10px] text-slate-400 uppercase tracking-[0.2em] font-bold">Points</span>
+</div>
+</div>
+<div class="w-full space-y-5">
+<div class="space-y-2">
+<div class="flex items-center justify-between text-[11px] font-bold uppercase tracking-wider text-slate-500">
+<span>Technical Skills</span>
+<span class="text-primary">92%</span>
+</div>
+<div class="w-full bg-slate-200 dark:bg-slate-700 h-1.5 rounded-full overflow-hidden">
+<div class="bg-primary h-full w-[92%]"></div>
+</div>
+</div>
+<div class="space-y-2">
+<div class="flex items-center justify-between text-[11px] font-bold uppercase tracking-wider text-slate-500">
+<span>Soft Skills</span>
+<span class="text-accent">78%</span>
+</div>
+<div class="w-full bg-slate-200 dark:bg-slate-700 h-1.5 rounded-full overflow-hidden">
+<div class="bg-accent h-full w-[78%]"></div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="mesh-gradient-premium rounded-3xl p-8 text-white overflow-hidden relative group shadow-2xl shadow-primary/20">
+<div class="relative z-10">
+<h4 class="font-bold text-xl mb-2 tracking-tight">Upgrade to Pro</h4>
+<p class="text-white/80 text-sm mb-6 leading-relaxed">Access unlimited AI mock interviews &amp; top-tier career coaching.</p>
+<button class="bg-white text-primary px-6 py-2.5 rounded-xl text-sm font-black shadow-xl hover:scale-105 transition-transform">GO PREMIUM</button>
+</div>
+<span class="material-symbols-outlined absolute -right-6 -bottom-6 text-white/10 text-[160px] transition-transform group-hover:scale-110 group-hover:-rotate-12 duration-500 select-none">stars</span>
+</div>
+</aside>
+<div class="lg:col-span-8 space-y-10">
+<div class="flex items-center gap-10 border-b border-slate-200 dark:border-slate-800 overflow-x-auto pb-px">
+<button class="pb-5 text-sm font-bold text-primary border-b-[3px] border-primary whitespace-nowrap tracking-tight">Resume Management</button>
+<button class="pb-5 text-sm font-semibold text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 transition-colors whitespace-nowrap tracking-tight">Notifications</button>
+<button class="pb-5 text-sm font-semibold text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 transition-colors whitespace-nowrap tracking-tight">Account Settings</button>
+<button class="pb-5 text-sm font-semibold text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 transition-colors whitespace-nowrap tracking-tight">Interview History</button>
+</div>
+<div class="space-y-8">
+<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+<div>
+<h3 class="text-2xl font-bold tracking-tight">Resume Versions</h3>
+<p class="text-slate-500 dark:text-slate-400 text-sm mt-1">Multi-role optimization driven by AI engine</p>
+</div>
+<button class="flex items-center justify-center gap-2 bg-slate-900 dark:bg-white text-white dark:text-slate-900 px-6 py-3 rounded-2xl font-bold text-sm shadow-xl hover:opacity-90 transition-all">
+<span class="material-symbols-outlined !text-sm">add</span>
+                        New Version
+                    </button>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+<div class="group bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/60 p-6 rounded-3xl hover:border-primary/40 transition-all hover:shadow-2xl hover:shadow-slate-200/30 dark:hover:shadow-none">
+<div class="flex items-start justify-between mb-6">
+<div class="w-14 h-14 bg-indigo-50 dark:bg-indigo-900/20 rounded-2xl flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
+<span class="material-symbols-outlined !text-3xl">description</span>
+</div>
+<div class="flex flex-col items-end gap-2">
+<span class="skill-chip border-emerald-200 bg-emerald-50 text-emerald-600 dark:bg-emerald-900/20 dark:border-emerald-800/40 dark:text-emerald-400">Active</span>
+<span class="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">Score: 98/100</span>
+</div>
+</div>
+<h4 class="font-bold text-lg text-slate-900 dark:text-white leading-tight">Full Stack Engineer</h4>
+<p class="text-xs text-slate-500 dark:text-slate-400 mt-2 font-medium">Optimized for Tier-1 Startups &amp; FAANG</p>
+<div class="mt-8 pt-6 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
+<span class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Updated 2d ago</span>
+<div class="flex items-center gap-2">
+<button class="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/50 text-slate-400 hover:text-primary transition-colors"><span class="material-symbols-outlined !text-lg">edit</span></button>
+<button class="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/50 text-slate-400 hover:text-red-500 transition-colors"><span class="material-symbols-outlined !text-lg">delete</span></button>
+</div>
+</div>
+</div>
+<div class="group bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/60 p-6 rounded-3xl hover:border-primary/40 transition-all hover:shadow-2xl hover:shadow-slate-200/30 dark:hover:shadow-none">
+<div class="flex items-start justify-between mb-6">
+<div class="w-14 h-14 bg-purple-50 dark:bg-purple-900/20 rounded-2xl flex items-center justify-center text-purple-600 group-hover:scale-110 transition-transform">
+<span class="material-symbols-outlined !text-3xl">analytics</span>
+</div>
+<div class="flex flex-col items-end gap-2">
+<span class="skill-chip border-slate-200 bg-slate-50 text-slate-500 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-400">Draft</span>
+<span class="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">Score: 64/100</span>
+</div>
+</div>
+<h4 class="font-bold text-lg text-slate-900 dark:text-white leading-tight">Data Scientist</h4>
+<p class="text-xs text-slate-500 dark:text-slate-400 mt-2 font-medium">Focused on Python, ML &amp; SQL Pipelines</p>
+<div class="mt-8 pt-6 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
+<span class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Updated 1w ago</span>
+<div class="flex items-center gap-2">
+<button class="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/50 text-slate-400 hover:text-primary transition-colors"><span class="material-symbols-outlined !text-lg">edit</span></button>
+<button class="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/50 text-slate-400 hover:text-red-500 transition-colors"><span class="material-symbols-outlined !text-lg">delete</span></button>
+</div>
+</div>
+</div>
+</div>
+<div class="pt-10">
+<h3 class="text-2xl font-bold tracking-tight mb-8">Personalized Preferences</h3>
+<div class="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/60 dark:border-slate-800/60 overflow-hidden">
+<div class="p-6 sm:p-8 flex items-center justify-between border-b border-slate-100 dark:border-slate-800">
+<div class="flex items-start gap-5">
+<div class="w-12 h-12 bg-slate-50 dark:bg-slate-800 rounded-2xl flex items-center justify-center text-slate-500">
+<span class="material-symbols-outlined">mail</span>
+</div>
+<div>
+<h5 class="font-bold text-base tracking-tight">Smart Job Alerts</h5>
+<p class="text-xs text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">Real-time matching based on your optimized resume score</p>
+</div>
+</div>
+<label class="relative inline-flex items-center cursor-pointer">
+<input checked="" class="sr-only peer" type="checkbox"/>
+<div class="w-12 h-6 bg-slate-200 peer-focus:outline-none dark:bg-slate-700 rounded-full peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[3px] after:left-[3px] after:bg-white after:rounded-full after:h-[18px] after:w-[18px] after:transition-all peer-checked:bg-primary"></div>
+</label>
+</div>
+<div class="p-6 sm:p-8 flex items-center justify-between border-b border-slate-100 dark:border-slate-800">
+<div class="flex items-start gap-5">
+<div class="w-12 h-12 bg-slate-50 dark:bg-slate-800 rounded-2xl flex items-center justify-center text-slate-500">
+<span class="material-symbols-outlined">psychology</span>
+</div>
+<div>
+<h5 class="font-bold text-base tracking-tight">AI Interview Coaching</h5>
+<p class="text-xs text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">Daily mock prompts tailored to your weak points</p>
+</div>
+</div>
+<label class="relative inline-flex items-center cursor-pointer">
+<input class="sr-only peer" type="checkbox"/>
+<div class="w-12 h-6 bg-slate-200 peer-focus:outline-none dark:bg-slate-700 rounded-full peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[3px] after:left-[3px] after:bg-white after:rounded-full after:h-[18px] after:w-[18px] after:transition-all peer-checked:bg-primary"></div>
+</label>
+</div>
+<div class="p-6 sm:p-8 flex items-center justify-between">
+<div class="flex items-start gap-5">
+<div class="w-12 h-12 bg-slate-50 dark:bg-slate-800 rounded-2xl flex items-center justify-center text-slate-500">
+<span class="material-symbols-outlined">visibility</span>
+</div>
+<div>
+<h5 class="font-bold text-base tracking-tight">Recruiter Visibility</h5>
+<p class="text-xs text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">Allow vetted recruiters to view your verified skill profile</p>
+</div>
+</div>
+<label class="relative inline-flex items-center cursor-pointer">
+<input checked="" class="sr-only peer" type="checkbox"/>
+<div class="w-12 h-6 bg-slate-200 peer-focus:outline-none dark:bg-slate-700 rounded-full peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[3px] after:left-[3px] after:bg-white after:rounded-full after:h-[18px] after:w-[18px] after:transition-all peer-checked:bg-primary"></div>
+</label>
+</div>
+</div>
+</div>
+<div class="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/60 dark:border-slate-800/60 p-8 sm:p-10">
+<h3 class="text-xl font-bold tracking-tight mb-8">Security &amp; Verification</h3>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+<div class="space-y-3">
+<label class="text-[10px] font-black text-slate-400 uppercase tracking-[0.15em]">Official Email Address</label>
+<div class="relative group">
+<input class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl px-5 py-4 text-sm font-medium focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none" type="email" value="arjun.sharma@iitb.ac.in"/>
+<span class="material-symbols-outlined absolute right-4 top-1/2 -translate-y-1/2 text-emerald-500 !text-xl">verified</span>
+</div>
+</div>
+<div class="space-y-3">
+<label class="text-[10px] font-black text-slate-400 uppercase tracking-[0.15em]">Phone Number</label>
+<input class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl px-5 py-4 text-sm font-medium focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none" type="tel" value="+91 98765 43210"/>
+</div>
+</div>
+<div class="mt-10 flex flex-col sm:flex-row justify-end gap-4">
+<button class="px-8 py-3 rounded-2xl text-slate-500 dark:text-slate-400 font-bold text-sm hover:bg-slate-100 dark:hover:bg-slate-800 transition-all">Cancel</button>
+<button class="bg-primary text-white px-10 py-3 rounded-2xl font-black text-sm shadow-xl shadow-primary/25 hover:scale-105 transition-all">SAVE CHANGES</button>
+</div>
+</div>
+</div>
+</div>
+</div>
+</main>
+<footer class="mt-24 border-t border-slate-200 dark:border-slate-800 py-12">
+<div class="max-w-7xl mx-auto px-6 flex flex-col items-center">
+<div class="flex items-center gap-2 mb-6 opacity-40 grayscale">
+<div class="w-6 h-6 bg-slate-900 dark:bg-white rounded-md flex items-center justify-center">
+<span class="material-symbols-outlined !text-sm text-white dark:text-slate-900">bolt</span>
+</div>
+<span class="text-sm font-extrabold tracking-tight font-display text-slate-900 dark:text-white">SmartHire AI</span>
+</div>
+<p class="text-xs font-medium text-slate-400 dark:text-slate-500 tracking-wide">© 2024 SmartHire AI • Empowering India's next engineering generation.</p>
+</div>
+</footer>
+
+</body></html>

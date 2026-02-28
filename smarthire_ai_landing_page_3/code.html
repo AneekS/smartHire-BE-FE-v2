@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>SmartHire AI - AI Command Center for Proactive Students</title>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        primary: "#3B82F6",
+                        "cta-blue": "#3B82F6",
+                        "active-purple": "#8B5CF6",
+                        "accent-indigo": "#6366F1",
+                        "bg-page": "#F8F9FD",
+                        "surface": "#FFFFFF",
+                        "sidebar-bg": "#FAFAFE",
+                        "charcoal": "#1F2937",
+                        "cool-grey": "#6B7280",
+                        "accent-text": "#4F46E5"
+                    },
+                    fontFamily: {
+                        sans: ["Plus Jakarta Sans", "sans-serif"],
+                    },
+                    borderRadius: {
+                        'card': '24px',
+                        'button-pill': '100px',
+                        'button-sec': '12px',
+                    },
+                    boxShadow: {
+                        'custom': '0 10px 15px -3px rgba(148, 163, 184, 0.12), 0 4px 6px -2px rgba(148, 163, 184, 0.08)',
+                    }
+                },
+            },
+        };
+    </script>
+<style type="text/tailwindcss">
+        @layer base {
+            body {
+                @apply bg-[#F8F9FD] text-cool-grey font-sans antialiased;
+            }
+            h1, h2, h3, h4, h5, h6 {
+                @apply text-charcoal;
+            }
+        }
+        .mesh-banner {
+            background: radial-gradient(ellipse at 20% 50%, #E0C3FC 0%, transparent 50%),
+                        radial-gradient(ellipse at 80% 20%, #FBC2EB 0%, transparent 50%),
+                        radial-gradient(ellipse at 60% 80%, #FFECD2 0%, transparent 40%),
+                        #FFFFFF;
+        }
+        .card-border {
+            border: 1px solid rgba(148, 163, 184, 0.15);
+        }
+        .gradient-blue { background: linear-gradient(105deg, #4F46E5 0%, #3B82F6 100%); }
+        .gradient-orange { background: linear-gradient(105deg, #F97316 0%, #FB923C 100%); }
+        .gradient-emerald { background: linear-gradient(105deg, #10B981 0%, #34D399 100%); }
+        .gradient-violet { background: linear-gradient(105deg, #8B5CF6 0%, #A78BFA 100%); }
+        .stage-applied { background: linear-gradient(135deg, #D1E9FF, #AFDBFF); }
+        .stage-screening { background: linear-gradient(135deg, #E9E7FF, #D4D1FF); }
+        .stage-interview { background: linear-gradient(135deg, #FFEDD5, #FED7AA); }
+        .stage-offer { background: linear-gradient(135deg, #DCFCE7, #BBF7D0); }
+        .stage-hired { background: linear-gradient(135deg, #D1FAE5, #A7F3D0); }
+        .stage-rejected { background: linear-gradient(135deg, #FEE2E2, #FECACA); }
+        .glass {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.4);
+        }
+    </style>
+</head>
+<body>
+<nav class="fixed top-0 left-0 right-0 z-50 flex justify-center p-6">
+<div class="glass max-w-7xl w-full px-6 py-3 rounded-full flex items-center justify-between shadow-custom">
+<div class="flex items-center gap-2">
+<div class="w-8 h-8 bg-cta-blue rounded-lg flex items-center justify-center">
+<span class="material-symbols-outlined text-white text-[20px]">auto_awesome</span>
+</div>
+<span class="font-bold text-xl tracking-tight text-charcoal">SmartHire AI</span>
+</div>
+<div class="hidden md:flex items-center gap-8 text-sm font-medium">
+<a class="hover:text-accent-text transition-colors" href="#">Features</a>
+<a class="hover:text-accent-text transition-colors" href="#">Career Paths</a>
+<a class="hover:text-accent-text transition-colors" href="#">Pricing</a>
+<a class="hover:text-accent-text transition-colors" href="#">Success Stories</a>
+</div>
+<div class="flex items-center gap-4">
+<button class="text-sm font-semibold hover:text-accent-text transition-colors">Log in</button>
+<button class="bg-cta-blue text-white px-6 py-2.5 rounded-button-pill text-sm font-bold shadow-lg shadow-blue-500/20 hover:scale-105 transition-transform">Get Started</button>
+</div>
+</div>
+</nav>
+<main class="mesh-banner pt-32 pb-20 relative min-h-screen">
+<div class="max-w-7xl mx-auto px-6">
+<div class="text-center mb-16">
+<div class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/60 border border-slate-200/50 text-[11px] font-bold text-accent-text uppercase tracking-widest mb-6">
+<span class="flex h-2 w-2 rounded-full bg-cta-blue animate-pulse"></span>
+                AI-Driven Career Command Center
+            </div>
+<h1 class="text-5xl md:text-7xl font-extrabold text-charcoal leading-[1.05] tracking-tight mb-6">
+                Land Your Dream <span class="text-accent-indigo">Tech Job</span>.<br/>With AI Precision.
+            </h1>
+<p class="text-lg md:text-xl text-cool-grey max-w-2xl mx-auto leading-relaxed mb-10">
+                Your centralized dashboard for resume optimization, career tracking, and mock interviews tailored for top-tier Indian engineering roles.
+            </p>
+<div class="flex flex-col sm:flex-row gap-4 justify-center">
+<button class="bg-cta-blue text-white px-10 py-4 rounded-button-pill text-lg font-bold shadow-xl shadow-blue-500/30 hover:shadow-blue-500/40 hover:-translate-y-1 transition-all">Launch Dashboard</button>
+<button class="bg-white text-charcoal px-10 py-4 rounded-button-pill text-lg font-bold border card-border shadow-custom hover:bg-slate-50 transition-all flex items-center justify-center gap-2">
+<span class="material-symbols-outlined">play_circle</span>
+                    Demo
+                </button>
+</div>
+</div>
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+<div class="lg:col-span-6 bg-surface rounded-card p-8 shadow-custom card-border">
+<div class="flex items-center justify-between mb-8">
+<div>
+<h3 class="text-xl font-bold text-charcoal">ATS Score Dashboard</h3>
+<p class="text-sm text-cool-grey">Real-time optimization analysis</p>
+</div>
+<div class="w-10 h-10 rounded-button-sec bg-blue-50 flex items-center justify-center text-cta-blue">
+<span class="material-symbols-outlined">analytics</span>
+</div>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
+<div class="relative flex items-center justify-center">
+<svg class="w-40 h-40 transform -rotate-90">
+<circle class="text-slate-100" cx="80" cy="80" fill="transparent" r="70" stroke="currentColor" stroke-width="12"></circle>
+<circle class="text-[#C084FC]" cx="80" cy="80" fill="transparent" r="70" stroke="currentColor" stroke-dasharray="439.8" stroke-dashoffset="65.9" stroke-linecap="round" stroke-width="12"></circle>
+</svg>
+<div class="absolute flex flex-col items-center">
+<span class="text-4xl font-extrabold text-charcoal">85</span>
+<span class="text-[10px] font-bold text-cool-grey uppercase tracking-widest">Score</span>
+</div>
+</div>
+<div class="space-y-6">
+<div>
+<div class="flex justify-between text-xs font-bold mb-2">
+<span class="text-charcoal uppercase">Keyword Match</span>
+<span class="text-[#6366F1]">92%</span>
+</div>
+<div class="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
+<div class="h-full bg-[#6366F1]" style="width: 92%"></div>
+</div>
+</div>
+<div>
+<div class="flex justify-between text-xs font-bold mb-2">
+<span class="text-charcoal uppercase">Formatting Accuracy</span>
+<span class="text-[#EC4899]">78%</span>
+</div>
+<div class="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
+<div class="h-full bg-[#EC4899]" style="width: 78%"></div>
+</div>
+</div>
+<div>
+<div class="flex justify-between text-xs font-bold mb-2">
+<span class="text-charcoal uppercase">Content Impact</span>
+<span class="text-[#06B6D4]">88%</span>
+</div>
+<div class="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
+<div class="h-full bg-[#06B6D4]" style="width: 88%"></div>
+</div>
+</div>
+</div>
+</div>
+<div class="mt-8 pt-8 border-t border-slate-100 grid grid-cols-3 gap-4">
+<div class="text-center">
+<p class="text-xs font-bold text-cool-grey uppercase mb-1">Status</p>
+<span class="inline-flex px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-600 text-[10px] font-bold">READY</span>
+</div>
+<div class="text-center">
+<p class="text-xs font-bold text-cool-grey uppercase mb-1">Company</p>
+<p class="text-xs font-bold text-charcoal">Google India</p>
+</div>
+<div class="text-center">
+<p class="text-xs font-bold text-cool-grey uppercase mb-1">Updated</p>
+<p class="text-xs font-bold text-charcoal">2h ago</p>
+</div>
+</div>
+</div>
+<div class="lg:col-span-6 bg-surface rounded-card p-8 shadow-custom card-border">
+<div class="flex items-center justify-between mb-8">
+<div>
+<h3 class="text-xl font-bold text-charcoal">Career Path Tracker</h3>
+<p class="text-sm text-cool-grey">Pipeline to Software Engineer III</p>
+</div>
+<div class="w-10 h-10 rounded-button-sec bg-purple-50 flex items-center justify-center text-active-purple">
+<span class="material-symbols-outlined">route</span>
+</div>
+</div>
+<div class="space-y-4">
+<div class="stage-applied p-4 rounded-card border border-blue-200/50 flex items-center justify-between group cursor-pointer hover:scale-[1.02] transition-transform">
+<div class="flex items-center gap-4">
+<div class="w-10 h-10 bg-white/60 rounded-full flex items-center justify-center shadow-sm">
+<span class="material-symbols-outlined text-blue-600">check_circle</span>
+</div>
+<div>
+<h4 class="text-sm font-bold text-charcoal">Applied</h4>
+<p class="text-[10px] font-medium text-blue-700">12 Applications sent</p>
+</div>
+</div>
+<span class="material-symbols-outlined text-blue-400 group-hover:translate-x-1 transition-transform">chevron_right</span>
+</div>
+<div class="stage-screening p-4 rounded-card border border-purple-200/50 flex items-center justify-between group cursor-pointer hover:scale-[1.02] transition-transform">
+<div class="flex items-center gap-4">
+<div class="w-10 h-10 bg-white/60 rounded-full flex items-center justify-center shadow-sm">
+<span class="material-symbols-outlined text-purple-600">assignment_ind</span>
+</div>
+<div>
+<h4 class="text-sm font-bold text-charcoal">Screening</h4>
+<p class="text-[10px] font-medium text-purple-700">3 Assessment tests pending</p>
+</div>
+</div>
+<span class="material-symbols-outlined text-purple-400 group-hover:translate-x-1 transition-transform">chevron_right</span>
+</div>
+<div class="stage-interview p-4 rounded-card border border-orange-200/50 flex items-center justify-between group cursor-pointer hover:scale-[1.02] transition-transform">
+<div class="flex items-center gap-4">
+<div class="w-10 h-10 bg-white/60 rounded-full flex items-center justify-center shadow-sm">
+<span class="material-symbols-outlined text-orange-600">videocam</span>
+</div>
+<div>
+<h4 class="text-sm font-bold text-charcoal">Interview</h4>
+<p class="text-[10px] font-medium text-orange-800">Mock round at 4:00 PM today</p>
+</div>
+</div>
+<span class="material-symbols-outlined text-orange-400 group-hover:translate-x-1 transition-transform">chevron_right</span>
+</div>
+<div class="stage-offer p-4 rounded-card border border-green-200/50 opacity-60 flex items-center justify-between group cursor-default">
+<div class="flex items-center gap-4">
+<div class="w-10 h-10 bg-white/60 rounded-full flex items-center justify-center shadow-sm">
+<span class="material-symbols-outlined text-emerald-600">verified</span>
+</div>
+<div>
+<h4 class="text-sm font-bold text-charcoal">Offer</h4>
+<p class="text-[10px] font-medium text-emerald-800">Unlock at next milestone</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</main>
+<section class="py-12 bg-surface">
+<div class="max-w-7xl mx-auto px-6 grid grid-cols-1 md:grid-cols-4 gap-6">
+<div class="gradient-blue p-8 rounded-card shadow-custom relative overflow-hidden group">
+<div class="relative z-10">
+<h3 class="text-white text-4xl font-extrabold mb-1">92%</h3>
+<p class="text-white/80 font-semibold text-sm">Success Rate</p>
+</div>
+<span class="material-symbols-outlined absolute -bottom-4 -right-4 text-white/10 text-9xl group-hover:scale-110 transition-transform">trending_up</span>
+</div>
+<div class="gradient-orange p-8 rounded-card shadow-custom relative overflow-hidden group">
+<div class="relative z-10">
+<h3 class="text-white text-4xl font-extrabold mb-1">10k+</h3>
+<p class="text-white/80 font-semibold text-sm">Roadmaps</p>
+</div>
+<span class="material-symbols-outlined absolute -bottom-4 -right-4 text-white/10 text-9xl group-hover:scale-110 transition-transform">route</span>
+</div>
+<div class="gradient-emerald p-8 rounded-card shadow-custom relative overflow-hidden group">
+<div class="relative z-10">
+<h3 class="text-white text-4xl font-extrabold mb-1">₹18LPA</h3>
+<p class="text-white/80 font-semibold text-sm">Avg. Package</p>
+</div>
+<span class="material-symbols-outlined absolute -bottom-4 -right-4 text-white/10 text-9xl group-hover:scale-110 transition-transform">payments</span>
+</div>
+<div class="gradient-violet p-8 rounded-card shadow-custom relative overflow-hidden group">
+<div class="relative z-10">
+<h3 class="text-white text-4xl font-extrabold mb-1">4.9/5</h3>
+<p class="text-white/80 font-semibold text-sm">Rating</p>
+</div>
+<span class="material-symbols-outlined absolute -bottom-4 -right-4 text-white/10 text-9xl group-hover:scale-110 transition-transform">stars</span>
+</div>
+</div>
+</section>
+<section class="py-24 bg-surface relative overflow-hidden">
+<div class="max-w-7xl mx-auto px-6">
+<div class="text-center mb-16">
+<h2 class="text-4xl md:text-5xl font-extrabold mb-4">Master Your Career Loop</h2>
+<p class="text-cool-grey max-w-2xl mx-auto text-lg leading-relaxed">Integrated tools designed for the modern engineer's recruitment journey.</p>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-12 gap-6">
+<div class="md:col-span-8 bg-sidebar-bg card-border rounded-card p-10 hover:shadow-custom transition-all group">
+<div class="w-14 h-14 bg-blue-50 text-cta-blue rounded-button-sec flex items-center justify-center mb-6">
+<span class="material-symbols-outlined text-3xl">description</span>
+</div>
+<h3 class="text-2xl font-bold mb-4">ATS Optimizer Pro</h3>
+<p class="text-cool-grey max-w-md text-lg leading-relaxed mb-6">
+                    Engineered to navigate complex Applicant Tracking Systems used by top multinationals.
+                </p>
+<div class="h-24 bg-white rounded-button-sec card-border p-4 relative overflow-hidden">
+<div class="flex gap-4">
+<div class="w-1/2 h-4 bg-slate-100 rounded-full animate-pulse"></div>
+<div class="w-1/3 h-4 bg-blue-100 rounded-full"></div>
+</div>
+<div class="mt-4 space-y-2">
+<div class="w-full h-2 bg-slate-50 rounded-full"></div>
+<div class="w-2/3 h-2 bg-slate-50 rounded-full"></div>
+</div>
+</div>
+</div>
+<div class="md:col-span-4 bg-purple-50/50 card-border rounded-card p-10 hover:shadow-custom transition-all">
+<div class="w-14 h-14 bg-white text-active-purple rounded-button-sec flex items-center justify-center shadow-sm mb-6">
+<span class="material-symbols-outlined text-3xl">psychology</span>
+</div>
+<h3 class="text-xl font-bold mb-4">Skill Gap Analysis</h3>
+<p class="text-sm text-cool-grey leading-relaxed">
+                    Personalized scans of your GitHub and projects to highlight what companies want.
+                </p>
+</div>
+<div class="md:col-span-4 bg-emerald-50/50 card-border rounded-card p-10 hover:shadow-custom transition-all">
+<div class="w-14 h-14 bg-white text-emerald-600 rounded-button-sec flex items-center justify-center shadow-sm mb-6">
+<span class="material-symbols-outlined text-3xl">terminal</span>
+</div>
+<h3 class="text-xl font-bold mb-4">DSA Mastery Path</h3>
+<p class="text-sm text-cool-grey leading-relaxed">
+                    Coded roadmaps for LeetCode progress and competitive programming milestones.
+                </p>
+</div>
+<div class="md:col-span-8 bg-sidebar-bg card-border rounded-card p-10 hover:shadow-custom transition-all flex flex-col justify-between">
+<div>
+<div class="w-14 h-14 bg-charcoal text-white rounded-button-sec flex items-center justify-center mb-6">
+<span class="material-symbols-outlined text-3xl">videocam</span>
+</div>
+<h3 class="text-2xl font-bold mb-4">AI Mock Interviews</h3>
+<p class="text-cool-grey max-w-md text-lg leading-relaxed">
+                        Practice system design and behavioral rounds with our LLM-powered interviewer.
+                    </p>
+</div>
+<div class="mt-8">
+<a class="inline-flex items-center gap-2 text-accent-text font-bold hover:gap-3 transition-all" href="#">
+                        Experience AI Interview <span class="material-symbols-outlined">arrow_forward</span>
+</a>
+</div>
+</div>
+</div>
+</div>
+</section>
+<footer class="bg-sidebar-bg border-t card-border py-16">
+<div class="max-w-7xl mx-auto px-6 grid grid-cols-1 md:grid-cols-4 gap-12">
+<div class="col-span-1 md:col-span-2">
+<div class="flex items-center gap-2 mb-6">
+<div class="w-8 h-8 bg-cta-blue rounded-lg flex items-center justify-center">
+<span class="material-symbols-outlined text-white text-[20px]">auto_awesome</span>
+</div>
+<span class="font-bold text-xl tracking-tight text-charcoal">SmartHire AI</span>
+</div>
+<p class="text-cool-grey max-w-xs mb-8 text-sm leading-relaxed">Precision-built tools for the next generation of engineers in India.</p>
+<div class="flex gap-4">
+<a class="w-10 h-10 rounded-full bg-white card-border flex items-center justify-center text-cool-grey hover:text-cta-blue shadow-sm transition-colors" href="#">
+<span class="material-symbols-outlined text-[20px]">language</span>
+</a>
+<a class="w-10 h-10 rounded-full bg-white card-border flex items-center justify-center text-cool-grey hover:text-cta-blue shadow-sm transition-colors" href="#">
+<span class="material-symbols-outlined text-[20px]">mail</span>
+</a>
+</div>
+</div>
+<div>
+<h5 class="font-bold text-charcoal mb-6 text-sm uppercase tracking-wider">Platform</h5>
+<ul class="space-y-4 text-cool-grey text-sm font-medium">
+<li><a class="hover:text-accent-text transition-colors" href="#">Resume Builder</a></li>
+<li><a class="hover:text-accent-text transition-colors" href="#">Mock Interviews</a></li>
+<li><a class="hover:text-accent-text transition-colors" href="#">Skill Gap Engine</a></li>
+<li><a class="hover:text-accent-text transition-colors" href="#">Company Guides</a></li>
+</ul>
+</div>
+<div>
+<h5 class="font-bold text-charcoal mb-6 text-sm uppercase tracking-wider">Company</h5>
+<ul class="space-y-4 text-cool-grey text-sm font-medium">
+<li><a class="hover:text-accent-text transition-colors" href="#">Our Mission</a></li>
+<li><a class="hover:text-accent-text transition-colors" href="#">Privacy Hub</a></li>
+<li><a class="hover:text-accent-text transition-colors" href="#">Support</a></li>
+<li><a class="hover:text-accent-text transition-colors" href="#">Partners</a></li>
+</ul>
+</div>
+</div>
+<div class="max-w-7xl mx-auto px-6 mt-12 pt-8 border-t card-border text-center text-cool-grey text-xs font-semibold">
+        © 2024 SmartHire AI. Accelerating Careers with Engineering Excellence.
+    </div>
+</footer>
+
+</body></html>

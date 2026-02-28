@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>SmartHire AI - Land Your Dream Tech Job. Faster.</title>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<style type="text/tailwindcss">
+        :root {
+            --page-bg: #F8F9FD;
+            --surface: #FFFFFF;
+            --sidebar-bg: #FAFAFE;
+            --border: rgba(148, 163, 184, 0.15);
+            --cta-blue: #3B82F6;
+            --sidebar-active: #8B5CF6;
+            --accent-indigo: #6366F1;
+            --heading-color: #1F2937;
+            --body-color: #6B7280;
+            --active-text: #4F46E5;--blue-glow: linear-gradient(105deg, #4F46E5 0%, #3B82F6 100%);
+            --sunset: linear-gradient(105deg, #F97316 0%, #FB923C 100%);
+            --emerald: linear-gradient(105deg, #10B981 0%, #34D399 100%);
+            --violet: linear-gradient(105deg, #8B5CF6 0%, #A78BFA 100%);--shadow-main: 0 10px 15px -3px rgba(148, 163, 184, 0.12), 0 4px 6px -2px rgba(148, 163, 184, 0.08);
+        }
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: var(--page-bg);
+            color: var(--body-color);
+        }
+        h1, h2, h3, h4, .font-display {
+            color: var(--heading-color);
+            font-weight: 800;
+        }
+        .custom-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 24px;
+            box-shadow: var(--shadow-main);
+        }
+        .btn-primary {
+            background-color: var(--cta-blue);
+            color: white;
+            border-radius: 100px;
+            transition: all 0.2s ease;
+        }
+        .btn-primary:hover {
+            opacity: 0.9;
+            transform: translateY(-1px);
+        }
+        .btn-secondary {
+            background-color: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            color: var(--heading-color);
+            transition: all 0.2s ease;
+        }
+        .mesh-header {
+            background: radial-gradient(ellipse at 20% 50%, #E0C3FC 0%, transparent 50%),
+                        radial-gradient(ellipse at 80% 20%, #FBC2EB 0%, transparent 50%),
+                        radial-gradient(ellipse at 60% 80%, #FFECD2 0%, transparent 40%),
+                        #FFFFFF;
+        }
+        .glass-nav {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--border);
+        }
+        .kpi-blue { background: var(--blue-glow); }
+        .kpi-orange { background: var(--sunset); }
+        .kpi-emerald { background: var(--emerald); }
+    </style>
+</head>
+<body class="antialiased">
+<nav class="fixed top-0 left-0 right-0 z-50 glass-nav">
+<div class="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
+<div class="flex items-center gap-2">
+<div class="w-10 h-10 bg-[var(--accent-indigo)] rounded-xl flex items-center justify-center">
+<span class="material-symbols-outlined text-white">bolt</span>
+</div>
+<span class="font-bold text-2xl tracking-tight text-[var(--heading-color)]">SmartHire AI</span>
+</div>
+<div class="hidden md:flex items-center gap-10 text-sm font-semibold">
+<a class="hover:text-[var(--active-text)] transition-colors" href="#">Features</a>
+<a class="hover:text-[var(--active-text)] transition-colors" href="#">Career Paths</a>
+<a class="hover:text-[var(--active-text)] transition-colors" href="#">Pricing</a>
+</div>
+<div class="flex items-center gap-6">
+<button class="text-sm font-bold text-[var(--heading-color)]">Log in</button>
+<button class="btn-primary px-8 py-3 text-sm font-bold shadow-lg shadow-blue-500/20">Get Started</button>
+</div>
+</div>
+</nav>
+<main class="pt-20">
+<header class="mesh-header pt-24 pb-16">
+<div class="max-w-5xl mx-auto px-6 text-center">
+<div class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/60 border border-white/40 text-[10px] uppercase tracking-widest font-extrabold text-[var(--accent-indigo)] mb-8 shadow-sm">
+<span class="flex h-2 w-2 rounded-full bg-[var(--accent-indigo)] animate-pulse"></span>
+                Freshman Fast-Track 2024
+            </div>
+<h1 class="text-5xl md:text-6xl font-extrabold leading-[1.1] mb-6 tracking-tight">
+                Land Your Dream Tech Job. <br/>
+<span class="text-[var(--accent-indigo)]">Zero Guesswork.</span>
+</h1>
+<p class="text-xl text-[var(--body-color)] mb-10 max-w-2xl mx-auto font-medium">
+                The all-in-one platform for Indian engineering freshers to optimize resumes, master DSA, and clear mock interviews.
+            </p>
+<div class="flex flex-col sm:flex-row gap-4 justify-center">
+<button class="btn-primary px-10 py-5 text-lg font-bold shadow-2xl shadow-blue-500/30">Start My Career Journey</button>
+</div>
+</div>
+</header>
+<section class="py-12 border-b border-[var(--border)] bg-[var(--surface)]">
+<div class="max-w-7xl mx-auto px-6">
+<h2 class="text-xs uppercase tracking-[0.2em] text-center mb-12 font-extrabold text-[var(--body-color)]">How It Works in 3 Simple Steps</h2>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-12">
+<div class="flex items-start gap-6">
+<div class="w-14 h-14 shrink-0 rounded-2xl bg-blue-50 flex items-center justify-center border border-blue-100">
+<span class="material-symbols-outlined text-[var(--cta-blue)] text-3xl">upload_file</span>
+</div>
+<div>
+<h3 class="text-lg font-bold mb-2">1. Upload Resume</h3>
+<p class="text-sm leading-relaxed">Our AI scans your resume against top Indian tech firm requirements instantly.</p>
+</div>
+</div>
+<div class="flex items-start gap-6">
+<div class="w-14 h-14 shrink-0 rounded-2xl bg-indigo-50 flex items-center justify-center border border-indigo-100">
+<span class="material-symbols-outlined text-[var(--accent-indigo)] text-3xl">ads_click</span>
+</div>
+<div>
+<h3 class="text-lg font-bold mb-2">2. Get Roadmap</h3>
+<p class="text-sm leading-relaxed">Receive a personalized skill gap analysis and step-by-step learning path.</p>
+</div>
+</div>
+<div class="flex items-start gap-6">
+<div class="w-14 h-14 shrink-0 rounded-2xl bg-purple-50 flex items-center justify-center border border-purple-100">
+<span class="material-symbols-outlined text-[var(--sidebar-active)] text-3xl">video_chat</span>
+</div>
+<div>
+<h3 class="text-lg font-bold mb-2">3. Practice Mock</h3>
+<p class="text-sm leading-relaxed">Simulate real technical interviews with AI feedback on your performance.</p>
+</div>
+</div>
+</div>
+</div>
+</section>
+<section class="py-16">
+<div class="max-w-7xl mx-auto px-6 grid grid-cols-1 md:grid-cols-3 gap-8">
+<div class="kpi-blue p-8 rounded-[24px] text-white shadow-xl">
+<p class="text-sm font-bold opacity-80 uppercase tracking-wider mb-2">Placement Rate</p>
+<h4 class="text-4xl font-extrabold">92%</h4>
+<div class="mt-4 h-1 w-full bg-white/20 rounded-full overflow-hidden">
+<div class="h-full bg-white w-[92%]"></div>
+</div>
+</div>
+<div class="kpi-orange p-8 rounded-[24px] text-white shadow-xl">
+<p class="text-sm font-bold opacity-80 uppercase tracking-wider mb-2">Students Placed</p>
+<h4 class="text-4xl font-extrabold">12,400+</h4>
+<p class="text-xs mt-4 font-medium">Across 150+ Top Tier Companies</p>
+</div>
+<div class="kpi-emerald p-8 rounded-[24px] text-white shadow-xl">
+<p class="text-sm font-bold opacity-80 uppercase tracking-wider mb-2">Avg. Package</p>
+<h4 class="text-4xl font-extrabold">₹18.5 LPA</h4>
+<p class="text-xs mt-4 font-medium">For Engineering Freshers</p>
+</div>
+</div>
+</section>
+<section class="py-20 bg-white">
+<div class="max-w-7xl mx-auto px-6">
+<div class="flex flex-col md:flex-row justify-between items-end mb-16 gap-6">
+<div class="max-w-xl">
+<h2 class="text-4xl font-extrabold mb-4">Precision Tools for Your Career.</h2>
+<p class="text-lg text-[var(--body-color)]">No fluff. Just the specific tools you need to beat the competition and secure high-paying offers.</p>
+</div>
+<button class="btn-secondary px-6 py-3 text-sm font-bold flex items-center gap-2">
+                    Explore All Features <span class="material-symbols-outlined text-sm">arrow_forward</span>
+</button>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-12 gap-8">
+<div class="md:col-span-7 custom-card p-10 flex flex-col justify-between">
+<div>
+<div class="w-12 h-12 bg-blue-50 text-[var(--cta-blue)] rounded-xl flex items-center justify-center mb-6">
+<span class="material-symbols-outlined">description</span>
+</div>
+<h3 class="text-2xl font-bold mb-4 text-[var(--heading-color)]">ATS Resume Optimizer</h3>
+<p class="text-[var(--body-color)] leading-relaxed mb-8">
+                            Most resumes never reach a human recruiter. Our AI engine optimizes your keywords and formatting to ensure you pass the 80% score threshold for MAANG and top Indian unicorns.
+                        </p>
+</div>
+<div class="bg-[var(--page-bg)] p-4 rounded-2xl border border-[var(--border)]">
+<div class="flex justify-between items-center mb-3">
+<span class="text-xs font-bold text-[var(--body-color)]">Optimization Progress</span>
+<span class="text-xs font-extrabold text-[var(--cta-blue)]">89% Match</span>
+</div>
+<div class="h-2 w-full bg-slate-200 rounded-full">
+<div class="h-full bg-[var(--cta-blue)] w-[89%] rounded-full"></div>
+</div>
+</div>
+</div>
+<div class="md:col-span-5 custom-card p-10">
+<div class="w-12 h-12 bg-indigo-50 text-[var(--accent-indigo)] rounded-xl flex items-center justify-center mb-6">
+<span class="material-symbols-outlined">analytics</span>
+</div>
+<h3 class="text-2xl font-bold mb-4 text-[var(--heading-color)]">Skill Gap Analysis</h3>
+<p class="text-[var(--body-color)] leading-relaxed mb-6">
+                        Know exactly what's missing. We compare your profile with successful hires in your target roles.
+                    </p>
+<ul class="space-y-4">
+<li class="flex items-center gap-3 text-sm font-semibold">
+<span class="material-symbols-outlined text-emerald-500">check_circle</span>
+                            System Design Basics
+                        </li>
+<li class="flex items-center gap-3 text-sm font-semibold">
+<span class="material-symbols-outlined text-emerald-500">check_circle</span>
+                            Advanced SQL
+                        </li>
+<li class="flex items-center gap-3 text-sm font-semibold text-orange-400">
+<span class="material-symbols-outlined">error</span>
+                            Dynamic Programming (Missing)
+                        </li>
+</ul>
+</div>
+</div>
+</div>
+</section>
+<section class="py-24 bg-[var(--page-bg)]">
+<div class="max-w-4xl mx-auto px-6 text-center">
+<h2 class="text-4xl font-extrabold mb-12">Invest in Your Future.</h2>
+<div class="grid md:grid-cols-2 gap-8 text-left">
+<div class="custom-card p-10 bg-white">
+<h4 class="text-xl font-bold mb-2">Free Starter</h4>
+<p class="text-sm text-[var(--body-color)] mb-8">Perfect for exploring the basics.</p>
+<div class="text-4xl font-extrabold mb-8">₹0</div>
+<ul class="space-y-4 mb-10">
+<li class="flex items-center gap-3 text-sm font-medium">
+<span class="material-symbols-outlined text-[var(--cta-blue)]">check</span>
+                            1 ATS Resume Scan
+                        </li>
+<li class="flex items-center gap-3 text-sm font-medium">
+<span class="material-symbols-outlined text-[var(--cta-blue)]">check</span>
+                            Basic Career Roadmap
+                        </li>
+</ul>
+<button class="w-full btn-secondary py-4 font-bold">Get Started Free</button>
+</div>
+<div class="custom-card p-10 bg-white ring-2 ring-[var(--cta-blue)] relative">
+<div class="absolute -top-4 left-1/2 -translate-x-1/2 bg-[var(--cta-blue)] text-white px-4 py-1 rounded-full text-[10px] font-black uppercase tracking-widest">Most Popular</div>
+<h4 class="text-xl font-bold mb-2">Pro Accelerator</h4>
+<p class="text-sm text-[var(--body-color)] mb-8">Everything you need to get hired.</p>
+<div class="text-4xl font-extrabold mb-8">₹499 <span class="text-lg font-medium text-[var(--body-color)]">/mo</span></div>
+<ul class="space-y-4 mb-10">
+<li class="flex items-center gap-3 text-sm font-medium">
+<span class="material-symbols-outlined text-[var(--cta-blue)]">check</span>
+                            Unlimited Resume Scans
+                        </li>
+<li class="flex items-center gap-3 text-sm font-medium">
+<span class="material-symbols-outlined text-[var(--cta-blue)]">check</span>
+                            Unlimited AI Mock Interviews
+                        </li>
+<li class="flex items-center gap-3 text-sm font-medium">
+<span class="material-symbols-outlined text-[var(--cta-blue)]">check</span>
+                            Priority Mentorship Access
+                        </li>
+</ul>
+<button class="w-full btn-primary py-4 font-bold shadow-xl shadow-blue-500/20">Go Pro Now</button>
+</div>
+</div>
+</div>
+</section>
+</main>
+<footer class="bg-white border-t border-[var(--border)] py-16">
+<div class="max-w-7xl mx-auto px-6 grid grid-cols-1 md:grid-cols-4 gap-12">
+<div class="md:col-span-2">
+<div class="flex items-center gap-2 mb-6">
+<div class="w-8 h-8 bg-[var(--accent-indigo)] rounded-lg flex items-center justify-center">
+<span class="material-symbols-outlined text-white text-sm">bolt</span>
+</div>
+<span class="font-bold text-xl tracking-tight text-[var(--heading-color)]">SmartHire AI</span>
+</div>
+<p class="max-w-sm mb-8 font-medium">Empowering the next generation of Indian engineers with high-precision career growth tools.</p>
+<div class="flex gap-4">
+<a class="w-10 h-10 rounded-full bg-[var(--page-bg)] flex items-center justify-center text-[var(--body-color)] hover:text-[var(--cta-blue)] transition-colors" href="#">
+<span class="material-symbols-outlined text-xl">language</span>
+</a>
+<a class="w-10 h-10 rounded-full bg-[var(--page-bg)] flex items-center justify-center text-[var(--body-color)] hover:text-[var(--cta-blue)] transition-colors" href="#">
+<span class="material-symbols-outlined text-xl">mail</span>
+</a>
+</div>
+</div>
+<div>
+<h5 class="font-extrabold text-[var(--heading-color)] mb-6">Platform</h5>
+<ul class="space-y-4 text-sm font-medium">
+<li><a class="hover:text-[var(--active-text)]" href="#">Resume Builder</a></li>
+<li><a class="hover:text-[var(--active-text)]" href="#">Mock Interviews</a></li>
+<li><a class="hover:text-[var(--active-text)]" href="#">Skill Analysis</a></li>
+<li><a class="hover:text-[var(--active-text)]" href="#">Roadmaps</a></li>
+</ul>
+</div>
+<div>
+<h5 class="font-extrabold text-[var(--heading-color)] mb-6">Company</h5>
+<ul class="space-y-4 text-sm font-medium">
+<li><a class="hover:text-[var(--active-text)]" href="#">About Us</a></li>
+<li><a class="hover:text-[var(--active-text)]" href="#">Contact</a></li>
+<li><a class="hover:text-[var(--active-text)]" href="#">Privacy Policy</a></li>
+<li><a class="hover:text-[var(--active-text)]" href="#">Terms</a></li>
+</ul>
+</div>
+</div>
+<div class="max-w-7xl mx-auto px-6 mt-16 pt-8 border-t border-[var(--border)] text-center text-xs font-bold text-[var(--body-color)]">
+        © 2024 SmartHire AI. For the focused engineers of tomorrow.
+    </div>
+</footer>
+
+</body></html>
