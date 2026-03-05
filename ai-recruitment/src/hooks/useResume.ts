@@ -14,7 +14,7 @@ export function useResumes() {
     "/api/v1/resumes",
     async () => {
       const raw = await resumesApi.list();
-      return raw.map(adaptResumeVersion);
+      return (raw as unknown as Record<string, unknown>[]).map(adaptResumeVersion);
     }
   );
 

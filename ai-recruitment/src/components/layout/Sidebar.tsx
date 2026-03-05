@@ -10,6 +10,7 @@ import {
   GraduationCap,
   User,
   Target,
+  Plug2,
 } from "lucide-react";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -23,6 +24,7 @@ const navItems = [
   { href: "/roadmap", label: "Career Path", icon: GraduationCap },
   { href: "/skills", label: "Skill Gap", icon: Target },
   { href: "/profile", label: "Profile", icon: User },
+  { href: "/integrations", label: "Integrations", icon: Plug2 },
 ];
 
 export function Sidebar() {

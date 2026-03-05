@@ -3,63 +3,66 @@ import {
   withAuth,
   AuthenticatedRequest,
 } from "@/lib/auth-middleware";
-import { requireAuth } from "@/lib/insforge-server";
+import { prisma } from "@/lib/db";
 
 export async function GET(req: AuthenticatedRequest) {
   return withAuth(req, async (authedReq) => {
-    const candidateId = authedReq.user!.candidateId ?? authedReq.user!.id;
+    const userEmail = authedReq.user!.email;
 
-    const { client } = await requireAuth();
-
-    const { data: resumes, error } = await client.database
-      .from("resumes")
-      .select("*")
-      .eq("candidate_id", candidateId)
-      .order("created_at", { ascending: false });
-
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+    if (!userEmail) {
+      return NextResponse.json({ error: "No email associated with session" }, { status: 400 });
     }
 
-    const result = await Promise.all(
-      (resumes ?? []).map(async (r) => {
-        const [{ data: atsRow }, { data: improvements }] = await Promise.all([
-          client.database
-            .from("ats_scores")
-            .select("overall_score")
-            .eq("resume_id", r.id)
-            .is("job_id", null)
-            .order("created_at", { ascending: false })
-            .limit(1)
-            .maybeSingle(),
-          client.database
-            .from("resume_improvements")
-            .select("*")
-            .eq("resume_id", r.id)
-            .is("job_id", null),
-        ]);
-        const score = atsRow?.overall_score ?? null;
-        const suggestions = (improvements ?? []).map((s: Record<string, unknown>) => ({
+    try {
+      const user = await prisma.user.findUnique({
+        where: { email: userEmail },
+      });
+
+      if (!user) {
+        return NextResponse.json({ error: "Candidate not found" }, { status: 404 });
+      }
+
+      const resumes = await prisma.resumeVersion.findMany({
+        where: { userId: user.id },
+        orderBy: { createdAt: "desc" },
+        include: {
+          suggestions: true,
+        },
+      });
+
+      type ResumeWithSuggestions = {
+        id: string; title: string; fileUrl: string | null; roleTarget: string | null;
+        atsScore: number | null; status: string; updatedAt: Date;
+        suggestions?: { id: string; type: string; section: string; title: string; description: string; applied: boolean }[];
+      };
+
+      const result = resumes.map((r: unknown) => {
+        const rv = r as ResumeWithSuggestions;
+        const suggestions = (rv.suggestions ?? []).map((s) => ({
           id: s.id,
-          type: s.type ?? "IMPROVEMENT",
-          section: s.section ?? "",
-          title: s.explanation ?? s.suggested_text ?? "",
-          description: s.explanation ?? "",
-          applied: false,
+          type: s.type,
+          section: s.section,
+          title: s.title,
+          description: s.description,
+          applied: s.applied,
         }));
+
         return {
-          id: r.id,
-          title: r.file_name,
-          fileUrl: r.file_url,
-          roleTarget: null,
-          atsScore: score,
-          status: r.parse_status === "DONE" ? "ACTIVE" : r.parse_status ?? "PENDING",
-          updatedAt: r.created_at,
+          id: rv.id,
+          title: rv.title,
+          fileUrl: rv.fileUrl,
+          roleTarget: rv.roleTarget,
+          atsScore: rv.atsScore,
+          status: rv.status,
+          updatedAt: rv.updatedAt.toISOString(),
           suggestions,
         };
-      })
-    );
+      });
 
-    return NextResponse.json(result);
+      return NextResponse.json(result);
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : "Server error";
+      return NextResponse.json({ error: msg }, { status: 500 });
+    }
   });
 }

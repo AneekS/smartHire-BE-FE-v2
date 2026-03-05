@@ -21,7 +21,7 @@ export function useInterviews() {
     "/api/v1/interviews/mock",
     async () => {
       const raw = await interviewsApi.list();
-      return raw.map((s) => adaptInterview(s as Record<string, unknown>));
+      return (raw as unknown as Record<string, unknown>[]).map(adaptInterview);
     }
   );
 
@@ -48,7 +48,7 @@ export function useInterviewSession() {
           target_role: targetRole,
           session_type: sessionType,
         });
-        const session = adaptInterview(raw as Record<string, unknown>);
+        const session = adaptInterview(raw as unknown as Record<string, unknown>);
         setCurrentSession(session);
         setTranscript([]);
         await mutate();

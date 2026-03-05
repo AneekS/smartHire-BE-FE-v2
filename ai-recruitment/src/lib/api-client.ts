@@ -25,6 +25,101 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
+export interface EducationRecord {
+  id?:         string;
+  school:      string;
+  degree:      string;
+  field:       string;
+  startYear:   string;
+  endYear?:    string | null;
+  isCurrent?:  boolean;
+  cgpa?:       string | null;
+  description?: string | null;
+}
+
+export interface ExperienceRecord {
+  id?:            string;
+  company:        string;
+  jobTitle:       string;
+  employmentType?: string | null;
+  location?:      string | null;
+  startDate:      string;
+  endDate?:       string | null;
+  isCurrent?:     boolean;
+  description?:   string | null;
+  achievements?:  string[];
+  technologies?:  string[];
+}
+
+export interface SkillRecord {
+  id?:         string;
+  name:        string;
+  level?:      string;
+  category?:   string | null;
+  isSoftSkill?: boolean;
+}
+
+export interface ProjectRecord {
+  id?:          string;
+  title:        string;
+  description?: string | null;
+  technologies?: string[];
+  repoUrl?:     string | null;
+  demoUrl?:     string | null;
+  teamRole?:    string | null;
+  startDate?:   string | null;
+  endDate?:     string | null;
+  isCurrent?:   boolean;
+}
+
+export interface CertificationRecord {
+  id?:           string;
+  name:          string;
+  issuer:        string;
+  issueDate?:    string | null;
+  expiryDate?:   string | null;
+  credentialId?: string | null;
+  credentialUrl?: string | null;
+}
+
+export interface CareerPreference {
+  id?:                  string;
+  preferredRoles?:      string[];
+  preferredIndustries?: string[];
+  preferredLocations?:  string[];
+  workMode?:            string | null;
+  salaryMin?:           number | null;
+  salaryMax?:           number | null;
+  currency?:            string;
+  openToRelocation?:    boolean;
+}
+
+export interface ProfilePrivacy {
+  id?:                 string;
+  isPublic?:           boolean;
+  visibleToRecruiters?: boolean;
+  anonymousMode?:      boolean;
+  hideContactInfo?:    boolean;
+}
+
+export interface AIInsights {
+  extractedSkills?:            string[];
+  experienceSummary?:          string | null;
+  careerLevel?:                string | null;
+  roleReadinessScore?:         number | null;
+  skillStrengthDistribution?:  Record<string, number>;
+  suggestedImprovements?:      string[];
+  lastAnalyzedAt?:             string | null;
+}
+
+export interface ReputationData {
+  interviewPerformance?:    number;
+  recruiterFeedback?:       number;
+  assessmentCompletionRate?: number;
+  responseRate?:            number;
+  overallScore?:            number;
+}
+
 export interface CandidateProfile {
   id: string;
   name: string | null;
@@ -34,19 +129,51 @@ export interface CandidateProfile {
   phone: string | null;
   location: string | null;
   city?: string | null;
+  country?: string | null;
   state?: string | null;
+  photoUrl?: string | null;
+  avatarUrl?: string | null;           // user-uploaded avatar
   school?: string | null;
   graduationYear?: string | null;
   linkedInUrl?: string | null;
   githubUrl?: string | null;
   websiteUrl?: string | null;
+  summary?: string | null;
+  // Advanced identity
+  availability?: string | null;
+  workAuthorization?: string | null;
+  openToFreelance?: boolean;
+  internshipInterest?: boolean;
+  languagesSpoken?: string[];
+  // Preferences
   preferredRoles?: string[];
   salaryExpectationMin?: number | null;
   salaryExpectationMax?: number | null;
   visibility?: string;
+  // Scores
   reputationScore?: number;
   technicalScore?: number;
   softScore?: number;
+  // Settings
+  jobAlerts?: boolean;
+  aiSuggestions?: boolean;
+  publicProfile?: boolean;
+  // Verification
+  emailVerified?: boolean;
+  phoneVerified?: boolean;
+  // Profile state
+  profileCompleteness?: number;
+  resumeUrl?: string | null;
+  // Relations
+  educations?: EducationRecord[];
+  skillRecords?: SkillRecord[];
+  experiences?: ExperienceRecord[];
+  projects?: ProjectRecord[];
+  certifications?: CertificationRecord[];
+  careerPreference?: CareerPreference | null;
+  privacy?: ProfilePrivacy | null;
+  aiInsights?: AIInsights | null;
+  reputation?: ReputationData | null;
 }
 
 export interface ResumeVersion {
@@ -130,6 +257,37 @@ export interface SkillGapResult {
   summary?: string;
 }
 
+// ─── Connected Accounts ────────────────────────────────────────────────────
+
+export type AccountProvider =
+  | "GITHUB"
+  | "LINKEDIN"
+  | "GOOGLE"
+  | "HUBSPOT"
+  | "SLACK"
+  | "ZOOM"
+  | "PORTFOLIO"
+  | "WEBSITE"
+  | "TWITTER"
+  | "KAGGLE"
+  | "LEETCODE";
+
+export interface ConnectedAccount {
+  id:              string;
+  candidateId:     string;
+  provider:        AccountProvider;
+  username?:       string | null;
+  profileUrl:      string | null;
+  isOAuth:         boolean;
+  accessToken?:    string | null;
+  refreshToken?:   string | null;
+  tokenExpiresAt?: string | null;
+  scopes?:         string[];
+  metadata?:       Record<string, unknown> | null;
+  createdAt:       string;
+  updatedAt:       string;
+}
+
 // ─── Auth ─────────────────────────────────────────────────────────────────
 
 export const authApi = {
@@ -155,6 +313,81 @@ export const candidatesApi = {
     request<Record<string, unknown>>("/candidates/profile", {
       method: "PATCH",
       body: JSON.stringify(data),
+    }),
+};
+
+// ─── Avatar ───────────────────────────────────────────────────────────────
+
+export const avatarApi = {
+  upload: (file: File): Promise<{ avatarUrl: string }> => {
+    const form = new FormData();
+    form.append("file", file);
+    return fetch(`${BASE}/profile/avatar`, {
+      method: "POST",
+      credentials: "include",
+      body: form,
+    }).then(async (r) => {
+      if (!r.ok) {
+        const err = await r.json().catch(() => ({}));
+        throw new Error((err as { error?: string }).error || `HTTP ${r.status}`);
+      }
+      return r.json();
+    });
+  },
+
+  remove: (): Promise<{ ok: boolean }> =>
+    request<{ ok: boolean }>("/profile/avatar", { method: "DELETE" }),
+};
+
+// ─── Connected Accounts ──────────────────────────────────────────────────────
+
+export const connectedAccountsApi = {
+  list: () => request<ConnectedAccount[]>("/profile/connected-accounts"),
+
+  upsert: (data: {
+    provider: AccountProvider;
+    profileUrl: string;
+    username?: string;
+    isOAuth?: boolean;
+  }) =>
+    request<ConnectedAccount>("/profile/connected-accounts", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+
+  remove: (provider: AccountProvider) =>
+    request<{ ok: boolean }>(`/profile/connected-accounts?provider=${provider}`, {
+      method: "DELETE",
+    }),
+};
+
+// ─── Integrations (OAuth-backed connections) ─────────────────────────────────
+// These routes live at /api/integrations/* (NOT under /api/v1)
+
+export const integrationsApi = {
+  /** Returns the provider's OAuth authorization URL; redirect the user to it. */
+  getOAuthUrl: (provider: AccountProvider): Promise<{ url: string }> =>
+    fetch(`/api/integrations/oauth-url?provider=${provider}`, {
+      credentials: "include",
+    }).then(async (r) => {
+      if (!r.ok) {
+        const err = await r.json().catch(() => ({}));
+        throw new Error((err as { error?: string }).error || `HTTP ${r.status}`);
+      }
+      return r.json();
+    }),
+
+  /** Removes a connected OAuth integration. */
+  disconnect: (provider: AccountProvider): Promise<{ ok: boolean }> =>
+    fetch(`/api/integrations/disconnect?provider=${provider}`, {
+      method: "DELETE",
+      credentials: "include",
+    }).then(async (r) => {
+      if (!r.ok) {
+        const err = await r.json().catch(() => ({}));
+        throw new Error((err as { error?: string }).error || `HTTP ${r.status}`);
+      }
+      return r.json();
     }),
 };
 

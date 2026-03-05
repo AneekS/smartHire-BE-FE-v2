@@ -36,7 +36,6 @@ export async function POST(req: NextRequest) {
   if (!token) {
     return NextResponse.json({
       user: result.data.user,
-      requireEmailVerification: result.data.requireEmailVerification,
     });
   }
 
