@@ -3,6 +3,8 @@ import { PrismaPg } from "@prisma/adapter-pg";
 
 const globalForPrisma = globalThis as unknown as { prisma: PrismaClient | undefined };
 
+import { Pool } from 'pg';
+
 function createPrismaClient(): PrismaClient {
   if (!process.env.DATABASE_URL) {
     console.error("DATABASE_URL missing at runtime");
@@ -12,7 +14,8 @@ function createPrismaClient(): PrismaClient {
   if (!connectionString) {
     throw new Error("DATABASE_URL is not set");
   }
-  const adapter = new PrismaPg({ connectionString });
+  const pool = new Pool({ connectionString });
+  const adapter = new PrismaPg(pool);
   return new PrismaClient({
     adapter,
     log:

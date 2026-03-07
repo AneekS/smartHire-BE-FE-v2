@@ -27,16 +27,16 @@ export async function GET(req: AuthenticatedRequest) {
 
     try {
       const PROFILE_INCLUDE = {
-        educations:       { orderBy: { order: "asc" as const } },
-        skillRecords:     { orderBy: { createdAt: "asc" as const } },
-        experiences:      { orderBy: { order: "asc" as const } },
-        projects:         { orderBy: { order: "asc" as const } },
-        certifications:   { orderBy: { createdAt: "asc" as const } },
+        educations: { orderBy: { order: "asc" as const } },
+        skillRecords: { orderBy: { createdAt: "asc" as const } },
+        experiences: { orderBy: { order: "asc" as const } },
+        projects: { orderBy: { order: "asc" as const } },
+        certifications: { orderBy: { createdAt: "asc" as const } },
         careerPreference: true,
-        privacy:          true,
-        aiInsights:       true,
-        reputation:       true,
-        user:             true,
+        privacy: true,
+        aiInsights: true,
+        reputation: true,
+        user: true,
       } as const;
 
       let candidate = await prisma.candidate.findUnique({
@@ -45,12 +45,11 @@ export async function GET(req: AuthenticatedRequest) {
       });
 
       if (!candidate) {
-        const user = await prisma.user.findUnique({ where: { email: userEmail } });
+        let user = await prisma.user.findUnique({ where: { email: userEmail } });
         if (!user) {
-          return NextResponse.json(
-            { error: "Candidate profile not found" },
-            { status: 404 }
-          );
+          user = await prisma.user.create({
+            data: { email: userEmail, name: "Unknown" }
+          });
         }
         candidate = await prisma.candidate.create({
           data: {
@@ -100,8 +99,12 @@ export async function PATCH(req: AuthenticatedRequest) {
         });
 
         if (!candidate) {
-          const user = await tx.user.findUnique({ where: { email: userEmail } });
-          if (!user) throw new Error("User not found");
+          let user = await tx.user.findUnique({ where: { email: userEmail } });
+          if (!user) {
+            user = await tx.user.create({
+              data: { email: userEmail, name: updateData.name || "Unknown" }
+            });
+          }
           candidate = await tx.candidate.create({
             data: {
               userId: user.id,

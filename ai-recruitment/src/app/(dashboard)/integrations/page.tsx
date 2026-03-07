@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { CheckCircle2, Plug2 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -58,7 +58,7 @@ function ErrorBanner({ message, onDismiss }: { message: string; onDismiss: () =>
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
-export default function IntegrationsPage() {
+function IntegrationsContent() {
   const searchParams = useSearchParams();
   const { accounts, connect, disconnect, getAccount, isLoading } = useConnectedAccounts();
 
@@ -69,7 +69,7 @@ export default function IntegrationsPage() {
   // Show success banner when redirected back from OAuth
   useEffect(() => {
     const connected = searchParams.get("connected");
-    const error     = searchParams.get("error");
+    const error = searchParams.get("error");
     if (connected) {
       setSuccessProvider(connected);
       // Clean the URL silently
@@ -78,9 +78,9 @@ export default function IntegrationsPage() {
     if (error) {
       const messages: Record<string, string> = {
         unknown_provider: "Unknown provider — OAuth not supported.",
-        missing_params:   "OAuth response was incomplete. Please try again.",
-        invalid_state:    "Session expired. Please try again.",
-        callback_failed:  "Connection failed on the provider's side. Please try again.",
+        missing_params: "OAuth response was incomplete. Please try again.",
+        invalid_state: "Session expired. Please try again.",
+        callback_failed: "Connection failed on the provider's side. Please try again.",
       };
       setErrorMsg(messages[error] ?? `OAuth error: ${error}`);
       window.history.replaceState({}, "", "/integrations");
@@ -110,13 +110,13 @@ export default function IntegrationsPage() {
       // Manual type — values come from the IntegrationCard inline form
       if (!values) return;
       const profileUrl = values.profileUrl ?? values.url ?? "";
-      const username   = values.username ?? values.handle ?? values.leetcodeUsername ?? values.kaggleUsername ?? "";
+      const username = values.username ?? values.handle ?? values.leetcodeUsername ?? values.kaggleUsername ?? "";
 
       await connect({
-        provider:   config.id as AccountProvider,
+        provider: config.id as AccountProvider,
         profileUrl,
-        username:   username || undefined,
-        isOAuth:    false,
+        username: username || undefined,
+        isOAuth: false,
       });
     },
     [connect]
@@ -138,7 +138,7 @@ export default function IntegrationsPage() {
   );
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 p-6 lg:p-8">
+    <>
       {/* ─── Header ────────────────────────────────────────────────────────── */}
       <div className="mb-8">
         <div className="flex items-center gap-3 mb-2">
@@ -261,6 +261,16 @@ export default function IntegrationsPage() {
       <p className="mt-10 text-center text-xs text-slate-400 dark:text-slate-600">
         Your credentials are stored securely and never shared without your permission.
       </p>
+    </>
+  );
+}
+
+export default function IntegrationsPage() {
+  return (
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 p-6 lg:p-8">
+      <Suspense fallback={<div className="animate-pulse h-96 bg-slate-100 dark:bg-slate-900 rounded-2xl" />}>
+        <IntegrationsContent />
+      </Suspense>
     </div>
   );
 }

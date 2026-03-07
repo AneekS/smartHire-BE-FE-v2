@@ -6,7 +6,8 @@
 const BASE = "/api/v1";
 
 async function request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
-  const res = await fetch(`${BASE}${endpoint}`, {
+  const url = endpoint.startsWith("/api/") ? endpoint : `${BASE}${endpoint}`;
+  const res = await fetch(url, {
     headers: {
       "Content-Type": "application/json",
       ...options.headers,
@@ -26,98 +27,98 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
 // ─── Types ─────────────────────────────────────────────────────────────────
 
 export interface EducationRecord {
-  id?:         string;
-  school:      string;
-  degree:      string;
-  field:       string;
-  startYear:   string;
-  endYear?:    string | null;
-  isCurrent?:  boolean;
-  cgpa?:       string | null;
+  id?: string;
+  school: string;
+  degree: string;
+  field: string;
+  startYear: string;
+  endYear?: string | null;
+  isCurrent?: boolean;
+  cgpa?: string | null;
   description?: string | null;
 }
 
 export interface ExperienceRecord {
-  id?:            string;
-  company:        string;
-  jobTitle:       string;
+  id?: string;
+  company: string;
+  jobTitle: string;
   employmentType?: string | null;
-  location?:      string | null;
-  startDate:      string;
-  endDate?:       string | null;
-  isCurrent?:     boolean;
-  description?:   string | null;
-  achievements?:  string[];
-  technologies?:  string[];
+  location?: string | null;
+  startDate: string;
+  endDate?: string | null;
+  isCurrent?: boolean;
+  description?: string | null;
+  achievements?: string[];
+  technologies?: string[];
 }
 
 export interface SkillRecord {
-  id?:         string;
-  name:        string;
-  level?:      string;
-  category?:   string | null;
+  id?: string;
+  name: string;
+  level?: string;
+  category?: string | null;
   isSoftSkill?: boolean;
 }
 
 export interface ProjectRecord {
-  id?:          string;
-  title:        string;
+  id?: string;
+  title: string;
   description?: string | null;
   technologies?: string[];
-  repoUrl?:     string | null;
-  demoUrl?:     string | null;
-  teamRole?:    string | null;
-  startDate?:   string | null;
-  endDate?:     string | null;
-  isCurrent?:   boolean;
+  repoUrl?: string | null;
+  demoUrl?: string | null;
+  teamRole?: string | null;
+  startDate?: string | null;
+  endDate?: string | null;
+  isCurrent?: boolean;
 }
 
 export interface CertificationRecord {
-  id?:           string;
-  name:          string;
-  issuer:        string;
-  issueDate?:    string | null;
-  expiryDate?:   string | null;
+  id?: string;
+  name: string;
+  issuer: string;
+  issueDate?: string | null;
+  expiryDate?: string | null;
   credentialId?: string | null;
   credentialUrl?: string | null;
 }
 
 export interface CareerPreference {
-  id?:                  string;
-  preferredRoles?:      string[];
+  id?: string;
+  preferredRoles?: string[];
   preferredIndustries?: string[];
-  preferredLocations?:  string[];
-  workMode?:            string | null;
-  salaryMin?:           number | null;
-  salaryMax?:           number | null;
-  currency?:            string;
-  openToRelocation?:    boolean;
+  preferredLocations?: string[];
+  workMode?: string | null;
+  salaryMin?: number | null;
+  salaryMax?: number | null;
+  currency?: string;
+  openToRelocation?: boolean;
 }
 
 export interface ProfilePrivacy {
-  id?:                 string;
-  isPublic?:           boolean;
+  id?: string;
+  isPublic?: boolean;
   visibleToRecruiters?: boolean;
-  anonymousMode?:      boolean;
-  hideContactInfo?:    boolean;
+  anonymousMode?: boolean;
+  hideContactInfo?: boolean;
 }
 
 export interface AIInsights {
-  extractedSkills?:            string[];
-  experienceSummary?:          string | null;
-  careerLevel?:                string | null;
-  roleReadinessScore?:         number | null;
-  skillStrengthDistribution?:  Record<string, number>;
-  suggestedImprovements?:      string[];
-  lastAnalyzedAt?:             string | null;
+  extractedSkills?: string[];
+  experienceSummary?: string | null;
+  careerLevel?: string | null;
+  roleReadinessScore?: number | null;
+  skillStrengthDistribution?: Record<string, number>;
+  suggestedImprovements?: string[];
+  lastAnalyzedAt?: string | null;
 }
 
 export interface ReputationData {
-  interviewPerformance?:    number;
-  recruiterFeedback?:       number;
+  interviewPerformance?: number;
+  recruiterFeedback?: number;
   assessmentCompletionRate?: number;
-  responseRate?:            number;
-  overallScore?:            number;
+  responseRate?: number;
+  overallScore?: number;
 }
 
 export interface CandidateProfile {
@@ -273,19 +274,19 @@ export type AccountProvider =
   | "LEETCODE";
 
 export interface ConnectedAccount {
-  id:              string;
-  candidateId:     string;
-  provider:        AccountProvider;
-  username?:       string | null;
-  profileUrl:      string | null;
-  isOAuth:         boolean;
-  accessToken?:    string | null;
-  refreshToken?:   string | null;
+  id: string;
+  candidateId: string;
+  provider: AccountProvider;
+  username?: string | null;
+  profileUrl: string | null;
+  isOAuth: boolean;
+  accessToken?: string | null;
+  refreshToken?: string | null;
   tokenExpiresAt?: string | null;
-  scopes?:         string[];
-  metadata?:       Record<string, unknown> | null;
-  createdAt:       string;
-  updatedAt:       string;
+  scopes?: string[];
+  metadata?: Record<string, unknown> | null;
+  createdAt: string;
+  updatedAt: string;
 }
 
 // ─── Auth ─────────────────────────────────────────────────────────────────
@@ -322,7 +323,7 @@ export const avatarApi = {
   upload: (file: File): Promise<{ avatarUrl: string }> => {
     const form = new FormData();
     form.append("file", file);
-    return fetch(`${BASE}/profile/avatar`, {
+    return fetch(`/api/profile/avatar`, {
       method: "POST",
       credentials: "include",
       body: form,
@@ -336,13 +337,13 @@ export const avatarApi = {
   },
 
   remove: (): Promise<{ ok: boolean }> =>
-    request<{ ok: boolean }>("/profile/avatar", { method: "DELETE" }),
+    request<{ ok: boolean }>("/api/profile/avatar", { method: "DELETE" }),
 };
 
 // ─── Connected Accounts ──────────────────────────────────────────────────────
 
 export const connectedAccountsApi = {
-  list: () => request<ConnectedAccount[]>("/profile/connected-accounts"),
+  list: () => request<ConnectedAccount[]>("/api/profile/connected-accounts"),
 
   upsert: (data: {
     provider: AccountProvider;
@@ -350,13 +351,13 @@ export const connectedAccountsApi = {
     username?: string;
     isOAuth?: boolean;
   }) =>
-    request<ConnectedAccount>("/profile/connected-accounts", {
+    request<ConnectedAccount>("/api/profile/connected-accounts", {
       method: "POST",
       body: JSON.stringify(data),
     }),
 
   remove: (provider: AccountProvider) =>
-    request<{ ok: boolean }>(`/profile/connected-accounts?provider=${provider}`, {
+    request<{ ok: boolean }>(`/api/profile/connected-accounts?provider=${provider}`, {
       method: "DELETE",
     }),
 };
