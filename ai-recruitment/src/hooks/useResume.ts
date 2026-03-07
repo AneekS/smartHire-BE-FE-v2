@@ -23,11 +23,30 @@ export function useResumes() {
       const formData = new FormData();
       formData.append("resume", file);
       const result = (await resumesApi.upload(formData)) as ResumeUploadResponse;
-      toast.success("Resume uploaded and analyzed");
+      toast.success("Resume uploaded successfully");
       await mutate();
       return result;
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Upload failed");
+      throw e;
+    }
+  };
+
+  const analyzeResume = async (resumeId: string): Promise<void> => {
+    try {
+      const res = await fetch("/api/v1/resumes/analyze", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ resumeId }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Analysis failed");
+      }
+      toast.success("AI Analysis complete!");
+      await mutate();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Analysis failed");
       throw e;
     }
   };
@@ -37,6 +56,7 @@ export function useResumes() {
     isLoading,
     error,
     uploadResume,
+    analyzeResume,
     mutate,
   };
 }

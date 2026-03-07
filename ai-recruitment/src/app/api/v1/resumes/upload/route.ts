@@ -47,40 +47,25 @@ export async function POST(req: AuthenticatedRequest) {
 
       // Deactivate all previous resumes
       await prisma.resumeVersion.updateMany({
-        where: { userId: candidate.userId! },
+        where: { userId: candidate.user!.id },
         data: { status: "DRAFT" }
       });
 
       // Create new ResumeVersion
       const resume = await prisma.resumeVersion.create({
         data: {
-          userId: candidate.userId!,
+          userId: candidate.user!.id,
           title: file.name,
           fileUrl: fileUrl,
-          status: "ACTIVE",
-          atsScore: 75,
+          status: "DRAFT",
+          atsScore: null,
         }
       });
-
-      // Simulate extraction/parsing since old services expect dropped supabase tables
-      const parsed = {
-        name: candidate.name,
-        email: candidate.email,
-        experience: [],
-        education: [],
-        skills: [],
-      };
-
-      const score = 75;
-      const suggestionsCount = 0;
 
       return NextResponse.json(
         {
           resume: { id: resume.id, file_name: resume.title, created_at: resume.createdAt },
-          parsed,
-          ats_score: score,
-          suggestions_count: suggestionsCount,
-          message: "Resume uploaded successfully (Analysis simulated)",
+          message: "Resume uploaded successfully, ready for analysis",
         },
         { status: 201 }
       );
