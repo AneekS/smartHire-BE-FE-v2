@@ -1,28 +1,42 @@
 "use client";
 
 import useSWR from "swr";
+import useSWRInfinite from "swr/infinite";
 import { toast } from "sonner";
 import { jobsApi, type Job, type JobSearchParams } from "@/lib/api-client";
 
-export function useJobs(params?: JobSearchParams | null) {
-  const hasParams =
-    params &&
-    (params.role || params.location || params.skills || params.experience);
-  const key = hasParams
-    ? ["/api/v1/jobs/search", JSON.stringify(params)]
-    : "/api/v1/jobs";
+type Page = { jobs: Job[]; nextCursor: string | null };
 
-  const { data, error, isLoading, mutate } = useSWR(
-    key,
-    async () => {
-      if (hasParams && params) {
-        const res = await jobsApi.search(params);
-        return res.jobs ?? [];
-      }
-      const res = await jobsApi.list();
-      return res.jobs ?? [];
-    }
+export function useJobs(params?: JobSearchParams | null) {
+  const getKey = (pageIndex: number, previousPageData: Page | null) => {
+    if (previousPageData && !previousPageData.nextCursor) return null;
+    const cursor = pageIndex === 0 ? undefined : previousPageData?.nextCursor ?? undefined;
+    return ["/api/jobs/search", JSON.stringify({ ...(params ?? {}), cursor })] as const;
+  };
+
+  const {
+    data,
+    error,
+    isLoading,
+    mutate,
+    size,
+    setSize,
+    isValidating,
+  } = useSWRInfinite<Page>(
+    getKey,
+    async ([, keyParams]) => jobsApi.search(JSON.parse(keyParams) as JobSearchParams),
+    { revalidateFirstPage: false }
   );
+
+  const { data: savedData, mutate: mutateSaved } = useSWR("/api/jobs/saved", () => jobsApi.saved());
+
+  const pages = data ?? [];
+  const jobs = pages.flatMap((page) => page.jobs);
+  const nextCursor = pages[pages.length - 1]?.nextCursor ?? null;
+  const hasMore = Boolean(nextCursor);
+  const isLoadingMore = isValidating && size > 0;
+
+  const savedIds = new Set((savedData?.jobs ?? []).map((job) => job.id));
 
   const apply = async (jobId: string, coverNote?: string) => {
     try {
@@ -35,11 +49,38 @@ export function useJobs(params?: JobSearchParams | null) {
     }
   };
 
+  const toggleSave = async (jobId: string, save: boolean) => {
+    try {
+      if (save) {
+        await jobsApi.save(jobId);
+        toast.success("Job saved");
+      } else {
+        await jobsApi.unsave(jobId);
+        toast.success("Job removed from saved list");
+      }
+
+      await Promise.all([mutate(), mutateSaved()]);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to update saved jobs");
+      throw e;
+    }
+  };
+
+  const loadMore = async () => {
+    if (!hasMore) return;
+    await setSize((s) => s + 1);
+  };
+
   return {
-    jobs: (data ?? []) as Job[],
+    jobs,
     isLoading,
+    isLoadingMore,
     error,
+    hasMore,
+    savedIds,
+    loadMore,
     apply,
+    toggleSave,
     mutate,
   };
 }

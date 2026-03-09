@@ -22,6 +22,8 @@ model User {
   jobs             Job[]
   accounts         Account[]
   sessions         Session[]
+  savedJobsList    SavedJob[]
+  jobAlertRules    JobAlert[]
   headline         String?
   phone            String?
   location         String?
@@ -81,12 +83,18 @@ model VerificationToken {
 }
 
 model Company {
-  id       String  @id @default(cuid())
-  name     String
-  logo     String?
-  industry String?
-  users    User[]
-  jobs     Job[]
+  id             String  @id @default(cuid())
+  name           String
+  logo           String?
+  industry       String?
+  size           String?
+  averageSalaryL Int?
+  employeeRating Float?
+  users          User[]
+  jobs           Job[]
+
+  @@index([name])
+  @@index([industry])
 }
 
 model Job {
@@ -98,6 +106,13 @@ model Job {
   type               JobType
   status             JobStatus           @default(ACTIVE)
   salary             String?
+  salaryMin          Int?
+  salaryMax          Int?
+  experienceLevel    String?
+  experienceMin      Int?
+  experienceMax      Int?
+  workMode           WorkMode?
+  requiredSkills     String[]            @default([])
   postedBy           User                @relation(fields: [userId], references: [id])
   userId             String
   company            Company             @relation(fields: [companyId], references: [id])
@@ -105,7 +120,18 @@ model Job {
   applications       Application[]
   createdAt          DateTime            @default(now())
   updatedAt          DateTime            @updatedAt
+  alerts             JobAlert[]
+  savedBy            SavedJob[]
   jobRecommendations JobRecommendation[]
+
+  @@index([title])
+  @@index([location])
+  @@index([experienceLevel])
+  @@index([experienceMin, experienceMax])
+  @@index([createdAt])
+  @@index([workMode])
+  @@index([type])
+  @@index([status, createdAt])
 }
 
 model Candidate {
@@ -291,6 +317,34 @@ model Application {
   @@unique([jobId, candidateId])
 }
 
+model SavedJob {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  jobId     String
+  job       Job       @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  createdAt DateTime  @default(now())
+
+  @@unique([userId, jobId])
+  @@index([userId, createdAt])
+  @@index([jobId])
+}
+
+model JobAlert {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role      String
+  location  String?
+  createdAt DateTime  @default(now())
+  jobId     String?
+  job       Job?      @relation(fields: [jobId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt])
+  @@index([role])
+  @@index([location])
+}
+
 model Education {
   id          String    @id @default(cuid())
   candidateId String
@@ -388,7 +442,14 @@ enum JobType {
   FULL_TIME
   PART_TIME
   CONTRACT
+  INTERNSHIP
   REMOTE
+}
+
+enum WorkMode {
+  REMOTE
+  HYBRID
+  ONSITE
 }
 
 enum JobStatus {

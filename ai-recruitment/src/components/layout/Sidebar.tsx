@@ -15,6 +15,7 @@ import {
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useProfile } from "@/hooks/useProfile";
 
 const navItems = [
   { href: "/dashboard", label: "Intelligence Hub", icon: LayoutDashboard },
@@ -29,6 +30,15 @@ const navItems = [
 
 export function Sidebar() {
   const pathname = usePathname();
+  const { profile } = useProfile();
+
+  const avatarSrc =
+    profile?.avatarUrl ||
+    profile?.photoUrl ||
+    profile?.image ||
+    `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(profile?.name ?? "user")}`;
+  const displayName = profile?.name ?? "";
+  const displayTitle = profile?.headline ?? "";
 
   return (
     <aside className="w-64 flex-shrink-0 border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex flex-col">
@@ -58,13 +68,13 @@ export function Sidebar() {
       <div className="p-4 mt-auto">
         <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-2xl border border-slate-100 dark:border-slate-800">
           <div className="flex items-center gap-3 mb-3">
-            <Avatar className="w-10 h-10 border-2 border-white dark:border-slate-700">
-              <AvatarImage src="https://github.com/shadcn.png" alt="User" />
-              <AvatarFallback>AK</AvatarFallback>
+            <Avatar key={avatarSrc} className="w-10 h-10 border-2 border-white dark:border-slate-700">
+              <AvatarImage src={avatarSrc} alt={displayName} />
+              <AvatarFallback>{displayName?.[0]?.toUpperCase() ?? "U"}</AvatarFallback>
             </Avatar>
             <div>
-              <p className="font-bold text-sm">Arjun Kumar</p>
-              <p className="text-xs text-slate-500">Tier-1 Engineer</p>
+              <p className="font-bold text-sm">{displayName}</p>
+              <p className="text-xs text-slate-500">{displayTitle}</p>
             </div>
           </div>
           <Link href="/profile">

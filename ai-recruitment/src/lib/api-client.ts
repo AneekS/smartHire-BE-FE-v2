@@ -207,23 +207,50 @@ export interface JobSearchParams {
   location?: string;
   skills?: string;
   experience?: string;
-  page?: number;
+  salary?: string;
+  workMode?: "REMOTE" | "HYBRID" | "ONSITE";
+  jobType?: "FULL_TIME" | "PART_TIME" | "CONTRACT" | "INTERNSHIP" | "REMOTE";
+  cursor?: string;
   limit?: number;
 }
 
 export interface Job {
   id: string;
   title: string;
-  company_name?: string;
-  city?: string;
-  state?: string;
-  is_remote?: boolean;
-  salary_min?: number;
-  salary_max?: number;
-  required_skills?: string[];
-  experience_min?: number;
-  description?: string;
-  created_at?: string;
+  location: string;
+  experienceLevel?: string | null;
+  salaryMin?: number | null;
+  salaryMax?: number | null;
+  workMode?: "REMOTE" | "HYBRID" | "ONSITE" | null;
+  jobType?: string;
+  skills: string[];
+  postedAt: string;
+  postedAgo: string;
+  applicants: number;
+  trending: boolean;
+  matchScore: number;
+  readiness: number;
+  missingSkills: string[];
+  saved?: boolean;
+  company: {
+    name: string;
+    size?: string | null;
+    industry?: string | null;
+    averageSalaryL?: number | null;
+    employeeRating?: number | null;
+  };
+}
+
+export interface JobSearchResponse {
+  jobs: Job[];
+  nextCursor: string | null;
+}
+
+export interface JobAlert {
+  id: string;
+  role: string;
+  location: string | null;
+  createdAt: string;
 }
 
 export interface InterviewSession {
@@ -422,21 +449,38 @@ export const resumesApi = {
 // ─── Jobs ──────────────────────────────────────────────────────────────────
 
 export const jobsApi = {
-  list: (params?: { page?: number; limit?: number }) => {
-    const search = params
-      ? `?${new URLSearchParams(params as Record<string, string>)}`
-      : "";
-    return request<{ jobs: Job[]; page?: number; limit?: number }>(`/jobs${search}`);
-  },
   search: (params: JobSearchParams) =>
-    request<{ jobs: Job[]; page?: number; limit?: number }>(
-      `/jobs/search?${new URLSearchParams(params as Record<string, string>)}`
+    request<JobSearchResponse>(
+      `/api/jobs/search?${new URLSearchParams(
+        Object.entries(params).reduce((acc, [key, value]) => {
+          if (value !== undefined && value !== null && value !== "") {
+            acc[key] = String(value);
+          }
+          return acc;
+        }, {} as Record<string, string>)
+      )}`
     ),
   apply: (data: { job_id: string; cover_note?: string }) =>
-    request<{ application: Record<string, unknown>; ats_score?: number }>(
-      "/jobs/apply",
+    request<{ application: Record<string, unknown> }>(
+      "/api/jobs/apply",
       { method: "POST", body: JSON.stringify(data) }
     ),
+  save: (jobId: string) =>
+    request<{ ok: boolean }>("/api/jobs/save", {
+      method: "POST",
+      body: JSON.stringify({ jobId }),
+    }),
+  unsave: (jobId: string) =>
+    request<{ ok: boolean }>(`/api/jobs/save?jobId=${encodeURIComponent(jobId)}`, {
+      method: "DELETE",
+    }),
+  saved: () => request<{ jobs: Job[] }>("/api/jobs/saved"),
+  createAlert: (data: { role: string; location?: string }) =>
+    request<{ ok: boolean }>("/api/jobs/alerts", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  listAlerts: () => request<{ alerts: JobAlert[] }>("/api/jobs/alerts"),
 };
 
 // ─── Skills & Career ────────────────────────────────────────────────────────
