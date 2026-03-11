@@ -1,0 +1,149 @@
+
+> ai-recruitment@0.1.0 lint
+> eslint
+
+
+/Users/aneek/smartHire-BE-FE-v2/ai-recruitment/src/app/(dashboard)/dashboard/page.tsx
+  6:3  warning  'Target' is defined but never used  @typescript-eslint/no-unused-vars
+
+/Users/aneek/smartHire-BE-FE-v2/ai-recruitment/src/app/(dashboard)/integrations/page.tsx
+  74:7  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+/Users/aneek/smartHire-BE-FE-v2/ai-recruitment/src/app/(dashboard)/integrations/page.tsx:74:7
+  72 |     const error = searchParams.get("error");
+  73 |     if (connected) {
+> 74 |       setSuccessProvider(connected);
+     |       ^^^^^^^^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  75 |       // Clean the URL silently
+  76 |       window.history.replaceState({}, "", "/integrations");
+  77 |     }  react-hooks/set-state-in-effect
+
+/Users/aneek/smartHire-BE-FE-v2/ai-recruitment/src/app/(dashboard)/jobs/page.tsx
+   8:3  warning  'Sparkles' is defined but never used          @typescript-eslint/no-unused-vars
+  23:7  warning  'iconMap' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+/Users/aneek/smartHire-BE-FE-v2/ai-recruitment/src/app/(dashboard)/profile/page.tsx
+   35:10  warning  'toast' is defined but never used                                                                                                                                                                                                                                                        @typescript-eslint/no-unused-vars
+  248:19  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+/Users/aneek/smartHire-BE-FE-v2/ai-recruitment/src/app/(dashboard)/resume/page.tsx
+  18:9  warning  'selected' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+/Users/aneek/smartHire-BE-FE-v2/ai-recruitment/src/app/(dashboard)/roadmap/page.tsx
+   6:3   warning  'GraduationCap' is defined but never used     @typescript-eslint/no-unused-vars
+  28:34  warning  'refresh' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+/Users/aneek/smartHire-BE-FE-v2/ai-recruitment/src/app/api/auth/route.ts
+  13:16  warning  'POST' is defined but never used  @typescript-eslint/no-unused-vars
+
+/Users/aneek/smartHire-BE-FE-v2/ai-recruitment/src/app/api/interviews/[id]/messages/route.ts
+  34:19  warning  'userMsg' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+/Users/aneek/smartHire-BE-FE-v2/ai-recruitment/src/app/api/resume/route.ts
+   46:12  warning  'e' is defined but never used                                                                                        @typescript-eslint/no-unused-vars
+   96:7   error    Use "@ts-expect-error" instead of "@ts-ignore", as "@ts-ignore" will do nothing if the following line is error-free  @typescript-eslint/ban-ts-comment
+   98:7   error    Use "@ts-expect-error" instead of "@ts-ignore", as "@ts-ignore" will do nothing if the following line is error-free  @typescript-eslint/ban-ts-comment
+  100:7   error    Use "@ts-expect-error" instead of "@ts-ignore", as "@ts-ignore" will do nothing if the following line is error-free  @typescript-eslint/ban-ts-comment
+  121:15  error    Unexpected any. Specify a different type                                                                             @typescript-eslint/no-explicit-any
+
+/Users/aneek/smartHire-BE-FE-v2/ai-recruitment/src/app/api/v1/candidates/profile/route.ts
+   9:43  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  92:48  warning  '_' is defined but never used             @typescript-eslint/no-unused-vars
+  95:69  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/aneek/smartHire-BE-FE-v2/ai-recruitment/src/app/api/v1/interviews/mock/route.ts
+   7:10  warning  'insforge' is defined but never used              @typescript-eslint/no-unused-vars
+  62:11  warning  'candidateId' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+/Users/aneek/smartHire-BE-FE-v2/ai-recruitment/src/app/api/v1/jobs/apply/route.ts
+  9:10  warning  'handleError' is defined but never used  @typescript-eslint/no-unused-vars
+
+/Users/aneek/smartHire-BE-FE-v2/ai-recruitment/src/app/api/v1/resumes/score/[jobId]/route.ts
+  1:10  warning  'NextRequest' is defined but never used  @typescript-eslint/no-unused-vars
+
+/Users/aneek/smartHire-BE-FE-v2/ai-recruitment/src/components/profile/AvatarUploadModal.tsx
+  142:15  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+/Users/aneek/smartHire-BE-FE-v2/ai-recruitment/src/components/resume/EditorContext.tsx
+    3:10   warning  'useResumes' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              @typescript-eslint/no-unused-vars
+   64:52   error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            @typescript-eslint/no-explicit-any
+  149:100  error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            @typescript-eslint/no-explicit-any
+  164:9    error    Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+/Users/aneek/smartHire-BE-FE-v2/ai-recruitment/src/components/resume/EditorContext.tsx:164:9
+  162 |     // Auto-save debounce logic
+  163 |     useEffect(() => {
+> 164 |         setIsSaving(true);
+      |         ^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  165 |         const handler = setTimeout(() => {
+  166 |             setIsSaving(false);
+  167 |             // Here you would PATCH /api/resume/content  react-hooks/set-state-in-effect
+  172:71   error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            @typescript-eslint/no-explicit-any
+
+/Users/aneek/smartHire-BE-FE-v2/ai-recruitment/src/components/resume/UpdatedResumeSection.tsx
+    3:20  warning  'useEffect' is defined but never used  @typescript-eslint/no-unused-vars
+  170:65  warning  'i' is defined but never used          @typescript-eslint/no-unused-vars
+
+/Users/aneek/smartHire-BE-FE-v2/ai-recruitment/src/components/resume/panels/ATSScorePanel.tsx
+   2:10  warning  'Sparkles' is defined but never used              @typescript-eslint/no-unused-vars
+  19:13  error    'timer' is never reassigned. Use 'const' instead  prefer-const
+
+/Users/aneek/smartHire-BE-FE-v2/ai-recruitment/src/components/resume/panels/FixItSuggestionsPanel.tsx
+  71:140  error  `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`  react/no-unescaped-entities
+  71:166  error  `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`  react/no-unescaped-entities
+  84:91   error  `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`  react/no-unescaped-entities
+  84:118  error  `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`  react/no-unescaped-entities
+
+/Users/aneek/smartHire-BE-FE-v2/ai-recruitment/src/components/resume/panels/ResumeEditorPanel.tsx
+   1:18  warning  'AnimatePresence' is defined but never used  @typescript-eslint/no-unused-vars
+   2:10  warning  'CopyPlus' is defined but never used         @typescript-eslint/no-unused-vars
+  34:36  error    Unexpected any. Specify a different type     @typescript-eslint/no-explicit-any
+  34:48  error    Unexpected any. Specify a different type     @typescript-eslint/no-explicit-any
+
+/Users/aneek/smartHire-BE-FE-v2/ai-recruitment/src/components/ui/tabs.tsx
+  3:13  warning  'React' is defined but never used  @typescript-eslint/no-unused-vars
+
+/Users/aneek/smartHire-BE-FE-v2/ai-recruitment/src/hooks/useCareer.ts
+  4:10  warning  'toast' is defined but never used  @typescript-eslint/no-unused-vars
+
+/Users/aneek/smartHire-BE-FE-v2/ai-recruitment/src/hooks/useResume.ts
+   7:8   warning  'ResumeVersion' is defined but never used        @typescript-eslint/no-unused-vars
+  10:30  warning  'adaptResumeAnalysis' is defined but never used  @typescript-eslint/no-unused-vars
+
+/Users/aneek/smartHire-BE-FE-v2/ai-recruitment/src/lib/auth-middleware.ts
+  2:10  warning  'auth' is defined but never used  @typescript-eslint/no-unused-vars
+
+/Users/aneek/smartHire-BE-FE-v2/ai-recruitment/src/lib/services/ExtractorService.ts
+  1:18  error  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+
+/Users/aneek/smartHire-BE-FE-v2/ai-recruitment/src/lib/services/ParserService.ts
+  97:63  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/aneek/smartHire-BE-FE-v2/ai-recruitment/src/lib/validators/profile.schemas.ts
+  12:7  warning  'dateString' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+/Users/aneek/smartHire-BE-FE-v2/ai-recruitment/src/services/resume/parser.service.ts
+  191:5  warning  'rawText' is defined but never used  @typescript-eslint/no-unused-vars
+
+/Users/aneek/smartHire-BE-FE-v2/ai-recruitment/src/store/useResumeStore.ts
+   70:45  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  187:49  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  187:55  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  191:36  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  303:45  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+✖ 55 problems (25 errors, 30 warnings)
+  1 error and 0 warnings potentially fixable with the `--fix` option.
+

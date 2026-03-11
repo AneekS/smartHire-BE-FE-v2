@@ -50,6 +50,7 @@
     "@types/bcryptjs": "^2.4.6",
     "@types/diff": "^7.0.2",
     "@types/node": "^20",
+    "@types/pdf-parse": "^1.1.5",
     "@types/pg": "^8.18.0",
     "@types/react": "^19",
     "@types/react-dom": "^19",

@@ -1,94 +1,134 @@
-import { NextResponse } from "next/server";
+import { NextResponse, NextRequest } from "next/server";
 import { requireAuth } from "@/lib/insforge-server";
-import { z } from "zod";
+import { ExtractorService } from "@/lib/services/ExtractorService";
+import { ParserService } from "@/lib/services/ParserService";
+import { prisma } from "@/lib/db";
 
-const createSchema = z.object({
-  title: z.string().min(1),
-  roleTarget: z.string().optional(),
-});
+const parser = new ParserService();
 
 export async function GET() {
   try {
-    const { client, user } = await requireAuth();
-    const { data: versions, error } = await client.database
-      .from("resume_versions")
-      .select("*, resume_suggestions(*)")
-      .eq("user_id", user.id)
-      .order("updated_at", { ascending: false });
+    const { user } = await requireAuth();
 
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+    if (!user?.email) return NextResponse.json({ error: "No user email found" }, { status: 401 });
+
+    const dbUser = await prisma.user.findUnique({
+      where: { email: user.email }
+    });
+
+    if (!dbUser) {
+      return NextResponse.json({ data: null });
     }
 
-    const mapped = (versions ?? []).map((v) => ({
-      id: v.id,
-      userId: v.user_id,
-      title: v.title,
-      roleTarget: v.role_target,
-      fileUrl: v.file_url,
-      fileKey: v.file_key,
-      atsScore: v.ats_score,
-      status: v.status,
-      createdAt: v.created_at,
-      updatedAt: v.updated_at,
-      suggestions: (v.resume_suggestions ?? []).map((s: Record<string, unknown>) => ({
-        id: s.id,
-        resumeVersionId: s.resume_version_id,
-        type: s.type,
-        section: s.section,
-        title: s.title,
-        description: s.description,
-        applied: s.applied,
-        createdAt: s.created_at,
-      })),
-    }));
+    const resume = await prisma.resumeVersion.findFirst({
+      where: { userId: dbUser.id },
+      orderBy: { createdAt: "desc" }
+    });
 
-    return NextResponse.json(mapped);
-  } catch {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (!resume) return NextResponse.json({ data: null });
+
+    return NextResponse.json({
+      data: {
+        resumeId: resume.id,
+        fileName: resume.title,
+        uploadedAt: resume.createdAt,
+        parsed: resume.parsedContent ? JSON.parse(resume.parsedContent) : null,
+        atsScore: resume.atsScore,
+        scoreBreakdown: resume.scoreBreakdown ? JSON.parse(resume.scoreBreakdown) : null,
+        improvements: resume.improvements ? JSON.parse(resume.improvements) : []
+      }
+    });
+
+  } catch (e) {
+    console.error("GET /api/resume error:", e);
+    return NextResponse.json({ error: "Unauthorized or server error" }, { status: 500 });
   }
 }
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   try {
-    const { client, user } = await requireAuth();
-    const body = await req.json();
-    const { title, roleTarget } = createSchema.parse(body);
+    const { user } = await requireAuth();
 
-    const { data: version, error } = await client.database
-      .from("resume_versions")
-      .insert({
-        user_id: user.id,
-        title,
-        role_target: roleTarget ?? null,
-      })
-      .select()
-      .single();
+    if (!user?.email) return NextResponse.json({ error: "No user email found in session" }, { status: 401 });
 
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+    const dbUser = await prisma.user.findUnique({
+      where: { email: user.email }
+    });
+
+    if (!dbUser) {
+      return NextResponse.json({ error: "User profile not fully synced in DB. Please sign in again or set up profile." }, { status: 400 });
     }
+
+    // Check if formData
+    if (!req.headers.get("content-type")?.includes("multipart/form-data")) {
+      return NextResponse.json({ error: "Must be multipart/form-data" }, { status: 400 });
+    }
+
+    const formData = await req.formData();
+    const file = formData.get("resume") as File;
+    if (!file) {
+      return NextResponse.json({ error: "Missing resume file" }, { status: 400 });
+    }
+
+    // 1. Extract text
+    const buffer = Buffer.from(await file.arrayBuffer());
+    console.log(`Processing file: ${file.name}, size: ${buffer.length} bytes, type: ${file.type}`);
+    const rawText = await ExtractorService.extract(buffer, file.type);
+    console.log(`Extracted ${rawText.length} characters from resume`);
+
+    // 2. Parse with AI
+    const parsed = await parser.parse(rawText);
+
+    // 3. Generate Improvements
+    const improvements = await parser.generateImprovements(parsed);
+
+    // 4. Generate Mock Score
+    const atsScore = Math.floor(Math.random() * 20) + 70; // 70-90
+    const scoreBreakdown = {
+      keywordMatch: atsScore + 5,
+      formatting: atsScore - 10,
+      experienceMatch: atsScore + 10,
+      skillsAlignment: atsScore - 5
+    };
+
+    // 5. Deactivate old
+    await prisma.resumeVersion.updateMany({
+      where: { userId: dbUser.id, status: "ACTIVE" },
+      data: { status: "DRAFT" }
+    });
+
+    console.log("INSERTING RESUME FOR DB_USER:", dbUser.id, " EMAIL:", dbUser.email);
+    const usersCount = await prisma.user.count({ where: { id: dbUser.id } });
+    console.log("DOES USER ACTUALLY EXIST IN PRISMA? Count:", usersCount);
+
+    // 6. Save new
+    const newVersion = await prisma.resumeVersion.create({
+      data: {
+        userId: dbUser.id,
+        title: file.name,
+        fileUrl: "/uploads/" + file.name,
+        status: "ACTIVE",
+        atsScore: atsScore,
+        parsedContent: JSON.stringify(parsed),
+        scoreBreakdown: JSON.stringify(scoreBreakdown),
+        improvements: JSON.stringify(improvements)
+      }
+    });
 
     return NextResponse.json({
-      id: version.id,
-      userId: version.user_id,
-      title: version.title,
-      roleTarget: version.role_target,
-      fileUrl: version.file_url,
-      fileKey: version.file_key,
-      atsScore: version.ats_score,
-      status: version.status,
-      createdAt: version.created_at,
-      updatedAt: version.updated_at,
-      suggestions: [],
+      data: {
+        resumeId: newVersion.id,
+        fileName: file.name,
+        uploadedAt: newVersion.createdAt,
+        parsed,
+        atsScore,
+        scoreBreakdown,
+        improvements
+      }
     });
-  } catch (e) {
-    if (e instanceof z.ZodError) {
-      return NextResponse.json(
-        { error: e.issues.map((x) => x.message).join(", ") },
-        { status: 400 }
-      );
-    }
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  } catch (e: any) {
+    console.error("Upload error:", e);
+    return NextResponse.json({ error: e instanceof Error ? e.message : "Upload failed", stack: e.stack }, { status: 500 });
   }
 }

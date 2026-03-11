@@ -488,11 +488,14 @@ model ResumeVersion {
   title       String
   roleTarget  String?
   fileUrl     String?
-  atsScore    Int?
-  status      ResumeVersionStatus @default(DRAFT)
-  suggestions ResumeSuggestion[]
-  createdAt   DateTime            @default(now())
-  updatedAt   DateTime            @updatedAt
+  atsScore        Int?
+  status          ResumeVersionStatus @default(DRAFT)
+  parsedContent   String?        @db.Text
+  scoreBreakdown  String?        @db.Text
+  improvements    String?        @db.Text
+  suggestions     ResumeSuggestion[]
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
 }
 
 model ResumeSuggestion {

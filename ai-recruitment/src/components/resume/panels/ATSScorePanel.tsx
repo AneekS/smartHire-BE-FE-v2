@@ -1,20 +1,22 @@
 import { motion } from "framer-motion";
-import { Sparkles, AlertTriangle, CheckCircle2, ShieldAlert } from "lucide-react";
+import { AlertTriangle, CheckCircle2, ShieldAlert } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useEditor } from "../EditorContext";
+import { useResumeStore } from "@/store/useResumeStore";
 import { useEffect, useState } from "react";
 
 export function ATSScorePanel() {
-    const { atsScore, suggestions } = useEditor();
+    const { atsScore, scoreBreakdown, improvements, uploadedAt } = useResumeStore();
     const [displayedScore, setDisplayedScore] = useState(0);
+
+    const safeScore = atsScore || 0;
 
     // Animated score counter
     useEffect(() => {
         let start = 0;
-        const end = parseInt(atsScore.toString(), 10);
+        const end = parseInt(safeScore.toString(), 10);
         if (start === end) return;
 
-        let timer = setInterval(() => {
+        const timer = setInterval(() => {
             start += 3;
             if (start > end) {
                 start = end;
@@ -23,7 +25,7 @@ export function ATSScorePanel() {
             setDisplayedScore(start);
         }, 30);
         return () => clearInterval(timer);
-    }, [atsScore]);
+    }, [safeScore]);
 
     const getColorClass = (score: number) => {
         if (score < 50) return "text-rose-500";
@@ -39,14 +41,19 @@ export function ATSScorePanel() {
         return "stroke-emerald-400";
     };
 
-    const getPercentageString = (val: number, max: number) => (val / max) * 100 + "%";
-
     const breakdowns = [
-        { label: "Keyword Match", val: 82, target: 100 },
-        { label: "Formatting", val: 71, target: 100 },
-        { label: "Experience Match", val: 90, target: 100 },
-        { label: "Skills Alignment", val: 65, target: 100 }
+        { label: "Keyword Match", val: scoreBreakdown?.keywordMatch || 0, target: 100 },
+        { label: "Formatting", val: scoreBreakdown?.formatting || 0, target: 100 },
+        { label: "Experience Match", val: scoreBreakdown?.experienceMatch || 0, target: 100 },
+        { label: "Skills Alignment", val: scoreBreakdown?.skillsAlignment || 0, target: 100 }
     ];
+
+    const timeAgo = (dateStr: string | null) => {
+        if (!dateStr) return "Just now";
+        const seconds = Math.floor((new Date().getTime() - new Date(dateStr).getTime()) / 1000);
+        if (seconds < 60) return "Just now";
+        return `${Math.floor(seconds / 60)} mins ago`;
+    };
 
     return (
         <div className="w-full h-full flex flex-col gap-6">
@@ -60,7 +67,7 @@ export function ATSScorePanel() {
                     <div className="relative flex items-center justify-center w-40 h-40 mb-2">
                         <svg className="absolute w-full h-full transform -rotate-90">
                             <circle
-                                className="stroke-slate-200 dark:stroke-slate-800"
+                                className="stroke-slate-200"
                                 fill="transparent"
                                 strokeWidth="12"
                                 r="70"
@@ -84,13 +91,21 @@ export function ATSScorePanel() {
                             />
                         </svg>
                         <div className="absolute flex flex-col items-center justify-center text-center">
-                            <span className={cn("text-5xl font-black tracking-tighter", getColorClass(displayedScore))}>
-                                {displayedScore}
-                            </span>
+                            {atsScore === null ? (
+                                <span className={cn("text-3xl font-black tracking-tighter text-slate-400")}>
+                                    --
+                                </span>
+                            ) : (
+                                <span className={cn("text-5xl font-black tracking-tighter", getColorClass(displayedScore))}>
+                                    {displayedScore}
+                                </span>
+                            )}
                             <span className="text-xs uppercase font-bold text-slate-400 tracking-wider">Score</span>
                         </div>
                     </div>
-                    <p className="text-sm font-medium text-slate-500 mt-2">Last analyzed: 2 mins ago</p>
+                    <p className="text-sm font-medium text-slate-500 mt-2">
+                        {atsScore === null ? "Waiting for upload..." : `Last analyzed: ${timeAgo(uploadedAt)}`}
+                    </p>
                 </div>
 
                 <div className="mt-8 space-y-4">
@@ -102,11 +117,11 @@ export function ATSScorePanel() {
                             transition={{ delay: 0.7 + (i * 0.1), duration: 0.6 }}
                             className="space-y-1"
                         >
-                            <div className="flex justify-between text-xs font-bold text-slate-600 dark:text-slate-300">
+                            <div className="flex justify-between text-xs font-bold text-slate-600">
                                 <span>{b.label}</span>
                                 <span>{b.val}%</span>
                             </div>
-                            <div className="h-2 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                            <div className="h-2 w-full bg-slate-200 rounded-full overflow-hidden">
                                 <motion.div
                                     initial={{ width: 0 }}
                                     animate={{ width: `${b.val}%` }}
@@ -128,18 +143,27 @@ export function ATSScorePanel() {
                 <h3 className="text-sm font-bold uppercase tracking-widest text-slate-500 ml-2">Section Analysis</h3>
 
                 {["EXPERIENCE", "SKILLS", "EDUCATION", "SUMMARY"].map((sec, i) => {
-                    const secSuggestions = suggestions.filter(s => s.section.toUpperCase() === sec && !s.applied);
+                    const secSuggestions = improvements.filter(s => s.section.toUpperCase() === sec && !s.applied);
                     const hasIssues = secSuggestions.length > 0;
-                    const isCritical = secSuggestions.some(s => s.type === "CRITICAL");
+                    const isCritical = secSuggestions.some(s => s.severity === "critical");
 
                     let icon = <CheckCircle2 className="w-5 h-5 text-emerald-500" />;
                     let statusText = "Optimized";
                     let statusClass = "text-emerald-500 bg-emerald-500/10 border-emerald-500/20";
+                    let feedbackText = "Looks fully optimized";
 
                     if (hasIssues) {
                         icon = isCritical ? <ShieldAlert className="w-5 h-5 text-rose-500" /> : <AlertTriangle className="w-5 h-5 text-amber-500" />;
                         statusText = isCritical ? "Critical Fix" : "Needs Work";
                         statusClass = isCritical ? "text-rose-500 bg-rose-500/10 border-rose-500/20" : "text-amber-500 bg-amber-500/10 border-amber-500/20";
+                        feedbackText = `${secSuggestions.length} items to fix`;
+                    }
+
+                    if (atsScore === null) {
+                        statusText = "Pending";
+                        statusClass = "text-slate-400 bg-slate-100 border-slate-200";
+                        feedbackText = "Waiting for analysis";
+                        icon = <span className="w-5 h-5 rounded-full border-2 border-slate-300 animate-pulse border-t-slate-400"></span>;
                     }
 
                     return (
@@ -153,13 +177,13 @@ export function ATSScorePanel() {
                             <div className="mt-0.5">{icon}</div>
                             <div className="flex-1">
                                 <div className="flex justify-between items-center mb-1">
-                                    <h4 className="font-bold text-sm tracking-wide dark:text-slate-200">{sec}</h4>
+                                    <h4 className="font-bold text-sm tracking-wide text-slate-900">{sec}</h4>
                                     <span className={cn("text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-md border", statusClass)}>
                                         {statusText}
                                     </span>
                                 </div>
-                                <p className="text-xs text-slate-500 font-medium">
-                                    {hasIssues ? secSuggestions[0].title + " ⚠️" : "Looks fully optimized ✅"}
+                                <p className="text-xs text-slate-500 leading-snug pr-2">
+                                    {feedbackText} {hasIssues && <span className="text-[10px] font-bold text-rose-500">View →</span>}
                                 </p>
                             </div>
                         </motion.div>

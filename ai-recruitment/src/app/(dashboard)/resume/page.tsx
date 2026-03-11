@@ -15,7 +15,7 @@ export default function ResumePage() {
     );
   }
 
-  const selected = resumes[0]; // For this MVP, we just take the latest/first resume
+  // For this MVP, we just take the latest/first resume in Layout
 
-  return <ResumeStudioLayout initialData={selected} />;
+  return <ResumeStudioLayout />;
 }
