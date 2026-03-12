@@ -5,6 +5,11 @@ import { toast } from "sonner";
 import { avatarApi } from "@/lib/api-client";
 import { useProfile } from "./useProfile";
 
+function appendCacheBuster(url: string): string {
+  const separator = url.includes("?") ? "&" : "?";
+  return `${url}${separator}v=${Date.now()}`;
+}
+
 /**
  * Manages profile avatar upload / deletion.
  *
@@ -30,10 +35,24 @@ export function useAvatarUpload() {
 
     try {
       const { avatarUrl } = await avatarApi.upload(file);
+      const updatedAvatar = appendCacheBuster(avatarUrl);
+
+      await mutate(
+        (current) =>
+          current
+            ? {
+                ...current,
+                avatarUrl: updatedAvatar,
+                image: updatedAvatar,
+              }
+            : current,
+        { revalidate: false }
+      );
+
       setProgress(100);
       toast.success("Profile photo updated");
-      await mutate();
-      return avatarUrl;
+      void mutate();
+      return updatedAvatar;
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Upload failed");
       throw e;
@@ -46,8 +65,21 @@ export function useAvatarUpload() {
   const removeAvatar = useCallback(async () => {
     try {
       await avatarApi.remove();
+
+      await mutate(
+        (current) =>
+          current
+            ? {
+                ...current,
+                avatarUrl: null,
+                image: current.photoUrl ?? null,
+              }
+            : current,
+        { revalidate: false }
+      );
+
       toast.success("Profile photo removed");
-      await mutate();
+      void mutate();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed to remove photo");
       throw e;

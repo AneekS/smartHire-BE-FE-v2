@@ -4,8 +4,11 @@
  * Orchestrates Prisma queries, completeness recalculation, and version snapshots.
  */
 
+import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { refreshCompleteness } from "./completeness.service";
+import { safeQuery } from "@/lib/errors";
+import { CacheService, CACHE_TTL_SECONDS } from "@/lib/cache-utils";
 import type {
   BasicIdentityInput,
   EducationInput,
@@ -29,6 +32,7 @@ export const FULL_PROFILE_SELECT = {
   city: true,
   country: true,
   photoUrl: true,
+  avatarUrl: true,
   summary: true,
   profileCompleteness: true,
   resumeUrl: true,
@@ -37,6 +41,7 @@ export const FULL_PROFILE_SELECT = {
   openToFreelance: true,
   internshipInterest: true,
   languagesSpoken: true,
+  updatedAt: true,
   user: {
     select: {
       id: true,
@@ -67,57 +72,61 @@ export const FULL_PROFILE_SELECT = {
 // ─── Get or create candidate by user email ────────────────────────────────────
 
 export async function getOrCreateCandidate(userEmail: string) {
-  let candidate = await prisma.candidate.findUnique({
-    where: { email: userEmail },
-    select: FULL_PROFILE_SELECT,
-  });
-
-  if (!candidate) {
-    let user = await prisma.user.findUnique({ where: { email: userEmail } });
-    if (!user) {
-      user = await prisma.user.create({
-        data: { email: userEmail, name: "Unknown" }
-      });
-    }
-
-    const created = await prisma.candidate.create({
-      data: {
-        userId: user.id,
-        email: user.email,
-        name: user.name || "Unknown",
-      },
+  return safeQuery(async () => {
+    let candidate = await prisma.candidate.findUnique({
+      where: { email: userEmail },
       select: FULL_PROFILE_SELECT,
     });
-    candidate = created;
-  }
 
-  return candidate;
+    if (!candidate) {
+      let user = await prisma.user.findUnique({ where: { email: userEmail } });
+      if (!user) {
+        user = await prisma.user.create({
+          data: { email: userEmail, name: "Unknown" }
+        });
+      }
+
+      const created = await prisma.candidate.create({
+        data: {
+          userId: user.id,
+          email: user.email,
+          name: user.name || "Unknown",
+        },
+        select: FULL_PROFILE_SELECT,
+      });
+      candidate = created;
+    }
+
+    return candidate;
+  }, "Candidate");
 }
 
 // ─── Identity ─────────────────────────────────────────────────────────────────
 
 export async function updateIdentity(candidateId: string, data: BasicIdentityInput) {
-  const updated = await prisma.candidate.update({
-    where: { id: candidateId },
-    data: {
-      name: data.name,
-      headline: data.headline,
-      phone: data.phone,
-      location: data.location,
-      city: data.city,
-      country: data.country,
-      photoUrl: data.photoUrl,
-      summary: data.summary,
-      availability: data.availability,
-      workAuthorization: data.workAuthorization,
-      openToFreelance: data.openToFreelance,
-      internshipInterest: data.internshipInterest,
-      languagesSpoken: data.languagesSpoken,
-    },
-    select: FULL_PROFILE_SELECT,
-  });
-  await refreshCompleteness(candidateId);
-  return updated;
+  return safeQuery(async () => {
+    const updated = await prisma.candidate.update({
+      where: { id: candidateId },
+      data: {
+        name: data.name,
+        headline: data.headline,
+        phone: data.phone,
+        location: data.location,
+        city: data.city,
+        country: data.country,
+        photoUrl: data.photoUrl,
+        summary: data.summary,
+        availability: data.availability,
+        workAuthorization: data.workAuthorization,
+        openToFreelance: data.openToFreelance,
+        internshipInterest: data.internshipInterest,
+        languagesSpoken: data.languagesSpoken,
+      },
+      select: FULL_PROFILE_SELECT,
+    });
+    await refreshCompleteness(candidateId);
+    return updated;
+  }, "Candidate");
 }
 
 // ─── Education ────────────────────────────────────────────────────────────────
@@ -320,4 +329,80 @@ export async function snapshotProfile(candidateId: string, snapshot: object) {
       snapshot: snapshot as never,
     },
   });
+}
+
+// ─── Typed profile payload ────────────────────────────────────────────────────
+
+/** Exact shape Prisma returns for a full candidate fetch with FULL_PROFILE_SELECT. */
+export type FullCandidateProfile = Prisma.CandidateGetPayload<{
+  select: typeof FULL_PROFILE_SELECT;
+}>;
+
+/**
+ * API-level response: flattened User fields merged under the candidate root so
+ * consumers can access `linkedInUrl`, `image`, etc. without traversing `.user`.
+ * When both models share a key (e.g. `id`, `email`), the Candidate value wins
+ * because the spread order is `{ ...candidate.user, ...candidate }`.
+ */
+export type CandidateProfileResponse = Omit<FullCandidateProfile, "user"> &
+  Partial<NonNullable<FullCandidateProfile["user"]>> & {
+    user: FullCandidateProfile["user"];
+  };
+
+// ─── Cache-first profile fetch ────────────────────────────────────────────────
+
+const PROFILE_CACHE_KEY = (email: string): string =>
+  `candidate-profile:${email}`;
+
+/**
+ * Cache-first candidate profile fetch.
+ *
+ * Flow:
+ *   1. [CACHE HIT]      Return serialized profile from Redis immediately.
+ *   2. [CACHE MISS]     Proceed to database.
+ *   3. [DATABASE FETCH] Single round-trip via FULL_PROFILE_SELECT (10 relations).
+ *   4.                  Populate Redis with TTL = 600 s.
+ *
+ * Redis errors are swallowed by CacheService — the API always returns data.
+ */
+export async function getCachedCandidateProfile(
+  userEmail: string
+): Promise<CandidateProfileResponse> {
+  const cacheKey = PROFILE_CACHE_KEY(userEmail);
+
+  // ── 1. Cache-first ────────────────────────────────────────────────────────
+  const cached = await CacheService.get<CandidateProfileResponse>(cacheKey);
+  if (cached) {
+    console.log(`[CACHE HIT]       key=${cacheKey}`);
+    return cached;
+  }
+
+  console.log(`[CACHE MISS]      key=${cacheKey}`);
+
+  // ── 2. Single database round-trip (all 10 relations in one query) ─────────
+  console.log(`[DATABASE FETCH]  candidate email=${userEmail}`);
+  const candidate = await getOrCreateCandidate(userEmail);
+
+  // Flatten user fields onto root; Candidate fields take precedence on conflict
+  const response = {
+    ...candidate.user,
+    ...candidate,
+  } as CandidateProfileResponse;
+
+  // ── 3. Populate Redis (fire-and-forget; errors logged by CacheService) ────
+  void CacheService.set(cacheKey, response, CACHE_TTL_SECONDS);
+
+  return response;
+}
+
+/**
+ * Invalidate the Redis cache entry for a candidate profile.
+ * Call after any write operation that mutates profile data.
+ */
+export async function invalidateCandidateProfileCache(
+  userEmail: string
+): Promise<void> {
+  const cacheKey = PROFILE_CACHE_KEY(userEmail);
+  console.log(`[CACHE INVALIDATE] key=${cacheKey}`);
+  await CacheService.del(cacheKey);
 }

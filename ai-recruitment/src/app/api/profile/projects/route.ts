@@ -10,8 +10,13 @@ import { z } from "zod";
 
 export async function GET(req: AuthenticatedRequest) {
   return withAuth(req, async (r) => {
-    const candidate = await getOrCreateCandidate(r.user!.email);
-    return NextResponse.json((candidate as { projects?: unknown }).projects ?? []);
+    try {
+      const candidate = await getOrCreateCandidate(r.user!.email);
+      return NextResponse.json((candidate as { projects?: unknown }).projects ?? []);
+    } catch (e) {
+      console.error("[GET /api/profile/projects]", e);
+      return NextResponse.json({ error: e instanceof Error ? e.message : "Failed to fetch projects" }, { status: 500 });
+    }
   });
 }
 

@@ -14,8 +14,13 @@ import { z } from "zod";
 
 export async function GET(req: AuthenticatedRequest) {
   return withAuth(req, async (r) => {
-    const candidate = await getOrCreateCandidate(r.user!.email);
-    return NextResponse.json((candidate as { experiences?: unknown }).experiences ?? []);
+    try {
+      const candidate = await getOrCreateCandidate(r.user!.email);
+      return NextResponse.json((candidate as { experiences?: unknown }).experiences ?? []);
+    } catch (e) {
+      console.error("[GET /api/profile/experience]", e);
+      return NextResponse.json({ error: e instanceof Error ? e.message : "Failed to fetch experiences" }, { status: 500 });
+    }
   });
 }
 

@@ -15,7 +15,10 @@ import { NextResponse } from "next/server";
 import { writeFile, mkdir } from "fs/promises";
 import path from "path";
 import { withAuth, AuthenticatedRequest } from "@/lib/auth-middleware";
-import { getOrCreateCandidate } from "@/services/profile/profile.service";
+import {
+  getOrCreateCandidate,
+  invalidateCandidateProfileCache,
+} from "@/services/profile/profile.service";
 import { prisma } from "@/lib/db";
 
 // ─── Config ──────────────────────────────────────────────────────────────────
@@ -77,6 +80,9 @@ export async function POST(req: AuthenticatedRequest) {
         data: { avatarUrl },
       });
 
+      await invalidateCandidateProfileCache(r.user!.email);
+      console.log(`[PROFILE UPDATE] avatar uploaded candidate=${candidate.id}`);
+
       return NextResponse.json({ avatarUrl });
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Upload failed";
@@ -93,6 +99,10 @@ export async function DELETE(req: AuthenticatedRequest) {
         where: { id: candidate.id },
         data: { avatarUrl: null },
       });
+
+      await invalidateCandidateProfileCache(r.user!.email);
+      console.log(`[PROFILE UPDATE] avatar removed candidate=${candidate.id}`);
+
       return NextResponse.json({ ok: true });
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Delete failed";

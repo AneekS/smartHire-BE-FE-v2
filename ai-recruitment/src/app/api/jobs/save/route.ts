@@ -3,6 +3,7 @@ import { withAuth, type AuthenticatedRequest } from "@/lib/auth-middleware";
 import { prisma } from "@/lib/db";
 import { handleError } from "@/lib/errors";
 import { SaveJobSchema } from "@/lib/validators/job.schema";
+import { cacheDelete } from "@/lib/cache";
 
 export async function POST(req: AuthenticatedRequest) {
   return withAuth(req, async (authedReq) => {
@@ -16,6 +17,8 @@ export async function POST(req: AuthenticatedRequest) {
         VALUES (${id}, ${authedReq.user!.id}, ${jobId}, NOW())
         ON CONFLICT ("userId", "jobId") DO NOTHING
       `;
+
+      await cacheDelete(`saved-jobs:${authedReq.user!.id}`);
 
       return NextResponse.json({ ok: true });
     } catch (error) {
@@ -38,6 +41,8 @@ export async function DELETE(req: AuthenticatedRequest) {
         DELETE FROM "SavedJob"
         WHERE "userId" = ${authedReq.user!.id} AND "jobId" = ${jobId}
       `;
+
+      await cacheDelete(`saved-jobs:${authedReq.user!.id}`);
 
       return NextResponse.json({ ok: true });
     } catch (error) {

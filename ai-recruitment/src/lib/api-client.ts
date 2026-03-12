@@ -246,6 +246,36 @@ export interface JobSearchResponse {
   nextCursor: string | null;
 }
 
+export interface RecommendedJob {
+  id: string;
+  title: string;
+  location: string;
+  company: {
+    id: string;
+    name: string;
+    industry: string | null;
+  };
+  matchScore: number;
+  reasons: string[];
+  missingSkills: string[];
+  readinessScore: number;
+  semanticScore: number;
+  postedAt: string;
+}
+
+export interface JobRecommendationsResponse {
+  recommendedJobs: RecommendedJob[];
+  trendingJobs: RecommendedJob[];
+  highMatchJobs: RecommendedJob[];
+  newJobs: RecommendedJob[];
+  marketIntelligence: {
+    trendingSkills: Array<{ skill: string; demandCount: number }>;
+    highDemandRoles: Array<{ role: string; demandCount: number }>;
+    topHiringCompanies: Array<{ companyName: string; activeJobs: number }>;
+  };
+  nextCursor: string | null;
+}
+
 export interface JobAlert {
   id: string;
   role: string;
@@ -481,6 +511,216 @@ export const jobsApi = {
       body: JSON.stringify(data),
     }),
   listAlerts: () => request<{ alerts: JobAlert[] }>("/api/jobs/alerts"),
+  recommendations: (params?: { cursor?: string; limit?: number }) =>
+    request<JobRecommendationsResponse>(
+      `/api/jobs/recommendations?${new URLSearchParams(
+        Object.entries(params ?? {}).reduce((acc, [key, value]) => {
+          if (value !== undefined && value !== null && value !== "") {
+            acc[key] = String(value);
+          }
+          return acc;
+        }, {} as Record<string, string>)
+      )}`
+    ),
+  trackBehaviorEvent: (data: {
+    jobId?: string;
+    eventType: "JOB_VIEW" | "JOB_CLICK" | "JOB_APPLICATION" | "JOB_SAVE" | "JOB_IGNORE";
+    metadata?: Record<string, unknown>;
+  }) =>
+    request<{ event: Record<string, unknown> }>("/api/jobs/behavior-events", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+};
+
+export const recruiterApi = {
+  recommendedCandidates: (params: { jobId: string; limit?: number }) =>
+    request<{
+      candidates: Array<{
+        candidateId: string;
+        name: string;
+        email: string;
+        location: string | null;
+        matchScore: number;
+        missingSkills: string[];
+        readinessScore: number;
+      }>;
+    }>(
+      `/api/recruiter/recommended-candidates?${new URLSearchParams(
+        Object.entries(params).reduce((acc, [key, value]) => {
+          if (value !== undefined && value !== null && value !== "") {
+            acc[key] = String(value);
+          }
+          return acc;
+        }, {} as Record<string, string>)
+      )}`
+    ),
+};
+
+// ─── Application Tracker ─────────────────────────────────────────────────────
+
+export type TrackerApplicationStatus =
+  | "APPLIED"
+  | "RESUME_VIEWED"
+  | "UNDER_REVIEW"
+  | "SHORTLISTED"
+  | "INTERVIEW_SCHEDULED"
+  | "INTERVIEW_COMPLETED"
+  | "OFFER"
+  | "REJECTED"
+  | "HIRED"
+  | "WITHDRAWN";
+
+export interface TrackerApplication {
+  id: string;
+  jobId: string;
+  candidateId: string;
+  status: TrackerApplicationStatus;
+  aiScore: number | null;
+  interviewProbability: number | null;
+  applicationHealthScore: number | null;
+  readinessScore: number | null;
+  createdAt: string;
+  updatedAt: string;
+  job: {
+    id: string;
+    title: string;
+    location: string;
+    type: string;
+    workMode: string | null;
+    salary: string | null;
+    salaryMin: number | null;
+    salaryMax: number | null;
+    requiredSkills: string[];
+    company: {
+      id: string;
+      name: string;
+      logo: string | null;
+      industry: string | null;
+    };
+  };
+}
+
+export interface TrackerApplicationDetail extends TrackerApplication {
+  aiNotes: string | null;
+  timeline: Array<{
+    id: string;
+    status: TrackerApplicationStatus;
+    updatedBy: string | null;
+    metadata: Record<string, unknown> | null;
+    createdAt: string;
+  }>;
+  recruiterActivities: Array<{
+    id: string;
+    activityType: string;
+    metadata: Record<string, unknown> | null;
+    createdAt: string;
+  }>;
+  assessments: Array<{
+    id: string;
+    title: string;
+    type: string;
+    score: number | null;
+    maxScore: number | null;
+    deadline: string | null;
+    status: string;
+    completedAt: string | null;
+    createdAt: string;
+  }>;
+  notes: Array<{
+    id: string;
+    content: string;
+    authorId: string;
+    authorRole: string;
+    createdAt: string;
+    updatedAt: string;
+  }>;
+  offer: {
+    id: string;
+    salary: number | null;
+    currency: string | null;
+    benefits: string[];
+    startDate: string | null;
+    expiresAt: string | null;
+    status: string;
+    createdAt: string;
+  } | null;
+  interview: {
+    id: string;
+    scheduledAt: string;
+    type: string;
+    status: string;
+    createdAt: string;
+  } | null;
+}
+
+export interface TrackerAnalytics {
+  applicationsSent: number;
+  resumeViewed: number;
+  shortlistedCount: number;
+  interviewCount: number;
+  offerCount: number;
+  hiredCount: number;
+  rejectedCount: number;
+  withdrawnCount: number;
+  avgHealthScore: number;
+  statusBreakdown: Record<string, number>;
+  totalActive: number;
+}
+
+export interface TrackerReminder {
+  type: string;
+  message: string;
+  priority: "high" | "medium" | "low";
+  applicationId?: string;
+  dueDate?: string;
+}
+
+export const applicationsApi = {
+  list: (params?: { status?: TrackerApplicationStatus; cursor?: string; limit?: number }) =>
+    request<{ applications: TrackerApplication[]; nextCursor: string | null }>(
+      `/applications?${new URLSearchParams(
+        Object.entries(params ?? {}).reduce((acc, [key, value]) => {
+          if (value !== undefined && value !== null && value !== "") {
+            acc[key] = String(value);
+          }
+          return acc;
+        }, {} as Record<string, string>)
+      )}`
+    ),
+
+  getDetail: (id: string) =>
+    request<TrackerApplicationDetail>(`/applications/${encodeURIComponent(id)}`),
+
+  apply: (data: { job_id: string; cover_note?: string }) =>
+    request<{ application: TrackerApplication }>("/applications", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+
+  updateStatus: (id: string, data: { status: TrackerApplicationStatus; metadata?: Record<string, unknown> }) =>
+    request<TrackerApplicationDetail>(`/applications/${encodeURIComponent(id)}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    }),
+
+  addNote: (id: string, content: string) =>
+    request<{ note: { id: string; content: string; createdAt: string } }>(
+      `/applications/${encodeURIComponent(id)}/notes`,
+      { method: "POST", body: JSON.stringify({ content }) }
+    ),
+
+  withdraw: (id: string) =>
+    request<TrackerApplicationDetail>(
+      `/applications/${encodeURIComponent(id)}/withdraw`,
+      { method: "POST" }
+    ),
+
+  analytics: () =>
+    request<TrackerAnalytics>("/applications/analytics"),
+
+  reminders: () =>
+    request<{ reminders: TrackerReminder[] }>("/applications/reminders"),
 };
 
 // ─── Skills & Career ────────────────────────────────────────────────────────

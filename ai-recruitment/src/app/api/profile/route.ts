@@ -53,8 +53,11 @@ export async function GET() {
       technicalScore: profile?.technical_score ?? 0,
       softScore: profile?.soft_score ?? 0,
     });
-  } catch {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  } catch (error) {
+    if (error instanceof Error && error.message?.includes("auth")) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
 
@@ -138,9 +141,9 @@ export async function PATCH(req: Request) {
         { status: 400 }
       );
     }
-    return NextResponse.json(
-      { error: "Unauthorized" },
-      { status: 401 }
-    );
+    if (e instanceof Error && e.message?.includes("auth")) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

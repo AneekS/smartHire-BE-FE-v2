@@ -36,12 +36,17 @@ const UpsertSchema = z.object({
 
 export async function GET(req: AuthenticatedRequest) {
   return withAuth(req, async (r) => {
-    const candidate = await getOrCreateCandidate(r.user!.email);
-    const accounts = await prisma.connectedAccount.findMany({
-      where: { candidateId: candidate.id },
-      orderBy: { createdAt: "asc" },
-    });
-    return NextResponse.json(accounts);
+    try {
+      const candidate = await getOrCreateCandidate(r.user!.email);
+      const accounts = await prisma.connectedAccount.findMany({
+        where: { candidateId: candidate.id },
+        orderBy: { createdAt: "asc" },
+      });
+      return NextResponse.json(accounts);
+    } catch (e) {
+      console.error("[GET /api/profile/connected-accounts]", e);
+      return NextResponse.json({ error: e instanceof Error ? e.message : "Failed to fetch connected accounts" }, { status: 500 });
+    }
   });
 }
 

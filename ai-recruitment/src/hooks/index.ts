@@ -6,6 +6,7 @@ export { useSkillGap } from "./useSkillGap";
 export { useInterviews, useInterviewSession } from "./useInterview";
 export { useAvatarUpload } from "./useAvatarUpload";
 export { useConnectedAccounts } from "./useConnectedAccounts";
+export { useJobRecommendations } from "./useJobRecommendations";
 export {
   useExperiences,
   useProjects,
@@ -14,3 +15,9 @@ export {
   usePrivacy,
   useAIInsights,
 } from "./useProfileSections";
+export {
+  useApplications,
+  useApplicationDetail,
+  useApplicationAnalytics,
+  useApplicationReminders,
+} from "./useApplicationTracker";
