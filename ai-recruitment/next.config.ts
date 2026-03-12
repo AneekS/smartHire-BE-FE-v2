@@ -1,12 +1,11 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-<<<<<<< HEAD
+
   /* config options here */
   turbopack: {
     root: __dirname
-  }
-=======
+  },
   webpack: (config, { isServer }) => {
     if (!isServer) {
       config.resolve.fallback = {
@@ -20,9 +19,7 @@ const nextConfig: NextConfig = {
     }
     return config
   },
-  turbopack: {},
   serverExternalPackages: ['pdf-parse', 'mammoth'],
->>>>>>> 259d56c (Resume done ✅)
 };
 
 export default nextConfig;
