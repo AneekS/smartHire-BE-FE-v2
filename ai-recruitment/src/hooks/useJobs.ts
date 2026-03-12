@@ -24,7 +24,7 @@ export function useJobs(params?: JobSearchParams | null) {
     isValidating,
   } = useSWRInfinite<Page>(
     getKey,
-    async ([, keyParams]) => jobsApi.search(JSON.parse(keyParams) as JobSearchParams),
+    async ([, keyParams]) => jobsApi.search(JSON.parse(String(keyParams)) as JobSearchParams),
     { revalidateFirstPage: false }
   );
 
@@ -41,6 +41,7 @@ export function useJobs(params?: JobSearchParams | null) {
   const apply = async (jobId: string, coverNote?: string) => {
     try {
       await jobsApi.apply({ job_id: jobId, cover_note: coverNote });
+      await jobsApi.trackBehaviorEvent({ jobId, eventType: "JOB_APPLICATION" });
       toast.success("Application submitted");
       await mutate();
     } catch (e) {
@@ -53,9 +54,11 @@ export function useJobs(params?: JobSearchParams | null) {
     try {
       if (save) {
         await jobsApi.save(jobId);
+        await jobsApi.trackBehaviorEvent({ jobId, eventType: "JOB_SAVE" });
         toast.success("Job saved");
       } else {
         await jobsApi.unsave(jobId);
+        await jobsApi.trackBehaviorEvent({ jobId, eventType: "JOB_IGNORE" });
         toast.success("Job removed from saved list");
       }
 

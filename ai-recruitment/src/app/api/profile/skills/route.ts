@@ -14,8 +14,13 @@ import { z } from "zod";
 
 export async function GET(req: AuthenticatedRequest) {
   return withAuth(req, async (r) => {
-    const candidate = await getOrCreateCandidate(r.user!.email);
-    return NextResponse.json((candidate as { skillRecords?: unknown }).skillRecords ?? []);
+    try {
+      const candidate = await getOrCreateCandidate(r.user!.email);
+      return NextResponse.json((candidate as { skillRecords?: unknown }).skillRecords ?? []);
+    } catch (e) {
+      console.error("[GET /api/profile/skills]", e);
+      return NextResponse.json({ error: e instanceof Error ? e.message : "Failed to fetch skills" }, { status: 500 });
+    }
   });
 }
 

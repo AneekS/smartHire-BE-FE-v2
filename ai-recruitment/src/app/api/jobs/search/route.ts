@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { withAuth, type AuthenticatedRequest } from "@/lib/auth-middleware";
 import { prisma } from "@/lib/db";
+import { cacheGet, cacheSet } from "@/lib/cache";
 import { handleError } from "@/lib/errors";
 import { JobSearchSchema } from "@/lib/validators/job.schema";
 import {
@@ -62,20 +63,32 @@ export async function GET(req: AuthenticatedRequest) {
           }
         : baseWhere;
 
-      const candidate = await prisma.candidate.findFirst({
-        where: {
-          OR: [{ id: authedReq.user?.candidateId }, { email: authedReq.user?.email }],
-        },
-        select: {
-          skills: true,
-          skillRecords: { select: { name: true } },
-        },
-      });
+      const candidateKey = `candidate-skills:${authedReq.user?.candidateId ?? authedReq.user?.email}`;
+      let candidateSkills = await cacheGet<string[]>(candidateKey);
 
-      const candidateSkills = [
-        ...(candidate?.skills ?? []),
-        ...((candidate?.skillRecords ?? []).map((skill) => skill.name)),
-      ];
+      if (!candidateSkills) {
+        const candidate = await prisma.candidate.findFirst({
+          where: {
+            OR: [{ id: authedReq.user?.candidateId }, { email: authedReq.user?.email }],
+          },
+          select: {
+            skills: true,
+            skillRecords: { select: { name: true } },
+          },
+        });
+
+        candidateSkills = [
+          ...(candidate?.skills ?? []),
+          ...((candidate?.skillRecords ?? []).map((skill) => skill.name)),
+        ];
+
+        await cacheSet(candidateKey, candidateSkills, 1800); // 30min TTL
+      }
+
+      // Cache search results (5min TTL) — keyed by search params hash
+      const searchCacheKey = `jobs:search:${Buffer.from(searchParams.toString()).toString("base64url")}`;
+      const cachedSearch = await cacheGet<{ jobs: unknown[]; nextCursor: string | null }>(searchCacheKey);
+      if (cachedSearch) return NextResponse.json(cachedSearch);
 
       const jobs = await prisma.job.findMany({
         where: where as typeof baseWhere,
@@ -163,10 +176,10 @@ export async function GET(req: AuthenticatedRequest) {
           })
         : null;
 
-      return NextResponse.json({
-        jobs: data,
-        nextCursor,
-      });
+      const searchResponse = { jobs: data, nextCursor };
+      await cacheSet(searchCacheKey, searchResponse, 300); // 5min TTL
+
+      return NextResponse.json(searchResponse);
     } catch (error) {
       return handleError(error);
     }

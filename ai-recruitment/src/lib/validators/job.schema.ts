@@ -27,3 +27,25 @@ export const JobAlertSchema = z.object({
   role: z.string().min(1),
   location: z.string().optional(),
 });
+
+export const JobRecommendationQuerySchema = z.object({
+  cursor: z.string().optional(),
+  limit: z.coerce.number().int().min(1).max(50).default(20),
+});
+
+export const BehaviorEventSchema = z.object({
+  jobId: z.string().min(1).optional(),
+  eventType: z.enum([
+    "JOB_VIEW",
+    "JOB_CLICK",
+    "JOB_APPLICATION",
+    "JOB_SAVE",
+    "JOB_IGNORE",
+  ]),
+  metadata: z.record(z.string(), z.unknown()).optional(),
+});
+
+export const RecruiterRecommendationsQuerySchema = z.object({
+  jobId: z.string().min(1),
+  limit: z.coerce.number().int().min(1).max(100).default(20),
+});

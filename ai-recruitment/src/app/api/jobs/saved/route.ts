@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { withAuth, type AuthenticatedRequest } from "@/lib/auth-middleware";
 import { prisma } from "@/lib/db";
+import { cacheGet, cacheSet } from "@/lib/cache";
 import { handleError } from "@/lib/errors";
 import { calculateMatchSummary, formatPostedAgo } from "@/services/jobs/job-search.service";
 
@@ -26,6 +27,11 @@ type SavedJobRow = {
 export async function GET(req: AuthenticatedRequest) {
   return withAuth(req, async (authedReq) => {
     try {
+      // Cache saved jobs list (5min TTL)
+      const savedCacheKey = `saved-jobs:${authedReq.user!.id}`;
+      const cachedSaved = await cacheGet<{ jobs: unknown[] }>(savedCacheKey);
+      if (cachedSaved) return NextResponse.json(cachedSaved);
+
       const [savedJobs, candidate] = await Promise.all([
         prisma.$queryRaw<SavedJobRow[]>`
           SELECT
@@ -102,7 +108,9 @@ export async function GET(req: AuthenticatedRequest) {
         };
       });
 
-      return NextResponse.json({ jobs });
+      const response = { jobs };
+      await cacheSet(savedCacheKey, response, 300); // 5min TTL
+      return NextResponse.json(response);
     } catch (error) {
       return handleError(error);
     }

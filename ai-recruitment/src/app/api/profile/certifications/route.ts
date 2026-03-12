@@ -10,8 +10,13 @@ import { z } from "zod";
 
 export async function GET(req: AuthenticatedRequest) {
   return withAuth(req, async (r) => {
-    const candidate = await getOrCreateCandidate(r.user!.email);
-    return NextResponse.json((candidate as { certifications?: unknown }).certifications ?? []);
+    try {
+      const candidate = await getOrCreateCandidate(r.user!.email);
+      return NextResponse.json((candidate as { certifications?: unknown }).certifications ?? []);
+    } catch (e) {
+      console.error("[GET /api/profile/certifications]", e);
+      return NextResponse.json({ error: e instanceof Error ? e.message : "Failed to fetch certifications" }, { status: 500 });
+    }
   });
 }
 

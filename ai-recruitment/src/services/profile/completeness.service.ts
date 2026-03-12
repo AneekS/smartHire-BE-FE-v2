@@ -13,6 +13,7 @@
  */
 
 import { prisma } from "@/lib/db";
+import { safeQuery } from "@/lib/errors";
 
 interface CompletenessWeights {
   name:        number;
@@ -86,28 +87,30 @@ export function calculateCompleteness(candidate: {
  * Called after any profile mutation.
  */
 export async function refreshCompleteness(candidateId: string): Promise<number> {
-  const candidate = await prisma.candidate.findUnique({
-    where: { id: candidateId },
-    select: {
-      name:            true,
-      headline:        true,
-      resumeUrl:       true,
-      educations:      { select: { id: true } },
-      skillRecords:    { select: { id: true } },
-      experiences:     { select: { id: true } },
-      projects:        { select: { id: true } },
-      careerPreference:{ select: { id: true } },
-    },
-  });
+  return safeQuery(async () => {
+    const candidate = await prisma.candidate.findUnique({
+      where: { id: candidateId },
+      select: {
+        name:            true,
+        headline:        true,
+        resumeUrl:       true,
+        educations:      { select: { id: true } },
+        skillRecords:    { select: { id: true } },
+        experiences:     { select: { id: true } },
+        projects:        { select: { id: true } },
+        careerPreference:{ select: { id: true } },
+      },
+    });
 
-  if (!candidate) return 0;
+    if (!candidate) return 0;
 
-  const { score } = calculateCompleteness(candidate);
+    const { score } = calculateCompleteness(candidate);
 
-  await prisma.candidate.update({
-    where: { id: candidateId },
-    data:  { profileCompleteness: score },
-  });
+    await prisma.candidate.update({
+      where: { id: candidateId },
+      data:  { profileCompleteness: score },
+    });
 
-  return score;
+    return score;
+  }, "Candidate");
 }

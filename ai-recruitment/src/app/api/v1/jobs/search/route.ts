@@ -6,8 +6,9 @@ export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
     const params = Object.fromEntries(searchParams);
-    const { role, location, skills, experience, page, limit } =
+    const { role, location, skills, experience, limit } =
       JobSearchSchema.parse(params);
+    const page = 1;
 
     let query = insforge.database
       .from("jobs")

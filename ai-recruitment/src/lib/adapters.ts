@@ -10,13 +10,25 @@ type RawResume = Record<string, unknown>;
 type RawCareerResponse = Record<string, unknown>;
 type RawInterview = Record<string, unknown>;
 
+function appendCacheBuster(url: string | null | undefined, version: string): string | null {
+  if (!url) {
+    return null;
+  }
+
+  const separator = url.includes("?") ? "&" : "?";
+  return `${url}${separator}v=${encodeURIComponent(version)}`;
+}
+
 export function adaptCandidate(raw: RawCandidate): CandidateProfile {
+  const avatarVersion = String(raw.updatedAt ?? raw.avatarUpdatedAt ?? Date.now());
+  const avatarUrl = appendCacheBuster((raw.avatarUrl as string) ?? null, avatarVersion);
+
   return {
     id: String(raw.id ?? ""),
     name: (raw.name as string) ?? null,
     email: (raw.email as string) ?? "",
-    image: (raw.avatarUrl as string) ?? (raw.image as string) ?? (raw.photoUrl as string) ?? null,
-    avatarUrl: (raw.avatarUrl as string) ?? null,
+    image: avatarUrl ?? (raw.image as string) ?? (raw.photoUrl as string) ?? null,
+    avatarUrl,
     headline: (raw.headline as string) ?? null,
     phone: (raw.phone as string) ?? null,
     location: (raw.location as string) ?? null,
