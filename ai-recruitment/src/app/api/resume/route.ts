@@ -27,12 +27,18 @@ export async function GET() {
 
     if (!resume) return NextResponse.json({ data: null });
 
+    const parsed = resume.parsedContent ? (JSON.parse(resume.parsedContent) as Record<string, unknown>) : null;
+    if (parsed && !Array.isArray(parsed.projects)) {
+      parsed.projects = [];
+    }
+    console.log("[GET /api/resume] Returning parsed — projects count:", parsed?.projects?.length ?? 0);
+
     return NextResponse.json({
       data: {
         resumeId: resume.id,
         fileName: resume.title,
-        uploadedAt: resume.createdAt,
-        parsed: resume.parsedContent ? JSON.parse(resume.parsedContent) : null,
+        uploadedAt: resume.createdAt.toISOString(),
+        parsed,
         atsScore: resume.atsScore,
         scoreBreakdown: resume.scoreBreakdown ? JSON.parse(resume.scoreBreakdown) : null,
         improvements: resume.improvements ? JSON.parse(resume.improvements) : []
@@ -72,12 +78,13 @@ export async function POST(req: NextRequest) {
 
     // 1. Extract text
     const buffer = Buffer.from(await file.arrayBuffer());
-    console.log(`Processing file: ${file.name}, size: ${buffer.length} bytes, type: ${file.type}`);
+    console.log("[POST /api/resume] Processing file:", file.name, "size:", buffer.length, "type:", file.type);
     const rawText = await ExtractorService.extract(buffer, file.type);
-    console.log(`Extracted ${rawText.length} characters from resume`);
+    console.log("[POST /api/resume] After ExtractorService.extract — rawText.length:", rawText.length);
 
     // 2. Parse with AI
     const parsed = await parser.parse(rawText);
+    console.log("[POST /api/resume] After parser.parse — projects count:", parsed.projects?.length ?? 0, "projects:", parsed.projects);
 
     // 3. Generate Improvements
     const improvements = await parser.generateImprovements(parsed);
@@ -101,7 +108,8 @@ export async function POST(req: NextRequest) {
     const usersCount = await prisma.user.count({ where: { id: dbUser.id } });
     console.log("DOES USER ACTUALLY EXIST IN PRISMA? Count:", usersCount);
 
-    // 6. Save new
+    // 6. Save new (full parsed object including projects)
+    const parsedContentStr = JSON.stringify(parsed);
     const newVersion = await prisma.resumeVersion.create({
       data: {
         userId: dbUser.id,
@@ -109,17 +117,18 @@ export async function POST(req: NextRequest) {
         fileUrl: "/uploads/" + file.name,
         status: "ACTIVE",
         atsScore: atsScore,
-        parsedContent: JSON.stringify(parsed),
+        parsedContent: parsedContentStr,
         scoreBreakdown: JSON.stringify(scoreBreakdown),
         improvements: JSON.stringify(improvements)
       }
     });
+    console.log("[POST /api/resume] DB insert — parsedContent length:", parsedContentStr.length, "hasProjects:", (parsed as { projects?: unknown[] }).projects?.length ?? 0);
 
     return NextResponse.json({
       data: {
         resumeId: newVersion.id,
         fileName: file.name,
-        uploadedAt: newVersion.createdAt,
+        uploadedAt: newVersion.createdAt.toISOString(),
         parsed,
         atsScore,
         scoreBreakdown,
@@ -127,8 +136,48 @@ export async function POST(req: NextRequest) {
       }
     });
 
-  } catch (e: any) {
+  } catch (e: unknown) {
     console.error("Upload error:", e);
-    return NextResponse.json({ error: e instanceof Error ? e.message : "Upload failed", stack: e.stack }, { status: 500 });
+    return NextResponse.json(
+      { error: e instanceof Error ? e.message : "Upload failed" },
+      { status: 500 }
+    );
+  }
+}
+
+export async function DELETE() {
+  try {
+    const { user } = await requireAuth();
+    if (!user?.email) {
+      return NextResponse.json({ error: "No user email found" }, { status: 401 });
+    }
+
+    const dbUser = await prisma.user.findUnique({
+      where: { email: user.email },
+    });
+    if (!dbUser) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
+    const resume = await prisma.resumeVersion.findFirst({
+      where: { userId: dbUser.id },
+      orderBy: { createdAt: "desc" },
+    });
+
+    if (!resume) {
+      return NextResponse.json({ error: "No resume found" }, { status: 404 });
+    }
+
+    await prisma.resumeVersion.delete({
+      where: { id: resume.id },
+    });
+
+    return NextResponse.json({ message: "Resume deleted successfully" });
+  } catch (e) {
+    console.error("DELETE /api/resume error:", e);
+    return NextResponse.json(
+      { error: e instanceof Error ? e.message : "Delete failed" },
+      { status: 500 }
+    );
   }
 }

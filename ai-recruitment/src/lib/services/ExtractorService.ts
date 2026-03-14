@@ -34,15 +34,23 @@ export class ExtractorService {
     }
 
     private static async extractFromPDF(buffer: Buffer): Promise<string> {
-        // Dynamically import pdf-parse to avoid any module resolution issues with Turbopack/Webpack
         const { PDFParse } = await import('pdf-parse');
         const parser = new PDFParse({ data: buffer });
         try {
             const result = await parser.getText();
-            if (!result.text || result.text.trim().length === 0) {
+            const rawText = result?.text ?? '';
+            // DEBUG: Log extraction result so we can see if content is truncated
+            const numPages = (result as { numpages?: number }).numpages;
+            console.log('[ExtractorService] PDF extract:', {
+                rawTextLength: rawText.length,
+                numpages: numPages ?? 'unknown',
+                previewStart: rawText.slice(0, 200).replace(/\n/g, ' '),
+                previewEnd: rawText.length > 400 ? rawText.slice(-200).replace(/\n/g, ' ') : '(short)',
+            });
+            if (!rawText || rawText.trim().length === 0) {
                 throw new Error('PDF appears to be empty or image-based (no extractable text)');
             }
-            return result.text;
+            return rawText;
         } finally {
             await parser.destroy();
         }

@@ -10,94 +10,96 @@ export function FixItSuggestionsPanel() {
     const pendingSuggestions = improvements.filter(s => !s.applied);
 
     return (
-        <div className="w-full h-full flex flex-col gap-6 max-h-[85vh] overflow-y-auto lg:pr-4 thin-scrollbar pb-24">
+        <div className="flex h-full max-h-[calc(100vh-8rem)] w-full flex-col overflow-hidden">
             <motion.div
-                initial={{ opacity: 0, x: 30 }}
+                initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.1 }}
-                className="flex items-center justify-between sticky top-0 bg-[#F4F4F5]/80 backdrop-blur-md z-10 py-2 pt-4"
+                className="z-10 flex shrink-0 items-center justify-between border-b border-gray-100 bg-white py-3 pr-2 shadow-sm"
             >
-                <h3 className="text-xl font-bold font-display text-slate-900">Fix-It Suggestions</h3>
+                <h3 className="text-lg font-bold text-gray-900">Fix-It Suggestions</h3>
                 {pendingSuggestions.length > 0 && (
                     <Button
                         onClick={applyAllFixes}
-                        className="rounded-full bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500 hover:text-white border border-emerald-500/20 text-xs font-bold transition-all shadow-none"
+                        className="rounded-full bg-violet-600 text-xs font-semibold text-white shadow-sm hover:bg-violet-700"
                     >
                         Apply All ({pendingSuggestions.length})
                     </Button>
                 )}
             </motion.div>
 
-            <div className="flex flex-col gap-4">
+            <div className="flex flex-1 flex-col gap-4 overflow-y-auto thin-scrollbar py-4 pr-2">
                 <AnimatePresence>
                     {pendingSuggestions.map((suggestion, idx) => {
                         const isCritical = suggestion.severity === "critical";
-                        const badgeColor = isCritical
-                            ? "text-rose-500 border-rose-500/20 bg-rose-500/10"
-                            : "text-amber-500 border-amber-500/20 bg-amber-500/10";
+                        const badgeClass = isCritical
+                            ? "rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-rose-700 border-0"
+                            : "rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-700 border-0";
 
                         return (
                             <motion.div
                                 key={suggestion.id}
-                                initial={{ opacity: 0, x: 50, scale: 0.95 }}
-                                animate={{ opacity: 1, x: 0, scale: 1 }}
-                                exit={{ opacity: 0, x: 100, height: 0, margin: 0, padding: 0 }}
-                                transition={{ duration: 0.4, delay: idx * 0.1 }}
-                                className="glass-panel p-5 rounded-3xl border border-slate-200 bg-white shadow-sm relative overflow-hidden"
+                                initial={{ opacity: 0, y: 12, scale: 0.98 }}
+                                animate={{ opacity: 1, y: 0, scale: 1 }}
+                                exit={{ opacity: 0, height: 0, margin: 0, padding: 0 }}
+                                transition={{ duration: 0.35, delay: idx * 0.06 }}
+                                className={cn(
+                                    "relative overflow-hidden rounded-2xl border border-gray-100 bg-white p-5 shadow-sm",
+                                    isCritical ? "border-l-4 border-l-rose-400" : "border-l-4 border-l-amber-400"
+                                )}
                             >
-                                <div className={cn("absolute top-0 left-0 w-1 h-full", isCritical ? "bg-rose-500" : "bg-amber-500")} />
 
-                                <div className="flex justify-between items-start mb-3 pl-2">
-                                    <div className="flex items-center gap-2">
-                                        <span className={cn("text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full border", badgeColor)}>
-                                            {isCritical ? "🔴 CRITICAL" : "⚠️ IMPROVEMENT"}
+                                <div className="mb-3 flex items-start justify-between">
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        <span className={badgeClass}>
+                                            {isCritical ? "Critical" : "Improvement"}
                                         </span>
-                                        <span className="text-[10px] font-bold uppercase text-slate-400 tracking-wider">
-                                            • {suggestion.section}
+                                        <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-gray-600">
+                                            {suggestion.section}
                                         </span>
                                     </div>
-                                    <button onClick={() => ignoreFix(suggestion.id)} className="text-slate-400 hover:text-slate-600 transition-colors p-1">
-                                        <X className="w-4 h-4 cursor-pointer" />
+                                    <button
+                                        type="button"
+                                        onClick={() => ignoreFix(suggestion.id)}
+                                        className="rounded-full p-1 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600"
+                                    >
+                                        <X className="h-4 w-4" />
                                     </button>
                                 </div>
 
-                                <h4 className="font-bold text-slate-800 mb-4 pl-2 text-sm leading-tight">
+                                <h4 className="mb-4 text-sm font-bold leading-tight text-gray-900">
                                     {suggestion.title}
                                 </h4>
 
-                                <div className="space-y-2 mb-4">
-                                    <div className="px-3 py-2.5 rounded-xl bg-rose-50/50 border border-rose-100/50">
-                                        <p className="text-[10px] uppercase font-bold text-rose-500/70 mb-1 tracking-wider">Before</p>
-                                        <p className="text-sm font-medium text-slate-600 line-through decoration-rose-500/30 decoration-2">&quot;{suggestion.originalText}&quot;</p>
+                                <div className="mb-4 space-y-2">
+                                    <div className="rounded-xl border border-red-100 bg-red-50/80 px-3 py-2.5">
+                                        <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-red-500/80">Before</p>
+                                        <p className="text-sm font-medium text-gray-600 line-through decoration-red-300 decoration-2">&quot;{suggestion.originalText}&quot;</p>
                                     </div>
-
-                                    <div className="flex justify-center -my-3 relative z-10 w-full">
-                                        <div className="bg-white p-1 rounded-full shadow-sm border border-slate-100">
-                                            <div className="w-6 h-6 bg-slate-50 rounded-full flex items-center justify-center">
-                                                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="text-slate-400"><path d="m6 9 6 6 6-6" /></svg>
-                                            </div>
+                                    <div className="flex justify-center">
+                                        <div className="flex h-6 w-6 items-center justify-center rounded-full border border-gray-200 bg-white shadow-sm">
+                                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="text-gray-400"><path d="m6 9 6 6 6-6" /></svg>
                                         </div>
                                     </div>
-
-                                    <div className="px-3 py-2.5 rounded-xl bg-emerald-50/50 border border-emerald-100/50">
-                                        <p className="text-[10px] uppercase font-bold text-emerald-500/70 mb-1 tracking-wider">After</p>
-                                        <p className="text-sm font-medium text-slate-800">&quot;{suggestion.suggestedText}&quot;</p>
+                                    <div className="rounded-xl border border-emerald-100 bg-emerald-50/80 px-3 py-2.5">
+                                        <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-emerald-600/80">After</p>
+                                        <p className="text-sm font-medium text-gray-800">&quot;{suggestion.suggestedText}&quot;</p>
                                     </div>
                                 </div>
 
-                                <div className="flex gap-2 pl-2">
+                                <div className="flex gap-2">
                                     <Button
                                         variant="ghost"
-                                        className="flex-1 text-xs font-bold rounded-2xl hover:bg-slate-100 text-slate-600"
+                                        className="flex-1 rounded-xl text-xs font-semibold text-gray-600 hover:bg-gray-100"
                                         onClick={() => ignoreFix(suggestion.id)}
                                     >
                                         Ignore
                                     </Button>
                                     <Button
-                                        className="flex-[2] text-xs font-bold rounded-2xl bg-primary text-white hover:opacity-90 transition-opacity gap-2"
+                                        className="flex-[2] gap-2 rounded-xl bg-violet-600 text-xs font-semibold text-white shadow-sm hover:bg-violet-700"
                                         onClick={() => applyFix(suggestion)}
                                     >
-                                        <Sparkles className="w-3.5 h-3.5" />
+                                        <Sparkles className="h-3.5 w-3.5" />
                                         Apply Fix
                                     </Button>
                                 </div>
@@ -110,13 +112,13 @@ export function FixItSuggestionsPanel() {
                     <motion.div
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
-                        className="flex flex-col items-center justify-center p-10 text-center glass-panel rounded-3xl"
+                        className="flex flex-col items-center justify-center rounded-2xl border border-gray-100 bg-white p-10 text-center shadow-sm"
                     >
-                        <div className="w-16 h-16 rounded-full bg-emerald-500/10 flex items-center justify-center mb-4">
-                            <CheckCircle2 className="w-8 h-8 text-emerald-500" />
+                        <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100">
+                            <CheckCircle2 className="h-8 w-8 text-emerald-600" />
                         </div>
-                        <h4 className="text-lg font-bold text-slate-900 mb-2">All Caught Up!</h4>
-                        <p className="text-sm text-slate-500 max-w-[200px]">Your resume is looking great. No new suggestions to review.</p>
+                        <h4 className="mb-2 text-lg font-bold text-gray-900">All Caught Up!</h4>
+                        <p className="max-w-[200px] text-sm text-gray-500">Your resume is looking great. No new suggestions to review.</p>
                     </motion.div>
                 )}
             </div>

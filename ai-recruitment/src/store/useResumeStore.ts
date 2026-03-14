@@ -62,6 +62,8 @@ interface ResumeStore {
     // Actions
     loadResumeFromAPI: () => Promise<void>;
     uploadResume: (file: File) => Promise<void>;
+    replaceResume: (file: File) => Promise<void>;
+    deleteResume: () => Promise<void>;
     applyFix: (fix: Improvement, newText?: string) => void;
     ignoreFix: (fixId: string) => void;
     applyAllFixes: () => void;
@@ -98,12 +100,16 @@ export const useResumeStore = create<ResumeStore>((set, get) => ({
                 return;
             }
 
+            const parsed = json.data.parsed;
+            if (typeof window !== "undefined" && parsed) {
+                console.log("[useResumeStore] loadResumeFromAPI — parsed.projects:", (parsed as { projects?: unknown[] }).projects?.length ?? 0, (parsed as { projects?: unknown[] }).projects);
+            }
             set({
                 resumeId: json.data.resumeId,
                 fileName: json.data.fileName,
                 uploadedAt: json.data.uploadedAt,
-                originalContent: json.data.parsed,
-                updatedContent: json.data.parsed,
+                originalContent: parsed,
+                updatedContent: parsed,
                 atsScore: json.data.atsScore,
                 scoreBreakdown: json.data.scoreBreakdown,
                 improvements: json.data.improvements || [],
@@ -118,7 +124,6 @@ export const useResumeStore = create<ResumeStore>((set, get) => ({
     uploadResume: async (file: File) => {
         set({ isUploading: true, error: null, uploadStage: "uploading" });
         try {
-            // Simulate stages for UI
             setTimeout(() => set({ uploadStage: "extracting" }), 500);
             setTimeout(() => set({ uploadStage: "parsing" }), 1500);
             setTimeout(() => set({ uploadStage: "scoring" }), 4000);
@@ -134,32 +139,35 @@ export const useResumeStore = create<ResumeStore>((set, get) => ({
             });
 
             if (!res.ok) {
-                let errorMessage = 'Upload failed';
+                let errorMessage = "Upload failed";
                 try {
                     const errData = await res.json();
-                    errorMessage = errData.error || errData.message || `HTTP ${res.status}`;
+                    errorMessage = (errData.error as string) || (errData.message as string) || `HTTP ${res.status}`;
                 } catch {
                     errorMessage = `HTTP ${res.status}: ${res.statusText}`;
                 }
-                console.error('Upload failed:', errorMessage);
-                set({ error: errorMessage, isUploading: false, uploadStage: 'idle' });
+                set({ error: errorMessage, isUploading: false, uploadStage: "idle" });
                 return;
             }
 
             const json = await res.json();
             if (!json.data) {
-                set({ error: 'Invalid response from server', isUploading: false, uploadStage: 'idle' });
+                set({ error: "Invalid response from server", isUploading: false, uploadStage: "idle" });
                 return;
             }
 
             const { data } = json;
+            const parsed = data.parsed;
+            if (typeof window !== "undefined" && parsed) {
+                console.log("[useResumeStore] uploadResume — data.parsed.projects:", (parsed as { projects?: unknown[] }).projects?.length ?? 0, (parsed as { projects?: unknown[] }).projects);
+            }
             set({
                 uploadStage: "done",
                 resumeId: data.resumeId,
                 fileName: data.fileName,
-                uploadedAt: data.uploadedAt,
-                originalContent: data.parsed,
-                updatedContent: data.parsed,
+                uploadedAt: data.uploadedAt ?? new Date().toISOString(),
+                originalContent: parsed,
+                updatedContent: parsed,
                 atsScore: data.atsScore,
                 scoreBreakdown: data.scoreBreakdown,
                 improvements: data.improvements || [],
@@ -169,12 +177,55 @@ export const useResumeStore = create<ResumeStore>((set, get) => ({
                 error: null,
             });
 
-            // reset stage after completion
             setTimeout(() => set({ uploadStage: "idle" }), 1000);
         } catch (error) {
             const message = error instanceof Error ? error.message : "Network error";
-            console.error("Upload exception:", message);
             set({ error: message, isUploading: false, uploadStage: "idle" });
+        }
+    },
+
+    replaceResume: async (file: File) => {
+        set({ isUploading: true, error: null, uploadStage: "uploading" });
+        try {
+            const delRes = await fetch("/api/resume", { method: "DELETE", credentials: "include" });
+            if (!delRes.ok && delRes.status !== 404) {
+                const errData = await delRes.json().catch(() => ({}));
+                set({
+                    error: (errData.error as string) || "Failed to remove current resume",
+                    isUploading: false,
+                });
+                return;
+            }
+            get().uploadResume(file);
+        } catch (error) {
+            set({
+                error: error instanceof Error ? error.message : "Replace failed",
+                isUploading: false,
+            });
+        }
+    },
+
+    deleteResume: async () => {
+        try {
+            const res = await fetch("/api/resume", { method: "DELETE", credentials: "include" });
+            if (!res.ok) {
+                const errData = await res.json().catch(() => ({}));
+                throw new Error((errData.error as string) || "Delete failed");
+            }
+            set({
+                resumeId: null,
+                fileName: null,
+                uploadedAt: null,
+                originalContent: null,
+                updatedContent: null,
+                atsScore: null,
+                scoreBreakdown: null,
+                improvements: [],
+                appliedFixes: [],
+                changeLog: [],
+            });
+        } catch (error) {
+            set({ error: error instanceof Error ? error.message : "Delete failed" });
         }
     },
 
