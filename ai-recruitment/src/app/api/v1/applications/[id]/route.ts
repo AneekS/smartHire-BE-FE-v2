@@ -7,6 +7,7 @@ import {
   changeApplicationStatus,
 } from "@/services/applications/application.service";
 import { prisma } from "@/lib/db";
+import { notifyCandidateShortlisted } from "@/modules/preferences/services/preference-notification.service";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -59,6 +60,10 @@ export async function PATCH(req: AuthenticatedRequest, ctx: RouteContext) {
         authedReq.user?.id ?? "",
         metadata
       );
+
+      if (status === "SHORTLISTED") {
+        void notifyCandidateShortlisted(id);
+      }
 
       return NextResponse.json(updated);
     } catch (error) {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Bookmark, BriefcaseBusiness, MapPin, Sparkles, TrendingUp, Zap } from "lucide-react";
 import { toast } from "sonner";
 import { useJobs } from "@/hooks/useJobs";
@@ -48,6 +48,8 @@ const jobTypeOptions = [
 ] as const;
 
 export function JobSearch() {
+  const hasPrefilled = useRef(false);
+
   const [role, setRole] = useState("");
   const [location, setLocation] = useState("");
   const [experience, setExperience] = useState("ANY");
@@ -84,6 +86,75 @@ export function JobSearch() {
 
     return () => clearTimeout(timer);
   }, [role, location, skills, experience, salary, workMode, jobType]);
+
+  useEffect(() => {
+    if (hasPrefilled.current) return;
+
+    const mapSalaryToBucket = (target: number | null | undefined): string => {
+      if (!target || target <= 0) return "ANY";
+      const inLakhs = target / 100000;
+      if (inLakhs < 6) return "3-6";
+      if (inLakhs < 12) return "6-12";
+      return "12+";
+    };
+
+    const mapExperienceToBucket = (value: string | null | undefined): string => {
+      if (!value) return "ANY";
+      if (value === "ENTRY") return "0-1";
+      if (value === "MID") return "1-3";
+      if (value === "SENIOR") return "3-5";
+      if (value === "LEAD") return "5+";
+      return "ANY";
+    };
+
+    void (async () => {
+      try {
+        const res = await fetch("/api/preferences", { credentials: "include" });
+        if (!res.ok) return;
+
+        const json = (await res.json()) as {
+          preference?: {
+            primaryRole?: string;
+            preferredLocations?: string[];
+            preferredWorkTypes?: string[];
+            salaryTarget?: number;
+            experienceLevel?: string;
+          } | null;
+          data?: {
+            primaryRole?: string;
+            preferredLocations?: string[];
+            preferredWorkTypes?: string[];
+            salaryTarget?: number;
+            experienceLevel?: string;
+          } | null;
+        };
+
+        const preference = json.preference ?? json.data;
+        if (!preference) return;
+
+        hasPrefilled.current = true;
+
+        if (preference.primaryRole?.trim()) {
+          setRole((prev) => (prev.trim() ? prev : preference.primaryRole!.trim()));
+        }
+
+        const primaryLocation = preference.preferredLocations?.[0]?.trim();
+        if (primaryLocation) {
+          setLocation((prev) => (prev.trim() ? prev : primaryLocation));
+        }
+
+        const primaryWorkType = preference.preferredWorkTypes?.[0];
+        if (primaryWorkType === "REMOTE" || primaryWorkType === "HYBRID" || primaryWorkType === "ONSITE") {
+          setWorkMode((prev) => (prev !== "ANY" ? prev : primaryWorkType));
+        }
+
+        setSalary((prev) => (prev !== "ANY" ? prev : mapSalaryToBucket(preference.salaryTarget)));
+        setExperience((prev) => (prev !== "ANY" ? prev : mapExperienceToBucket(preference.experienceLevel)));
+      } catch {
+        // Ignore prefill errors so manual search is never blocked.
+      }
+    })();
+  }, []);
 
   const searchParams = useMemo(
     () => ({

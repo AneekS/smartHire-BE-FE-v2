@@ -63,29 +63,27 @@ function IntegrationsContent() {
   const { accounts, connect, disconnect, getAccount, isLoading } = useConnectedAccounts();
 
   const [activeCategory, setActiveCategory] = useState<IntegrationCategory | "all">("all");
-  const [successProvider, setSuccessProvider] = useState<string | null>(null);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [dismissSuccess, setDismissSuccess] = useState(false);
+  const [dismissError, setDismissError] = useState(false);
+
+  const connected = searchParams.get("connected");
+  const error = searchParams.get("error");
+  const messages: Record<string, string> = {
+    unknown_provider: "Unknown provider — OAuth not supported.",
+    missing_params: "OAuth response was incomplete. Please try again.",
+    invalid_state: "Session expired. Please try again.",
+    callback_failed: "Connection failed on the provider's side. Please try again.",
+  };
+
+  const successProvider = dismissSuccess ? null : connected;
+  const errorMsg = dismissError || !error ? null : (messages[error] ?? `OAuth error: ${error}`);
 
   // Show success banner when redirected back from OAuth
   useEffect(() => {
-    const connected = searchParams.get("connected");
-    const error = searchParams.get("error");
-    if (connected) {
-      setSuccessProvider(connected);
-      // Clean the URL silently
+    if (connected || error) {
       window.history.replaceState({}, "", "/integrations");
     }
-    if (error) {
-      const messages: Record<string, string> = {
-        unknown_provider: "Unknown provider — OAuth not supported.",
-        missing_params: "OAuth response was incomplete. Please try again.",
-        invalid_state: "Session expired. Please try again.",
-        callback_failed: "Connection failed on the provider's side. Please try again.",
-      };
-      setErrorMsg(messages[error] ?? `OAuth error: ${error}`);
-      window.history.replaceState({}, "", "/integrations");
-    }
-  }, [searchParams]);
+  }, [connected, error]);
 
   // Filter providers by selected category
   const visibleProviders =
@@ -99,7 +97,7 @@ function IntegrationsContent() {
   // ── Connect handler (called by IntegrationCard)
   const handleConnect = useCallback(
     async (config: typeof PROVIDER_REGISTRY[number], values?: Record<string, string>) => {
-      setErrorMsg(null);
+      setDismissError(true);
       if (config.type === "oauth") {
         // Get OAuth URL → redirect browser to it
         const { url } = await integrationsApi.getOAuthUrl(config.id as AccountProvider);
@@ -125,7 +123,7 @@ function IntegrationsContent() {
   // ── Disconnect handler
   const handleDisconnect = useCallback(
     async (config: typeof PROVIDER_REGISTRY[number]) => {
-      setErrorMsg(null);
+      setDismissError(true);
       if (config.type === "oauth") {
         await integrationsApi.disconnect(config.id as AccountProvider);
         // If connectedAccountsApi wraps SWR, we also need to mutate — call through the hook
@@ -171,13 +169,13 @@ function IntegrationsContent() {
         <div className="mb-6">
           <SuccessBanner
             provider={successProvider}
-            onDismiss={() => setSuccessProvider(null)}
+            onDismiss={() => setDismissSuccess(true)}
           />
         </div>
       )}
       {errorMsg && (
         <div className="mb-6">
-          <ErrorBanner message={errorMsg} onDismiss={() => setErrorMsg(null)} />
+          <ErrorBanner message={errorMsg} onDismiss={() => setDismissError(true)} />
         </div>
       )}
 

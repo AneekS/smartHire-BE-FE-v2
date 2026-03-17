@@ -1,14 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { formatDistanceToNow, format } from "date-fns";
 import {
   ArrowLeft,
   Building2,
   MapPin,
-  ExternalLink,
-  MessageSquarePlus,
   LogOut,
   Clock,
   Activity,
@@ -28,7 +26,6 @@ import {
   ApplicationStatusBadge,
   ApplicationPipeline,
   HealthScoreIndicator,
-  InterviewProbabilityBadge,
 } from "./ApplicationStatus";
 import { ApplicationTimeline } from "./ApplicationTimeline";
 

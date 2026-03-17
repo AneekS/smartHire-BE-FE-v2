@@ -139,6 +139,7 @@ export function AvatarUploadModal({
           {/* Current / preview image */}
           <div className="flex justify-center">
             <div className="relative">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={displaySrc}
                 alt="Avatar preview"

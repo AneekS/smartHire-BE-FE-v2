@@ -22,6 +22,7 @@ import { getBullConnectionOptions } from '@/lib/redis-options';
 import { QUEUE_NAMES } from '@/lib/queues';
 import { prisma } from '@/lib/db';
 import { CacheService } from '@/lib/cache-utils';
+import { calculateRoleFitScore } from '@/modules/preferences/services/role-fit.service';
 
 // ─── Bootstrap guard ─────────────────────────────────────────────────────────
 
@@ -32,7 +33,7 @@ if (!redisUrl) {
 
 // ─── Core logic ───────────────────────────────────────────────────────────────
 
-type JobPayload = { candidateId: string };
+type JobPayload = { candidateId?: string; userId?: string };
 
 async function aggregateCandidateAnalytics(candidateId: string): Promise<void> {
   const applications = await prisma.application.findMany({
@@ -130,8 +131,12 @@ async function bootstrap(): Promise<void> {
   const worker = new Worker<JobPayload>(
     QUEUE_NAMES.ANALYTICS,
     async (job) => {
-      if (job.name === 'aggregate-candidate-analytics') {
+      if (job.name === 'aggregate-candidate-analytics' && job.data.candidateId) {
         await aggregateCandidateAnalytics(job.data.candidateId);
+      }
+
+      if (job.name === 'compute-role-fit-scores' && job.data.userId) {
+        await calculateRoleFitScore(job.data.userId);
       }
     },
     {

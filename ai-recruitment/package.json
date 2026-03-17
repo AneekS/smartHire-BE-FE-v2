@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "node -e \"console.log('Server starting...')\" && next dev",
     "build": "npm run db:migrate:deploy && npx prisma generate && next build",
     "start": "next start",
     "lint": "eslint",
@@ -14,6 +14,9 @@
     "worker:recommendations": "tsx src/workers/recommendationWorker.ts",
     "worker:analytics": "tsx src/workers/analyticsWorker.ts",
     "worker:cache": "tsx src/workers/cacheWorker.ts",
+    "worker:notifications": "tsx src/workers/notification.worker.ts",
+    "worker:emails": "tsx src/workers/email.worker.ts",
+    "notify:test": "tsx --env-file=.env.local src/modules/notifications/scripts/push-test-notification.ts",
     "db:migrate:deploy": "prisma migrate deploy",
     "db:migrate:status": "prisma migrate status",
     "prisma:generate": "prisma generate",
@@ -22,7 +25,8 @@
     "prisma:studio": "prisma studio",
     "prisma:validate": "prisma validate",
     "db:sync": "prisma generate && prisma db push",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate",
+    "create:dirs": "node ../create-dirs-script.js"
   },
   "dependencies": {
     "@ai-sdk/openai": "^3.0.37",

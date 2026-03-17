@@ -4,11 +4,35 @@ import { useMemo, useState } from "react";
 import { BriefcaseBusiness, Loader2, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { useJobRecommendations } from "@/hooks/useJobRecommendations";
-import { jobsApi, type RecommendedJob } from "@/lib/api-client";
+import {
+  jobsApi,
+  type JobRecommendationsResponse,
+  type RecommendedJob,
+} from "@/lib/api-client";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+
+type RecommendationRole = JobRecommendationsResponse["marketIntelligence"]["highDemandRoles"][number];
+
+type Recommendations = {
+  recommendedJobs?: RecommendedJob[];
+  highMatchJobs?: RecommendedJob[];
+  trendingJobs?: RecommendedJob[];
+  marketIntelligence?: {
+    highDemandRoles?: RecommendationRole[];
+  };
+};
+
+const DEFAULT_RECOMMENDATIONS: Recommendations = {
+  recommendedJobs: [],
+  highMatchJobs: [],
+  trendingJobs: [],
+  marketIntelligence: {
+    highDemandRoles: [],
+  },
+};
 
 function JobRecommendationCard({
   job,
@@ -64,10 +88,39 @@ export function JobRecommendationsFeed() {
   const { recommendations, isLoading, mutate } = useJobRecommendations(20);
   const [applyingId, setApplyingId] = useState<string | null>(null);
 
-  const exploreCareers = useMemo(
-    () => recommendations?.marketIntelligence.highDemandRoles.slice(0, 5) ?? [],
-    [recommendations]
-  );
+  const safeRecommendations: Recommendations = recommendations ?? DEFAULT_RECOMMENDATIONS;
+
+  const recommendedJobs = useMemo(() => {
+    const jobs = safeRecommendations.recommendedJobs;
+
+    if (!Array.isArray(jobs)) return [];
+
+    return jobs.slice(0, 6);
+  }, [safeRecommendations]);
+
+  const highMatchJobs = useMemo(() => {
+    const jobs = safeRecommendations.highMatchJobs;
+
+    if (!Array.isArray(jobs)) return [];
+
+    return jobs.slice(0, 4);
+  }, [safeRecommendations]);
+
+  const trendingJobs = useMemo(() => {
+    const jobs = safeRecommendations.trendingJobs;
+
+    if (!Array.isArray(jobs)) return [];
+
+    return jobs.slice(0, 4);
+  }, [safeRecommendations]);
+
+  const exploreCareers = useMemo(() => {
+    const roles = safeRecommendations.marketIntelligence?.highDemandRoles;
+
+    if (!Array.isArray(roles)) return [];
+
+    return roles.slice(0, 5);
+  }, [safeRecommendations]);
 
   const onApply = async (jobId: string) => {
     setApplyingId(jobId);
@@ -105,7 +158,7 @@ export function JobRecommendationsFeed() {
       <section className="space-y-3">
         <h3 className="text-lg font-semibold">Recommended for you</h3>
         <div className="grid gap-3">
-          {recommendations.recommendedJobs.slice(0, 6).map((job) => (
+          {recommendedJobs.map((job) => (
             <JobRecommendationCard
               key={job.id}
               job={job}
@@ -119,7 +172,7 @@ export function JobRecommendationsFeed() {
       <section className="space-y-3">
         <h3 className="text-lg font-semibold">High match jobs</h3>
         <div className="grid gap-3 md:grid-cols-2">
-          {recommendations.highMatchJobs.slice(0, 4).map((job) => (
+          {highMatchJobs.map((job) => (
             <JobRecommendationCard
               key={job.id}
               job={job}
@@ -133,7 +186,7 @@ export function JobRecommendationsFeed() {
       <section className="space-y-3">
         <h3 className="text-lg font-semibold">Trending jobs</h3>
         <div className="grid gap-3 md:grid-cols-2">
-          {recommendations.trendingJobs.slice(0, 4).map((job) => (
+          {trendingJobs.map((job) => (
             <JobRecommendationCard
               key={job.id}
               job={job}

@@ -4,10 +4,9 @@ import useSWR from "swr";
 import { toast } from "sonner";
 import {
   resumesApi,
-  type ResumeVersion,
   type ResumeUploadResponse,
 } from "@/lib/api-client";
-import { adaptResumeVersion, adaptResumeAnalysis } from "@/lib/adapters";
+import { adaptResumeVersion } from "@/lib/adapters";
 
 export function useResumes() {
   const { data, error, isLoading, mutate } = useSWR(

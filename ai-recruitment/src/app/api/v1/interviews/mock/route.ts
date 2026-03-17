@@ -4,7 +4,6 @@ import {
   AuthenticatedRequest,
 } from "@/lib/auth-middleware";
 import { requireAuth } from "@/lib/insforge-server";
-import { insforge } from "@/lib/insforge";
 import { streamText } from "ai";
 import { openai } from "@ai-sdk/openai";
 import { z } from "zod";
@@ -58,9 +57,7 @@ const BodySchema = z.object({
 });
 
 export async function POST(req: AuthenticatedRequest) {
-  return withAuth(req, async (authedReq) => {
-    const candidateId = authedReq.user!.candidateId ?? authedReq.user!.id;
-
+  return withAuth(req, async () => {
     const body = await req.json();
     const { messages, target_role, session_type, sessionId } =
       BodySchema.parse(body);

@@ -94,7 +94,7 @@ export class ParserService {
     try {
       const parsed = await this.callAI(rawText);
       const validated = ParsedResumeSchema.parse(parsed);
-      const metrics = this.computeMetrics(validated, rawText);
+      const metrics = this.computeMetrics(validated);
 
       const insertData = {
         resume_id: resumeId,
@@ -187,8 +187,7 @@ export class ParserService {
   }
 
   private computeMetrics(
-    parsed: ParsedResume,
-    rawText: string
+    parsed: ParsedResume
   ): {
     total_experience_months: number;
     skills_count: number;

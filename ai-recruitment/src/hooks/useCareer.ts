@@ -1,7 +1,6 @@
 "use client";
 
 import useSWR from "swr";
-import { toast } from "sonner";
 import { careerApi } from "@/lib/api-client";
 import { adaptCareerPath } from "@/lib/adapters";
 

@@ -1,5 +1,6 @@
 import { createClient } from "@insforge/sdk";
 import { auth } from "@insforge/nextjs/server";
+import { syncUser } from "@/lib/auth/syncUser";
 
 const baseUrl =
   process.env.NEXT_PUBLIC_INSFORGE_BASE_URL ||
@@ -14,11 +15,16 @@ export async function getAuthenticatedClient() {
   });
 }
 
-export async function requireAuth() {
+export async function requireAuth(requestId?: string) {
   const client = await getAuthenticatedClient();
   const { user } = await auth();
   if (!client || !user) {
     throw new Error("Unauthorized");
   }
+  await syncUser({
+    id: user.id,
+    email: user.email ?? null,
+    name: user.name ?? null,
+  }, requestId);
   return { client, user };
 }

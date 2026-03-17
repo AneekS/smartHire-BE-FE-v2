@@ -17,6 +17,8 @@ import { prisma } from '@/lib/db';
 import { CacheService } from '@/lib/cache-utils';
 import { enqueueRecommendationUpdate } from '@/services/queue-producers';
 import { JobRecommendationService, type RecommendationResponse } from '@/services/recommendations/job-recommendation.service';
+import { publishNotificationEvent } from '@/modules/notifications/events/notification.events';
+import { createNotification } from '@/modules/notifications/services/notification.service';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -82,6 +84,69 @@ function buildPrecomputedResponse(
     },
     nextCursor: null,
   };
+}
+
+async function maybeNotifyMatch(userId: string, userEmail: string, response: RecommendationResponse): Promise<void> {
+  const top = response.recommendedJobs[0];
+  if (!top) return;
+
+  const jobComp = await prisma.job.findUnique({
+    where: { id: top.id },
+    select: { salaryMin: true, salaryMax: true },
+  });
+
+  const preference = await prisma.userPreference.findUnique({
+    where: { userId },
+    include: {
+      user: {
+        select: { name: true },
+      },
+    },
+  });
+
+  if (!preference) return;
+
+  const roleMatches =
+    top.title.toLowerCase().includes(preference.primaryRole.toLowerCase()) ||
+    preference.secondaryRoles.some((role: string) => top.title.toLowerCase().includes(role.toLowerCase()));
+
+  const salaryMatches =
+    !jobComp ||
+    jobComp.salaryMin == null ||
+    jobComp.salaryMax == null ||
+    (preference.salaryMin <= jobComp.salaryMax && preference.salaryMax >= jobComp.salaryMin);
+
+  if (roleMatches) {
+    await publishNotificationEvent({
+      type: 'JOB_MATCH_FOUND',
+      userId,
+      userEmail,
+      userName: preference.user.name ?? undefined,
+      metadata: {
+        jobId: top.id,
+        jobTitle: top.title,
+        companyName: top.company.name,
+        salaryMin: preference.salaryMin,
+        salaryMax: preference.salaryMax,
+      },
+    });
+  }
+
+  if (salaryMatches) {
+    await createNotification({
+      userId,
+      userEmail,
+      userName: preference.user.name ?? undefined,
+      eventType: 'SALARY_MATCH_FOUND',
+      title: 'High-paying opportunity found based on your expectations',
+      message: `${top.title} at ${top.company.name} matches your salary target.`,
+      metadata: {
+        jobId: top.id,
+        jobTitle: top.title,
+        companyName: top.company.name,
+      },
+    });
+  }
 }
 
 // ─── GET handler ──────────────────────────────────────────────────────────────
@@ -164,6 +229,7 @@ export async function GET(req: AuthenticatedRequest) {
 
         // Enqueue background refresh so scores stay current
         void enqueueRecommendationUpdate(candidateId);
+        void maybeNotifyMatch(authedReq.user!.id, authedReq.user!.email, response);
 
         return NextResponse.json({
           success:   true,
@@ -187,6 +253,7 @@ export async function GET(req: AuthenticatedRequest) {
     if (!cursor) {
       await CacheService.setRecommendations(candidateId, response);
       void enqueueRecommendationUpdate(candidateId);
+      void maybeNotifyMatch(authedReq.user!.id, authedReq.user!.email, response);
     }
 
     return NextResponse.json({

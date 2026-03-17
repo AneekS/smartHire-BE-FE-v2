@@ -31,7 +31,7 @@ export async function POST(
     const body = await req.json();
     const { content } = messageSchema.parse(body);
 
-    const { data: userMsg, error: msgError } = await client.database
+    const { error: msgError } = await client.database
       .from("mock_interview_messages")
       .insert({
         session_id: id,

@@ -194,7 +194,7 @@ export class SafeRedisService {
     info: string;
   }> {
     try {
-      const info = await redis.info('server');
+      await redis.ping();
       return {
         status: 'connected',
         info: 'Redis is connected and ready'

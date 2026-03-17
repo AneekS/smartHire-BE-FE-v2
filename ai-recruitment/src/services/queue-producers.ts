@@ -12,6 +12,7 @@
  */
 
 import { getRecommendationQueue, getAnalyticsQueue, getCacheRefreshQueue, getEmbeddingQueue } from '@/lib/queues';
+import { safeId } from '@/lib/utils/safeId';
 
 // ─── Recommendation scores ───────────────────────────────────────────────────
 
@@ -28,10 +29,11 @@ export async function enqueueRecommendationUpdate(candidateId: string): Promise<
   }
 
   try {
+    const eventId = safeId(`rec-score-${candidateId}`);
     await queue.add(
       'precompute-recommendation-scores',
       { candidateId },
-      { jobId: `rec-score:${candidateId}` },
+      { jobId: eventId },
     );
   } catch (err) {
     console.error('[PRODUCER][RECOMMENDATION][FAILED]', candidateId, err);
@@ -53,13 +55,39 @@ export async function enqueueAnalyticsUpdate(candidateId: string): Promise<void>
   }
 
   try {
+    const eventId = safeId(`analytics-${candidateId}`);
     await queue.add(
       'aggregate-candidate-analytics',
       { candidateId },
-      { jobId: `analytics:${candidateId}` },
+      { jobId: eventId },
     );
   } catch (err) {
     console.error('[PRODUCER][ANALYTICS][FAILED]', candidateId, err);
+  }
+}
+
+/**
+ * Enqueue a background job to recompute role-fit scores for a user.
+ */
+export async function enqueueRoleFitScoreUpdate(userId: string): Promise<void> {
+  const queue = getAnalyticsQueue();
+  if (!queue) {
+    console.warn('[PRODUCER][ROLE_FIT] Queue unavailable - skipping for', userId);
+    return;
+  }
+
+  const eventId = safeId(`role-fit-${userId}`);
+  console.log('[ROLE_FIT PRODUCER] eventId:', eventId);
+
+  try {
+    await queue.add(
+      'compute-role-fit-scores',
+      { userId },
+      { jobId: eventId },
+    );
+  } catch (err) {
+    console.error('[ROLE_FIT ERROR]', err);
+    console.error('[PRODUCER][ROLE_FIT][FAILED]', userId, err);
   }
 }
 
@@ -79,10 +107,11 @@ export async function enqueueCacheRefresh(key: string): Promise<void> {
   }
 
   try {
+    const eventId = safeId(`cache-refresh-${key}`);
     await queue.add(
       'refresh-cache',
       { key },
-      { jobId: `cache-refresh:${key}` },
+      { jobId: eventId },
     );
   } catch (err) {
     console.error('[PRODUCER][CACHE_REFRESH][FAILED]', key, err);
@@ -107,8 +136,9 @@ export async function enqueueEmbeddingResumeJob(data: {
   }
 
   try {
+    const eventId = safeId(`embed-resume-${data.candidateId}`);
     await queue.add('embed-resume', data, {
-      jobId: `embed-resume:${data.candidateId}`,
+      jobId: eventId,
     });
   } catch (err) {
     console.error('[PRODUCER][EMBEDDING][RESUME][FAILED]', data.candidateId, err);
@@ -130,8 +160,9 @@ export async function enqueueEmbeddingJob(data: {
   }
 
   try {
+    const eventId = safeId(`embed-job-${data.jobId}`);
     await queue.add('embed-job', data, {
-      jobId: `embed-job:${data.jobId}`,
+      jobId: eventId,
     });
   } catch (err) {
     console.error('[PRODUCER][EMBEDDING][JOB][FAILED]', data.jobId, err);

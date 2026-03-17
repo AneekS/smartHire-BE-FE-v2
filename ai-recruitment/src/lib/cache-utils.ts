@@ -19,6 +19,7 @@
 
 import { createHash } from 'crypto';
 import { redis } from '@/lib/redis';
+import { safeId } from '@/lib/utils/safeId';
 
 // ─── TTL constant ────────────────────────────────────────────────────────────
 
@@ -27,9 +28,9 @@ export const CACHE_TTL_SECONDS = 600; // 10 minutes
 // ─── Key builders ────────────────────────────────────────────────────────────
 
 export const CacheKey = {
-  profile:         (candidateId: string) => `profile:${candidateId}`,
-  recommendations: (candidateId: string) => `recommendations:${candidateId}`,
-  job:             (jobId: string)        => `job:${jobId}`,
+  profile:         (candidateId: string) => safeId(`profile-${candidateId}`),
+  recommendations: (candidateId: string) => safeId(`recommendations-${candidateId}`),
+  job:             (jobId: string)        => safeId(`job-${jobId}`),
   jobSearch:       (params: Record<string, unknown>) => {
     const hash = createHash('sha256')
       .update(JSON.stringify(params))
@@ -37,8 +38,8 @@ export const CacheKey = {
       .slice(0, 16);
     return `jobs:search:${hash}`;
   },
-  savedJobs:  (candidateId: string) => `saved-jobs:${candidateId}`,
-  analytics:  (candidateId: string) => `analytics:${candidateId}`,
+  savedJobs:  (candidateId: string) => safeId(`saved-jobs-${candidateId}`),
+  analytics:  (candidateId: string) => safeId(`analytics-${candidateId}`),
 } as const;
 
 // ─── Low-level primitives ────────────────────────────────────────────────────

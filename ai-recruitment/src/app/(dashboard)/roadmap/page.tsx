@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import {
-  GraduationCap,
   Target,
   Plus,
   BookOpen,
@@ -25,7 +24,7 @@ const DEFAULT_TARGET = "Software Engineer";
 export default function RoadmapPage() {
   const [targetRole, setTargetRole] = useState(DEFAULT_TARGET);
   const [inputRole, setInputRole] = useState("");
-  const { milestones, isLoading, refresh } = useCareer(targetRole);
+  const { milestones, isLoading } = useCareer(targetRole);
 
   const handleSetTarget = () => {
     if (inputRole.trim()) {

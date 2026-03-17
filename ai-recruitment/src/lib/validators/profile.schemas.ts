@@ -9,7 +9,6 @@ import { z } from "zod";
 
 const urlOrEmpty = z.string().url().or(z.literal("")).optional();
 const yearString = z.string().regex(/^\d{4}$/, "Must be a 4-digit year");
-const dateString = z.string().datetime({ offset: true }).or(z.string().regex(/^\d{4}-\d{2}-\d{2}$/)).optional();
 
 // ─── 1. Basic Identity ───────────────────────────────────────────────────────
 

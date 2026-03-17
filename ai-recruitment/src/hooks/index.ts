@@ -21,3 +21,4 @@ export {
   useApplicationAnalytics,
   useApplicationReminders,
 } from "./useApplicationTracker";
+export { usePreferences } from "./usePreferences";

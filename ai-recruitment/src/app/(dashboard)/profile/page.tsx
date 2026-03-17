@@ -32,7 +32,6 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { useProfile, useResumes, useConnectedAccounts } from "@/hooks";
-import { toast } from "sonner";
 
 // â”€â”€ New section components â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 import { ExperienceSection }        from "@/components/profile/ExperienceSection";
@@ -245,6 +244,7 @@ export default function ProfilePage() {
               {/* Avatar */}
               <div className="relative -mt-14 flex justify-center">
                 <div className="group relative h-28 w-28 overflow-hidden rounded-3xl border-[6px] border-white bg-white shadow-2xl dark:border-slate-900 dark:bg-slate-800">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={
                       profile?.avatarUrl ||

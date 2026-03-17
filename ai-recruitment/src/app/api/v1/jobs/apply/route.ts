@@ -6,7 +6,6 @@ import {
 import { requireAuth } from "@/lib/insforge-server";
 import { JobApplySchema } from "@/lib/validators/job.schema";
 import { ScorerService } from "@/services/resume/scorer.service";
-import { handleError } from "@/lib/errors";
 
 const scorer = new ScorerService();
 

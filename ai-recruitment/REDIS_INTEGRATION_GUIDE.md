@@ -16,28 +16,28 @@ We've implemented a comprehensive Redis caching solution with the following comp
 ### 1. Test Redis Connection
 
 ```typescript
-import { testRedisConnection } from '@/lib/redis-test';
+import { testRedisConnection } from "@/lib/redis-test";
 
 // Test Redis connectivity
 const isWorking = await testRedisConnection();
 if (isWorking) {
-  console.log('Redis is ready!');
+  console.log("Redis is ready!");
 }
 ```
 
 ### 2. Basic Usage
 
 ```typescript
-import { redis } from '@/lib/redis';
+import { redis } from "@/lib/redis";
 
 // Set a value
-await redis.set('key', 'value');
+await redis.set("key", "value");
 
 // Get a value
-const value = await redis.get('key');
+const value = await redis.get("key");
 
 // Set with TTL (Time To Live)
-await redis.setex('key', 300, 'value'); // 5 minutes
+await redis.setex("key", 300, "value"); // 5 minutes
 ```
 
 ## Job Recommendations Caching
@@ -51,10 +51,11 @@ await redis.setex('key', 300, 'value'); // 5 minutes
 ### Example Implementation
 
 ```typescript
-import { JobRecommendationCache } from '@/lib/redis-test';
+import { JobRecommendationCache } from "@/lib/redis-test";
 
 // Get cached recommendations
-const cached = await JobRecommendationCache.getCachedRecommendations(candidateId);
+const cached =
+  await JobRecommendationCache.getCachedRecommendations(candidateId);
 if (cached) {
   return cached;
 }
@@ -63,7 +64,10 @@ if (cached) {
 const recommendations = await fetchFromDatabase();
 
 // Cache the result
-await JobRecommendationCache.setCachedRecommendations(candidateId, recommendations);
+await JobRecommendationCache.setCachedRecommendations(
+  candidateId,
+  recommendations,
+);
 ```
 
 ## Safe Redis Usage Patterns
@@ -71,14 +75,14 @@ await JobRecommendationCache.setCachedRecommendations(candidateId, recommendatio
 ### Error Handling
 
 ```typescript
-import { SafeRedisService } from '@/lib/redis-test';
+import { SafeRedisService } from "@/lib/redis-test";
 
 // Check if Redis is available
 const isAvailable = await SafeRedisService.isRedisAvailable();
 
 if (isAvailable) {
   // Use Redis
-  const result = await redis.get('key');
+  const result = await redis.get("key");
 } else {
   // Fallback to database
   const result = await getFromDatabase();
@@ -88,33 +92,37 @@ if (isAvailable) {
 ### Fallback Pattern
 
 ```typescript
-import { SafeRedisService } from '@/lib/redis-test';
+import { SafeRedisService } from "@/lib/redis-test";
 
 const result = await SafeRedisService.executeWithFallback(
-  () => redis.get('key'),
-  'fallback_value',
-  'get_operation'
+  () => redis.get("key"),
+  "fallback_value",
+  "get_operation",
 );
 ```
 
 ## Available Caching Patterns
 
 ### 1. Job Recommendations
+
 - **Key Pattern**: `recommendations:{candidateId}`
 - **TTL**: 600 seconds (10 minutes)
 - **Use Case**: Cache personalized job recommendations
 
 ### 2. User Sessions
+
 - **Key Pattern**: `session:{userId}`
 - **TTL**: 3600 seconds (1 hour)
 - **Use Case**: Cache user session data
 
 ### 3. Search Results
+
 - **Key Pattern**: `search:{userId}:{query}`
 - **TTL**: 300 seconds (5 minutes)
 - **Use Case**: Cache job search results
 
 ### 4. Rate Limiting
+
 - **Key Pattern**: `rate_limit:{identifier}`
 - **TTL**: 60 seconds (configurable)
 - **Use Case**: API rate limiting
@@ -127,27 +135,32 @@ const result = await SafeRedisService.executeWithFallback(
 // GET /api/jobs/recommendations
 export async function GET(request: NextRequest) {
   const session = await getServerSession(authOptions);
-  
+
   // Check Redis availability
   const isRedisAvailable = await SafeRedisService.isRedisAvailable();
-  
+
   if (isRedisAvailable) {
     // Try cache first
-    const cached = await JobRecommendationCache.getCachedRecommendations(session.user.email);
+    const cached = await JobRecommendationCache.getCachedRecommendations(
+      session.user.email,
+    );
     if (cached) {
-      return NextResponse.json({ data: cached, source: 'cache' });
+      return NextResponse.json({ data: cached, source: "cache" });
     }
   }
-  
+
   // Fetch from database
   const recommendations = await getRecommendationsFromDB();
-  
+
   // Cache if Redis available
   if (isRedisAvailable) {
-    await JobRecommendationCache.setCachedRecommendations(session.user.email, recommendations);
+    await JobRecommendationCache.setCachedRecommendations(
+      session.user.email,
+      recommendations,
+    );
   }
-  
-  return NextResponse.json({ data: recommendations, source: 'database' });
+
+  return NextResponse.json({ data: recommendations, source: "database" });
 }
 ```
 
@@ -182,12 +195,12 @@ The Redis implementation is designed to fail gracefully:
 ### Monitoring
 
 ```typescript
-import { RedisMonitoringService } from '@/lib/redis-examples';
+import { RedisMonitoringService } from "@/lib/redis-examples";
 
 // Get health report
 const report = await RedisMonitoringService.getHealthReport();
-console.log('Redis Status:', report.redis.status);
-console.log('Cache Keys:', report.cache.keys);
+console.log("Redis Status:", report.redis.status);
+console.log("Cache Keys:", report.cache.keys);
 ```
 
 ## Performance Considerations

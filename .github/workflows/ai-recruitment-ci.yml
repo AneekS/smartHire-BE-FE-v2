@@ -1,0 +1,41 @@
+name: AI Recruitment CI
+
+on:
+  push:
+    paths:
+      - "ai-recruitment/**"
+      - ".github/workflows/ai-recruitment-ci.yml"
+  pull_request:
+    paths:
+      - "ai-recruitment/**"
+      - ".github/workflows/ai-recruitment-ci.yml"
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ai-recruitment
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: ai-recruitment/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Prisma generate
+        run: npx prisma generate
+
+      - name: Type check
+        run: npx tsc --noEmit
+
+      - name: Run unit tests
+        run: npm run test:ci

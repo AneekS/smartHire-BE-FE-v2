@@ -4,10 +4,7 @@ import { toast } from "sonner";
 import {
   applicationsApi,
   type TrackerApplication,
-  type TrackerApplicationDetail,
   type TrackerApplicationStatus,
-  type TrackerAnalytics,
-  type TrackerReminder,
 } from "@/lib/api-client";
 
 // ─── Application List (infinite scroll) ──────────────────────────────────

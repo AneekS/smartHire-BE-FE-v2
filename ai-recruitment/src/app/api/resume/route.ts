@@ -138,10 +138,9 @@ export async function POST(req: NextRequest) {
 
   } catch (e: unknown) {
     console.error("Upload error:", e);
-    return NextResponse.json(
-      { error: e instanceof Error ? e.message : "Upload failed" },
-      { status: 500 }
-    );
+    const message = e instanceof Error ? e.message : "Upload failed";
+    const stack = e instanceof Error ? e.stack : undefined;
+    return NextResponse.json({ error: message, stack }, { status: 500 });
   }
 }
 

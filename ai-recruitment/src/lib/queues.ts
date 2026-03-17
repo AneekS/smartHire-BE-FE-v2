@@ -24,6 +24,9 @@ export const QUEUE_NAMES = {
   CACHE_REFRESH:   'cache-refresh',
   // Shared queue for resume & job embedding generation
   EMBEDDINGS:      'recommendation-embedding-jobs',
+  // Notification system queues
+  NOTIFICATIONS:   'notification-events',
+  EMAILS:          'email-events',
 } as const;
 
 export type QueueName = (typeof QUEUE_NAMES)[keyof typeof QUEUE_NAMES];
@@ -69,6 +72,8 @@ let _recommendationQueue: Queue | null = null;
 let _analyticsQueue:      Queue | null = null;
 let _cacheRefreshQueue:   Queue | null = null;
 let _embeddingQueue:      Queue | null = null;
+let _notificationQueue:   Queue | null = null;
+let _emailQueue:          Queue | null = null;
 
 /** Returns the recommendation-scores queue, or null if Redis is unavailable. */
 export function getRecommendationQueue(): Queue | null {
@@ -100,4 +105,20 @@ export function getEmbeddingQueue(): Queue | null {
     _embeddingQueue = createQueue(QUEUE_NAMES.EMBEDDINGS);
   }
   return _embeddingQueue;
+}
+
+/** Returns the notification-events queue, or null if Redis is unavailable. */
+export function getNotificationQueue(): Queue | null {
+  if (!_notificationQueue) {
+    _notificationQueue = createQueue(QUEUE_NAMES.NOTIFICATIONS);
+  }
+  return _notificationQueue;
+}
+
+/** Returns the email-events queue, or null if Redis is unavailable. */
+export function getEmailQueue(): Queue | null {
+  if (!_emailQueue) {
+    _emailQueue = createQueue(QUEUE_NAMES.EMAILS);
+  }
+  return _emailQueue;
 }

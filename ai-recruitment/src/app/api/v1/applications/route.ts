@@ -5,8 +5,6 @@ import { ApplicationApplySchema, ApplicationListQuerySchema } from "@/lib/valida
 import {
   applyToJob,
   getCandidateApplications,
-  getCandidateDashboardAnalytics,
-  getSmartReminders,
 } from "@/services/applications/application.service";
 import { prisma } from "@/lib/db";
 

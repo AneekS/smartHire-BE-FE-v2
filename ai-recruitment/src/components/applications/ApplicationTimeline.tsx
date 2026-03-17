@@ -2,7 +2,7 @@
 
 import { motion } from "framer-motion";
 import { formatDistanceToNow, format } from "date-fns";
-import { CheckCircle2, Circle } from "lucide-react";
+import { CheckCircle2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getStatusConfig } from "./ApplicationStatus";
 import type { TrackerApplicationStatus } from "@/lib/api-client";

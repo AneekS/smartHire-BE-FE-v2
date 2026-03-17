@@ -1,4 +1,5 @@
 import { getBullConnectionOptions } from "@/lib/redis-options";
+import { safeId } from "@/lib/utils/safeId";
 
 export type QueueJobName = "embed-resume" | "embed-job" | "healthcheck" | "refresh-app-scores" | "update-analytics" | "send-reminder" | "precompute-recommendations" | "refresh-recommendation-cache" | "compute-behavior-signals";
 
@@ -92,49 +93,49 @@ export async function getQueueProducer(): Promise<QueueProducer> {
 export async function enqueueEmbeddingResumeJob(payload: QueuePayloadByName["embed-resume"]): Promise<void> {
   const producer = await getQueueProducer();
   await producer.add("embed-resume", payload, {
-    jobId: `resume:${payload.candidateId}`,
+    jobId: safeId(`resume-${payload.candidateId}`),
   });
 }
 
 export async function enqueueEmbeddingJob(payload: QueuePayloadByName["embed-job"]): Promise<void> {
   const producer = await getQueueProducer();
   await producer.add("embed-job", payload, {
-    jobId: `job:${payload.jobId}`,
+    jobId: safeId(`job-${payload.jobId}`),
   });
 }
 
 export async function enqueueRefreshAppScores(candidateId: string): Promise<void> {
   const producer = await getQueueProducer();
   await producer.add("refresh-app-scores", { candidateId }, {
-    jobId: `app-scores:${candidateId}`,
+    jobId: safeId(`app-scores-${candidateId}`),
   });
 }
 
 export async function enqueueUpdateAnalytics(candidateId: string): Promise<void> {
   const producer = await getQueueProducer();
   await producer.add("update-analytics", { candidateId }, {
-    jobId: `analytics:${candidateId}`,
+    jobId: safeId(`analytics-${candidateId}`),
   });
 }
 
 export async function enqueuePrecomputeRecommendations(candidateId: string, email?: string): Promise<void> {
   const producer = await getQueueProducer();
   await producer.add("precompute-recommendations", { candidateId, email }, {
-    jobId: `precompute-recs:${candidateId}`,
+    jobId: safeId(`precompute-recs-${candidateId}`),
   });
 }
 
 export async function enqueueRefreshRecommendationCache(candidateId: string): Promise<void> {
   const producer = await getQueueProducer();
   await producer.add("refresh-recommendation-cache", { candidateId }, {
-    jobId: `refresh-rec-cache:${candidateId}`,
+    jobId: safeId(`refresh-rec-cache-${candidateId}`),
   });
 }
 
 export async function enqueueComputeBehaviorSignals(candidateId: string): Promise<void> {
   const producer = await getQueueProducer();
   await producer.add("compute-behavior-signals", { candidateId }, {
-    jobId: `behavior-signals:${candidateId}`,
+    jobId: safeId(`behavior-signals-${candidateId}`),
   });
 }
 
@@ -156,7 +157,7 @@ export async function queueHealth(): Promise<{
     await producer.add(
       "healthcheck",
       { timestamp: new Date().toISOString() },
-      { jobId: `healthcheck:${Date.now()}` }
+      { jobId: safeId(`healthcheck-${Date.now()}`) }
     );
 
     return {

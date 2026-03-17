@@ -1,4 +1,4 @@
-import { describe, expect, it, vi, beforeEach } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 /**
  * Application Tracker Service - Unit Tests
@@ -99,7 +99,7 @@ describe("Application Status Transitions", () => {
     const nonTerminal = Object.entries(VALID_TRANSITIONS)
       .filter(([status]) => !["REJECTED", "HIRED", "WITHDRAWN"].includes(status));
 
-    for (const [status, transitions] of nonTerminal) {
+    for (const [, transitions] of nonTerminal) {
       expect(transitions).toContain("WITHDRAWN");
     }
   });

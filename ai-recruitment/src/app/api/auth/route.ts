@@ -10,7 +10,7 @@ const insforge = createClient({ baseUrl });
 
 const defaultHandlers = createAuthRouteHandlers({ baseUrl });
 
-async function POST(request: NextRequest) {
+export async function POST(request: NextRequest) {
   const body = await request.json();
   const { action } = body;
   if (action === "sign-up" && body.name) {

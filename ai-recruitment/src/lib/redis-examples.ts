@@ -7,10 +7,8 @@
 
 import { redis } from './redis';
 import { 
-  testRedisConnection, 
   JobRecommendationCache, 
   SafeRedisService,
-  CachedJobRecommendationService,
   JobRecommendation 
 } from './redis-test';
 

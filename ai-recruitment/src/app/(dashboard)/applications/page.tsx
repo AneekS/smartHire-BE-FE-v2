@@ -5,7 +5,6 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   LayoutGrid,
   Bell,
-  BarChart3,
   Filter,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -18,7 +17,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { cn } from "@/lib/utils";
 import { useApplications } from "@/hooks/useApplicationTracker";
 import type { TrackerApplicationStatus } from "@/lib/api-client";
 import { ApplicationCard } from "@/components/applications/ApplicationCard";

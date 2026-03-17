@@ -2,6 +2,7 @@ import type { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import { prisma } from "@/lib/db";
+import { syncUser } from "@/lib/auth/syncUser";
 import type { Adapter } from "next-auth/adapters";
 import { compare } from "bcryptjs";
 
@@ -44,6 +45,11 @@ export const authOptions: NextAuthOptions = {
     async session({ session, token }) {
       if (session.user) {
         (session.user as { id?: string }).id = token.id as string;
+        await syncUser({
+          id: token.id as string,
+          email: session.user.email ?? null,
+          name: session.user.name ?? null,
+        });
       }
       return session;
     },

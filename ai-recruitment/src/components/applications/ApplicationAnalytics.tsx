@@ -9,7 +9,6 @@ import {
   Gift,
   Trophy,
   XCircle,
-  LogOut,
   TrendingUp,
   Activity,
 } from "lucide-react";

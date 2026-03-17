@@ -9,10 +9,8 @@ import {
   updateApplicationStatus,
   addApplicationNote,
   createRecruiterActivity,
-  getApplicationTimeline,
   getCandidateAnalytics,
   getApplicationCountsByStatus,
-  updateApplicationScores,
   getApplicationsForScoreUpdate,
   upsertCandidateAnalytics,
 } from "@/repositories/applications/application.repository";
