@@ -2,6 +2,7 @@
 
 import useSWR from "swr";
 import { useRouter } from "next/navigation";
+import { useCallback } from "react";
 
 export type ExperienceLevel = "ENTRY" | "MID" | "SENIOR" | "LEAD";
 export type WorkType = "REMOTE" | "HYBRID" | "ONSITE" | "CONTRACT" | "FREELANCE";
@@ -91,8 +92,14 @@ const DEFAULT_PREF: PreferenceFormState = {
 
 export function usePreferences() {
   const router = useRouter();
-  const pref = useSWR<PreferenceResponse>("/api/preferences", fetcher);
-  const roleFit = useSWR<RoleFitResponse>("/api/role-fit", fetcher);
+  const pref = useSWR<PreferenceResponse>("/api/preferences", fetcher, {
+    dedupingInterval: 15_000, // Prevent rapid refetches (preferences + role-fit)
+    revalidateOnFocus: false, // Avoid refetch on tab focus
+  });
+  const roleFit = useSWR<RoleFitResponse>("/api/role-fit", fetcher, {
+    dedupingInterval: 15_000,
+    revalidateOnFocus: false,
+  });
 
   const serverPreference = pref.data?.preference ?? pref.data?.data ?? null;
   const authenticated = pref.data?.authenticated ?? true;
@@ -101,7 +108,7 @@ export function usePreferences() {
   const error = pref.error;
   const roleFitError = roleFit.error;
 
-  const save = async (payload: PreferenceFormState) => {
+  const save = useCallback(async (payload: PreferenceFormState) => {
     const sanitizedPayload = {
       primaryRole: payload.primaryRole?.trim() || "",
       secondaryRoles: payload.secondaryRoles ?? [],
@@ -144,16 +151,16 @@ export function usePreferences() {
     }
 
     await Promise.all([pref.mutate(), roleFit.mutate()]);
-  };
+  }, [pref.mutate, roleFit.mutate, router, pref.data?.preference]);
 
-  const refreshRoleFit = async () => {
+  const refreshRoleFit = useCallback(async () => {
     await fetch("/api/role-fit?refresh=true", { credentials: "include" });
     await roleFit.mutate();
-  };
+  }, [roleFit.mutate]);
 
-  const refresh = async () => {
+  const refresh = useCallback(async () => {
     await Promise.all([pref.mutate(), roleFit.mutate()]);
-  };
+  }, [pref.mutate, roleFit.mutate]);
 
   return {
     authenticated,

@@ -11,7 +11,8 @@ export function useProfile() {
     async () => {
       const raw = await candidatesApi.getProfile();
       return adaptCandidate(raw);
-    }
+    },
+    { dedupingInterval: 10_000 } // Dedupe profile fetches within 10s
   );
 
   const updateProfile = async (updates: Partial<CandidateProfile>) => {

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useSkillGapStore } from '@/store/useSkillGapStore'
 import { Card } from '@/components/ui/card'
@@ -38,12 +38,15 @@ export function SkillGapLayout() {
   const { analyzeFromResume, resumeAnalysis, resumeAnalysisLoading } =
     useSkillGapStore()
 
-  // Auto-trigger resume analysis on mount if not already done
+  // Auto-trigger resume analysis once on mount if not already done
+  const hasTriggeredRef = useRef(false)
   useEffect(() => {
+    if (hasTriggeredRef.current) return
     if (!resumeAnalysis && !resumeAnalysisLoading) {
+      hasTriggeredRef.current = true
       analyzeFromResume()
     }
-  }, [])
+  }, [resumeAnalysis, resumeAnalysisLoading, analyzeFromResume])
 
   return (
     <div className="space-y-6">

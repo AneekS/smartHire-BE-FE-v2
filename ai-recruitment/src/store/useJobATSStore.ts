@@ -157,6 +157,7 @@ export const useJobATSStore = create<JobATSStore>((set, get) => ({
   // Uses fetch() → GET /api/v1/jobs/ats-score (server API route)
   // Never calls InsForge directly
   loadHistory: async () => {
+    if (get().historyLoading) return; // Prevent concurrent calls
     set({ historyLoading: true });
 
     try {

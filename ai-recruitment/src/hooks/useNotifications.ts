@@ -39,8 +39,9 @@ export function useNotifications(category?: string) {
   const url = `/api/notifications${category ? `?category=${category}` : ""}`;
 
   const { data, mutate, isLoading } = useSWR<NotificationsResponse>(url, fetcher, {
-    refreshInterval: 30_000, // Polling fallback every 30 s
+    refreshInterval: 60_000, // Polling fallback every 60 s (reduced from 30s to limit requests)
     revalidateOnFocus: true,
+    dedupingInterval: 10_000, // Dedupe requests within 10s
   });
 
   const unreadCount  = data?.unreadCount ?? 0;

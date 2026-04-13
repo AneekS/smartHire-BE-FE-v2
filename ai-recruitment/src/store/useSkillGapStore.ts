@@ -224,6 +224,7 @@ export const useSkillGapStore = create<SkillGapStore>((set, get) => ({
   },
 
   async analyzeFromResume() {
+    if (get().resumeAnalysisLoading) return; // Prevent concurrent calls (e.g. Strict Mode double-mount)
     set({ resumeAnalysisLoading: true, resumeAnalysisError: null });
     try {
       const { targetRole, experienceLevel } = get();
@@ -272,11 +273,10 @@ export const useSkillGapStore = create<SkillGapStore>((set, get) => ({
   },
 
   async analyzeTargetRole(roleArg, levelArg) {
+    if (get().targetAnalysisLoading) return; // Prevent concurrent calls
     const { targetRole, experienceLevel } = get();
     const role = (roleArg ?? targetRole)?.trim?.() ?? "";
     const level = levelArg ?? experienceLevel;
-
-    console.log("4. Store action called with:", { role, level });
 
     if (!role) {
       set({ targetAnalysisError: "Please enter a target role" });
@@ -292,7 +292,6 @@ export const useSkillGapStore = create<SkillGapStore>((set, get) => ({
     });
 
     try {
-      console.log("5. About to call API");
       const res = await fetch("/api/v1/skills/gap-analysis", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -304,15 +303,12 @@ export const useSkillGapStore = create<SkillGapStore>((set, get) => ({
         }),
       });
 
-      console.log("6. API response status:", res.status);
-
       let json: Record<string, unknown> = {};
       try {
         json = await res.json();
       } catch {
         json = {};
       }
-      console.log("7. API response keys:", Object.keys(json));
 
       if (!res.ok) {
         const errMsg = (json.error as string) ?? "Failed to analyze target role";
@@ -332,12 +328,6 @@ export const useSkillGapStore = create<SkillGapStore>((set, get) => ({
       } else {
         analysis = mapLegacyResponseToGapAnalysis(json);
       }
-
-      console.log("8. Store updated, targetAnalysis:", {
-        skillsYouHave: analysis.skillsYouHave?.length,
-        criticalGaps: analysis.criticalGaps?.length,
-        roleMatchScore: analysis.roleMatchScore,
-      });
 
       set({
         targetAnalysis: analysis,
@@ -424,6 +414,7 @@ export const useSkillGapStore = create<SkillGapStore>((set, get) => ({
   },
 
   async loadHistory() {
+    if (get().historyLoading) return; // Prevent concurrent calls
     set({ historyLoading: true });
     try {
       const res = await fetch("/api/v1/skills/history", {

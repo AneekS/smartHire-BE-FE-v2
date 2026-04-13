@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useJobATSStore } from "@/store/useJobATSStore";
 
 function scoreColor(score: number) {
@@ -13,8 +13,11 @@ function scoreColor(score: number) {
 export function ScoreHistoryList() {
   const { scoreHistory, loadHistory, activeHistoryId, selectHistoryItem } =
     useJobATSStore();
+  const hasLoadedRef = useRef(false);
 
   useEffect(() => {
+    if (hasLoadedRef.current) return;
+    hasLoadedRef.current = true;
     void loadHistory();
   }, [loadHistory]);
 

@@ -117,6 +117,8 @@ export default function PreferencesPage() {
   const [saving, setSaving] = useState(false);
   const [autoSaving, setAutoSaving] = useState(false);
   const hasBootstrappedAutoSave = useRef(false);
+  const saveRef = useRef(save);
+  saveRef.current = save;
 
   useEffect(() => {
     const fetchPreferences = async () => {
@@ -186,7 +188,7 @@ export default function PreferencesPage() {
       void (async () => {
         try {
           setAutoSaving(true);
-          await save(form);
+          await saveRef.current(form);
           setPreference(form);
         } catch (error) {
           console.error("Preferences auto-save failed:", error);
@@ -197,13 +199,8 @@ export default function PreferencesPage() {
     }, 500);
 
     return () => clearTimeout(timeout);
-  }, [
-    authenticated,
-    preference,
-    canSave,
-    form,
-    save,
-  ]);
+    // Omit preference + save from deps to avoid loop: save -> mutate -> save ref changes -> effect re-runs -> save again
+  }, [authenticated, canSave, form]);
 
   if (loading) {
     return (
