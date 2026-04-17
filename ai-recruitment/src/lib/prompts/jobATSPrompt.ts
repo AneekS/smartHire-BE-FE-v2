@@ -1,149 +1,223 @@
 export function buildJobATSPrompt(
   resumeText: string,
-  parsedResume: any,
+  parsedResume: Record<string, unknown>,
   jobTitle: string,
   companyName: string,
   jobDescription: string
 ): string {
-  const candidateSkills = (parsedResume.skills ?? [])
-    .map((s: any) => (typeof s === "string" ? s : s.name))
-    .filter(Boolean)
-    .join(", ");
+  const skills = ((parsedResume.skills ?? []) as unknown[])
+    .map((s) => (typeof s === "string" ? s : (s as { name?: string }).name))
+    .filter(Boolean);
 
-  const candidateExperience = (parsedResume.experience ?? parsedResume.work_experience ?? [])
-    .map(
-      (e: any) =>
-        `${e.title ?? ""} at ${e.company ?? ""} (${e.startDate ?? ""}-${e.endDate ?? "Present"})`
-    )
-    .join("\n");
+  const experience = (
+    (parsedResume.work_experience ??
+      parsedResume.experience ??
+      []) as Record<string, unknown>[]
+  ).map((e) => ({
+    title: (e.title as string) ?? "",
+    company: (e.company as string) ?? "",
+    duration: `${(e.startDate as string) ?? ""} - ${(e.endDate as string) ?? "Present"}`,
+    highlights: ((e.bullets ?? e.highlights ?? []) as unknown[])
+      .slice(0, 4)
+      .map((b) =>
+        typeof b === "string" ? b : (b as { text?: string }).text ?? ""
+      ),
+  }));
 
-  const candidateProjects = (parsedResume.projects ?? [])
-    .map(
-      (p: any) =>
-        `${p.name ?? ""}: [${Array.isArray(p.techStack ?? p.technologies) ? (p.techStack ?? p.technologies).join(", ") : ""}]`
-    )
-    .join("\n");
+  const projects = ((parsedResume.projects ?? []) as Record<string, unknown>[]).map(
+    (p) => ({
+      name: (p.name as string) ?? "",
+      tech: (
+        Array.isArray(p.techStack ?? p.technologies)
+          ? (p.techStack ?? p.technologies)
+          : []
+      ).join(", "),
+      points: ((p.bullets ?? []) as unknown[])
+        .slice(0, 2)
+        .map((b) =>
+          typeof b === "string" ? b : (b as { text?: string }).text ?? ""
+        ),
+    })
+  );
+
+  const education = (
+    (parsedResume.education ?? []) as Record<string, unknown>[]
+  ).map(
+    (e) =>
+      `${(e.degree as string) ?? ""} — ${(e.institution as string) ?? (e.school as string) ?? ""} (${(e.endDate as string) ?? ""})`
+  );
+
+  const certifications = ((parsedResume.certifications ?? []) as unknown[])
+    .map((c) => (typeof c === "string" ? c : (c as { name?: string }).name ?? ""))
+    .filter(Boolean);
 
   return `
-You are a world-class ATS (Applicant Tracking System) and senior technical 
-recruiter with 15+ years of experience screening candidates at top tech 
-companies including Google, Meta, Amazon, and top-tier startups.
+You are a world-class ATS (Applicant Tracking System) engine combined with
+a senior technical recruiter with 20 years of experience at FAANG companies.
 
-Your task is to perform a HIGHLY ACCURATE, DEEPLY PERSONALIZED ATS analysis
-of a candidate's resume against a specific job description.
+Your ATS scoring must be:
+- HIGHLY SPECIFIC to both the candidate's actual resume AND the target job
+- STRICT and realistic — 90+ means exceptional, 75+ means strong, 60+ means moderate
+- NEVER generic — every insight must reference actual resume content vs JD requirements
+- DETERMINISTIC — same inputs must produce consistent scores within ±5 points
 
-You must think like BOTH an ATS robot AND a human senior recruiter.
+=================================================================
+CANDIDATE RESUME
+=================================================================
 
-=============================================================
-CANDIDATE RESUME DATA
-=============================================================
-
-SKILLS: ${candidateSkills || "Not specified"}
+SKILLS (${skills.length} total):
+${skills.join(", ") || "None listed"}
 
 WORK EXPERIENCE:
-${candidateExperience || "No experience listed"}
+${experience
+  .map(
+    (e) =>
+      `• ${e.title} @ ${e.company} (${e.duration})
+   ${e.highlights.map((h: string) => `  - ${h}`).join("\n")}`
+  )
+  .join("\n\n") || "No experience listed"}
 
 PROJECTS:
-${candidateProjects || "No projects listed"}
+${projects
+  .map(
+    (p) =>
+      `• ${p.name} [${p.tech}]
+   ${p.points.map((pt: string) => `  - ${pt}`).join("\n")}`
+  )
+  .join("\n\n") || "No projects listed"}
 
 EDUCATION:
-${(parsedResume.education ?? [])
-  .map(
-    (e: any) =>
-      `${e.degree ?? ""} from ${e.institution ?? e.school ?? ""} (${e.endDate ?? ""})`
-  )
-  .join("\n") || "Not specified"}
+${education.join("\n") || "Not specified"}
 
 CERTIFICATIONS:
-${(parsedResume.certifications ?? [])
-  .map((c: any) => (typeof c === "string" ? c : c.name ?? ""))
-  .join(", ") || "None"}
+${certifications.join(", ") || "None"}
 
-FULL RESUME TEXT (for keyword extraction):
-${resumeText.substring(0, 3000)}
+FULL RESUME TEXT (for keyword matching):
+---
+${resumeText.substring(0, 2500)}
+---
 
-=============================================================
+=================================================================
 TARGET JOB
-=============================================================
+=================================================================
 
 ROLE: ${jobTitle}
-COMPANY: ${companyName || "Not specified"}
+COMPANY: ${companyName}
 
 JOB DESCRIPTION:
-${jobDescription.substring(0, 3000)}
+---
+${jobDescription.substring(0, 2500)}
+---
 
-=============================================================
-INSTRUCTIONS
-=============================================================
+=================================================================
+SCORING METHODOLOGY
+=================================================================
 
-Perform a precise ATS analysis. Be strict and realistic.
-A 90+ score means the candidate is an exceptional match.
-A 70-89 means good match with minor gaps.
-A 50-69 means moderate match, significant gaps exist.
-Below 50 means poor match for this specific role.
+Calculate each component score with this strict rubric:
 
-DO NOT inflate scores. Be honest and specific.
-Every score must be justified by actual resume content vs JD content.
+1. KEYWORD MATCH (35% weight):
+   - Extract ALL technical keywords, tools, frameworks, methodologies from JD
+   - Check each against resume text (exact match, synonym match, partial match)
+   - Score = (matched_critical_keywords / total_critical_keywords) * 100
+   - Penalize heavily for missing CRITICAL keywords (marked as required in JD)
 
-Return ONLY this exact JSON structure. Zero markdown. Zero backticks:
+2. EXPERIENCE MATCH (25% weight):
+   - Compare years of experience required vs candidate's actual years
+   - Assess relevance of past roles to the target role
+   - Evaluate depth of experience in required domains
+   - Score based on role title similarity and responsibility overlap
+
+3. SKILLS MATCH (20% weight):
+   - Direct comparison of JD required skills vs resume skills section
+   - Weight critical skills higher than nice-to-have
+   - Penalize for completely absent required technical skills
+   - Reward for additional valuable skills not mentioned in JD
+
+4. EDUCATION MATCH (10% weight):
+   - Degree requirement match (BS/MS/PhD)
+   - Field of study relevance
+   - GPA if mentioned and notable
+   - Certifications that substitute for degree requirements
+
+5. FORMATTING & IMPACT (10% weight):
+   - Quantified achievements (numbers, percentages, scale)
+   - Action verbs and strong language
+   - Resume structure clarity
+   - Tailoring indicators (keywords naturally incorporated)
+
+OVERALL SCORE FORMULA:
+overall = (keyword * 0.35) + (experience * 0.25) + (skills * 0.20) + (education * 0.10) + (formatting * 0.10)
+
+SCORE BENCHMARKS:
+- 90-100: Exceptional match — top 5% of applicants for this role
+- 80-89: Strong match — will likely pass ATS and get recruiter review  
+- 70-79: Good match — may pass ATS with some keyword optimization
+- 60-69: Fair match — significant gaps exist, needs tailoring
+- 50-59: Weak match — major skill or experience gaps
+- <50: Poor match — candidate profile doesn't align with role requirements
+
+=================================================================
+OUTPUT FORMAT
+=================================================================
+
+Return ONLY this exact JSON. Zero markdown. Zero explanation:
 
 {
-  "overallScore": <0-100, strict realistic ATS score>,
+  "overallScore": <integer 0-100, calculated using formula above>,
+  "scoreLabel": "Exceptional Match|Strong Match|Good Match|Fair Match|Weak Match|Poor Match",
   
-  "scoreLabel": "Excellent Match|Strong Match|Good Match|Fair Match|Weak Match",
-  
-  "matchSummary": "<2-3 sentences explaining why the candidate is or isn't a fit. Reference SPECIFIC skills and requirements from both resume and JD>",
+  "matchSummary": "<3-4 sentences. MUST reference specific skills from resume AND specific requirements from JD. State the strongest alignment point AND the biggest gap. Be honest and specific.>",
   
   "breakdown": {
     "keywordMatch": {
       "score": <0-100>,
       "weight": 35,
-      "reason": "<specific keywords found vs missing>"
+      "reason": "<which critical keywords matched and which are missing>"
     },
     "experienceMatch": {
       "score": <0-100>,
       "weight": 25,
-      "reason": "<years of experience match, relevant roles match>"
+      "reason": "<years match assessment and role relevance>"
     },
     "skillsMatch": {
       "score": <0-100>,
       "weight": 20,
-      "reason": "<technical skills alignment>"
+      "reason": "<specific skills alignment or gaps>"
     },
     "educationMatch": {
       "score": <0-100>,
       "weight": 10,
-      "reason": "<degree requirements match>"
+      "reason": "<degree and certification alignment>"
     },
     "formattingScore": {
       "score": <0-100>,
       "weight": 10,
-      "reason": "<resume structure, quantifiable achievements, clarity>"
+      "reason": "<quantification and resume quality assessment>"
     }
   },
   
   "keywordAnalysis": {
     "present": [
       {
-        "keyword": "<keyword from JD found in resume>",
-        "frequency": <number of times found>,
-        "context": "<where it appears: skills/experience/projects>",
+        "keyword": "<exact keyword from JD found in resume>",
+        "frequency": <number of occurrences>,
+        "context": "skills|experience|projects|education",
         "importance": "critical|important|nice_to_have"
       }
     ],
     "missing": [
       {
-        "keyword": "<keyword from JD NOT found in resume>",
+        "keyword": "<keyword from JD NOT in resume>",
         "importance": "critical|important|nice_to_have",
-        "suggestion": "<how to naturally add this to resume>",
-        "section": "<which resume section to add it to>"
+        "suggestion": "<specific, actionable way to add this naturally>",
+        "section": "summary|experience|skills|projects"
       }
     ],
     "partialMatch": [
       {
-        "jdKeyword": "<keyword in JD>",
-        "resumeVariant": "<similar term found in resume>",
-        "recommendation": "<use exact JD terminology instead>"
+        "jdKeyword": "<JD term>",
+        "resumeVariant": "<what candidate wrote>",
+        "recommendation": "<use exact JD terminology for better ATS parsing>"
       }
     ]
   },
@@ -151,31 +225,31 @@ Return ONLY this exact JSON structure. Zero markdown. Zero backticks:
   "sectionScores": {
     "summary": {
       "score": <0-100>,
-      "feedback": "<specific feedback on summary vs JD requirements>",
-      "hasSummary": true|false
+      "feedback": "<specific feedback referencing actual summary content>",
+      "hasSummary": <boolean>
     },
     "experience": {
       "score": <0-100>,
-      "feedback": "<are bullet points quantified, relevant to JD?>",
-      "yearsOfExperience": <number or null>,
+      "feedback": "<assess quantification, relevance, and depth>",
+      "yearsOfExperience": <estimated years from resume or null>,
       "requiredYears": <from JD or null>,
-      "relevantRoles": ["<relevant job titles from resume>"]
+      "relevantRoles": ["<job titles from resume relevant to this JD>"]
     },
     "skills": {
       "score": <0-100>,
-      "feedback": "<skill alignment with JD>",
-      "matchedSkills": ["<skills in both resume and JD>"],
-      "missingCriticalSkills": ["<skills required by JD but absent from resume>"]
+      "feedback": "<skills coverage assessment>",
+      "matchedSkills": ["<skills in BOTH resume and JD>"],
+      "missingCriticalSkills": ["<skills REQUIRED by JD but ABSENT from resume>"]
     },
     "education": {
       "score": <0-100>,
-      "feedback": "<degree match>",
-      "meetsRequirement": true|false
+      "feedback": "<degree match assessment>",
+      "meetsRequirement": <boolean>
     },
     "projects": {
       "score": <0-100>,
-      "feedback": "<do projects demonstrate required skills?>",
-      "relevantProjects": ["<project names relevant to this JD>"]
+      "feedback": "<do projects demonstrate required technical skills?>",
+      "relevantProjects": ["<project names that demonstrate JD-required skills>"]
     }
   },
   
@@ -183,41 +257,44 @@ Return ONLY this exact JSON structure. Zero markdown. Zero backticks:
     "critical": [
       {
         "priority": 1,
-        "action": "<specific action to take>",
-        "impact": "<how many points this could add to the score>",
-        "example": "<concrete example of the change>"
+        "action": "<specific action — e.g. 'Add Kubernetes to skills section'>",
+        "impact": "+8-12 ATS points",
+        "example": "<concrete example of the change to make>"
       }
     ],
     "important": [
       {
-        "priority": <number>,
-        "action": "<specific improvement>",
-        "impact": "<score impact>",
+        "priority": <2,3,4>,
+        "action": "<improvement action>",
+        "impact": "+3-7 ATS points",
         "example": "<example>"
       }
     ],
     "quickWins": [
       {
-        "action": "<easy change with high impact>",
-        "timeToImplement": "<5 mins|15 mins|30 mins>",
-        "impact": "<expected score improvement>"
+        "action": "<easy 5-minute change>",
+        "timeToImplement": "5 mins|15 mins|30 mins",
+        "impact": "+2-5 ATS points"
       }
     ]
   },
   
   "competitiveAnalysis": {
-    "strongPoints": ["<what makes this candidate competitive for this role>"],
-    "weakPoints": ["<honest gaps vs typical candidates for this role>"],
-    "uniqueSellingPoints": ["<standout things on resume relevant to this JD>"],
-    "estimatedPassRate": "<percentage chance of passing ATS filter for this JD>"
+    "strongPoints": ["<genuine strengths vs typical applicants for this role>"],
+    "weakPoints": ["<honest, specific gaps vs role requirements>"],
+    "uniqueSellingPoints": ["<standout differentiators that could impress recruiters>"],
+    "estimatedPassRate": "<e.g. '65% chance of passing initial ATS filter'>"
   },
   
-  "tailoredSummary": "<AI-written suggested professional summary tailored specifically for this job. 3-4 sentences. Incorporate key JD terms naturally. Based on candidate's actual resume content>",
+  "tailoredSummary": "<AI-written professional summary specifically for ${jobTitle} at ${companyName}. 3-4 sentences. Uses actual candidate skills and experience. Incorporates key JD terms naturally. Ready to paste into resume.>",
   
   "topMissingKeywordsToAdd": [
-    "<top 5 most impactful keywords to add, in priority order>"
+    "<keyword 1 — highest impact missing term>",
+    "<keyword 2>",
+    "<keyword 3>",
+    "<keyword 4>",
+    "<keyword 5>"
   ]
 }
 `;
 }
-

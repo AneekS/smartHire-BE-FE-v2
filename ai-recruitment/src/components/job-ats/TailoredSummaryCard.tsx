@@ -1,14 +1,12 @@
 "use client";
 
-interface Props {
-  summary: string;
-  topMissingKeywordsToAdd: string[];
-}
-
 export function TailoredSummaryCard({
   summary,
   topMissingKeywordsToAdd,
-}: Props) {
+}: {
+  summary: string;
+  topMissingKeywordsToAdd: string[];
+}) {
   const handleCopy = async () => {
     try {
       await navigator.clipboard.writeText(summary);
@@ -21,14 +19,14 @@ export function TailoredSummaryCard({
     <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50/80 p-5">
       <div className="flex items-center justify-between gap-4 mb-3">
         <h3 className="text-xs font-semibold text-slate-700 uppercase tracking-[0.18em]">
-          Tailored Professional Summary
+          Tailored professional summary
         </h3>
         <button
           type="button"
           onClick={handleCopy}
           className="text-xs px-3 py-1.5 rounded-full border border-slate-300 bg-white text-slate-700 hover:bg-slate-100 transition-colors"
         >
-          Copy to Clipboard
+          Copy to clipboard
         </button>
       </div>
       <div className="relative pl-4 text-sm text-slate-800 leading-relaxed">
@@ -38,7 +36,7 @@ export function TailoredSummaryCard({
       {topMissingKeywordsToAdd?.length > 0 && (
         <div className="mt-4">
           <p className="text-[11px] font-semibold text-slate-600 mb-1.5">
-            High-impact keywords to weave into your summary:
+            High-impact keywords to weave in:
           </p>
           <div className="flex flex-wrap gap-1.5">
             {topMissingKeywordsToAdd.map((kw) => (
@@ -55,4 +53,3 @@ export function TailoredSummaryCard({
     </div>
   );
 }
-

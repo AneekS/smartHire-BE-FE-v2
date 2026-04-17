@@ -1,37 +1,65 @@
 "use client";
 
-import { JobInputForm } from "./JobInputForm";
-import { ScoreHistoryList } from "./ScoreHistoryList";
-import { ScoreResultPanel } from "./ScoreResultPanel";
+import { useEffect, useMemo } from "react";
+import { useJobATSStore } from "@/store/useJobATSStore";
+import { JobListingsBoard } from "./JobListingsBoard";
+import { ATSScoreModal } from "./ATSScoreModal";
 
 export function JobATSPage() {
+  const { listings, loadListings } = useJobATSStore();
+
+  useEffect(() => {
+    loadListings();
+  }, [loadListings]);
+
+  const categoryCount = useMemo(
+    () => new Set(listings.map((l) => l.category)).size,
+    [listings]
+  );
+
   return (
-    <div className="max-w-6xl mx-auto px-4 py-8">
-      <div className="mb-6">
-        <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight text-slate-900 flex items-center gap-2">
-          <span className="inline-flex h-8 w-8 items-center justify-center rounded-2xl bg-violet-600 text-white">
-            🎯
-          </span>
-          Job ATS Scorer
-        </h1>
-        <p className="mt-2 text-sm text-slate-500 max-w-2xl">
-          See exactly how your resume scores for any job posting and get
-          pinpoint guidance to close keyword and experience gaps.
-        </p>
-        <div className="mt-3 inline-flex items-center gap-2 rounded-2xl bg-violet-50 border border-violet-100 px-3 py-1.5 text-[11px] text-violet-700">
-          Paste a job description to get your personalized ATS score and keyword
-          gap analysis.
+    <div className="min-h-screen bg-[#FAFAFA]">
+      <div className="relative overflow-hidden bg-white border-b border-gray-100 px-4 sm:px-8 py-8">
+        <div
+          className="absolute -top-20 left-1/2 -translate-x-1/2 w-[600px] h-[300px] rounded-full pointer-events-none opacity-90"
+          style={{
+            background:
+              "radial-gradient(ellipse at center, rgba(139, 92, 246, 0.12) 0%, transparent 70%)",
+          }}
+        />
+        <div className="relative">
+          <div className="flex items-center gap-2 mb-2">
+            <span className="text-2xl" aria-hidden>
+              {"\u{1F3AF}"}
+            </span>
+            <h1 className="text-3xl font-black text-gray-900">Job ATS Scorer</h1>
+          </div>
+          <p className="text-gray-500 text-sm max-w-xl">
+            Select any job below to instantly see how your resume scores. Get
+            keyword gaps, section analysis, and AI-powered improvements.
+          </p>
+          <div className="flex flex-wrap gap-6 mt-4">
+            {[
+              { label: "Jobs available", value: listings.length },
+              { label: "Categories", value: categoryCount },
+              { label: "Avg match time", value: "~15s" },
+            ].map((stat) => (
+              <div key={stat.label} className="flex items-center gap-2">
+                <span className="text-lg font-bold text-violet-600">
+                  {stat.value}
+                </span>
+                <span className="text-xs text-gray-400">{stat.label}</span>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,0.38fr)_minmax(0,0.62fr)] gap-6 items-start">
-        <div className="space-y-4">
-          <JobInputForm />
-          <ScoreHistoryList />
-        </div>
-        <ScoreResultPanel />
+      <div className="px-4 sm:px-8 py-6">
+        <JobListingsBoard />
       </div>
+
+      <ATSScoreModal />
     </div>
   );
 }
-

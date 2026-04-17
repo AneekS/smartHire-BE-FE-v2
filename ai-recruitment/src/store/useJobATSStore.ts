@@ -1,127 +1,123 @@
-// src/store/useJobATSStore.ts
-// RULE: This file is browser-only.
-// NEVER import insforge, prisma, or any server lib here.
-// ONLY use fetch() to call API routes.
-
+// Browser-only: use fetch() to API routes; never import server libs.
 import { create } from "zustand";
 
-interface KeywordPresent {
-  keyword: string;
-  frequency: number;
-  context: string;
-  importance: "critical" | "important" | "nice_to_have";
-}
-
-interface KeywordMissing {
-  keyword: string;
-  importance: "critical" | "important" | "nice_to_have";
-  suggestion: string;
-  section: string;
-}
-
-interface BreakdownItem {
-  score: number;
-  weight: number;
-  reason: string;
-}
-
-interface RecommendationItem {
-  priority: number;
-  action: string;
-  impact: string;
-  example: string;
-}
-
-interface QuickWin {
-  action: string;
-  timeToImplement: string;
-  impact: string;
-}
-
-export interface JobATSResult {
-  id?: string;
-  jobTitle: string;
-  companyName: string;
-  overallScore: number;
-  scoreLabel: string;
-  matchSummary: string;
-  breakdown: Record<string, BreakdownItem>;
-  keywordAnalysis: {
-    present: KeywordPresent[];
-    missing: KeywordMissing[];
-    partialMatch: Array<{
-      jdKeyword: string;
-      resumeVariant: string;
-      recommendation: string;
-    }>;
-  };
-  sectionScores: Record<string, any>;
-  recommendations: {
-    critical: RecommendationItem[];
-    important: RecommendationItem[];
-    quickWins: QuickWin[];
-  };
-  competitiveAnalysis: {
-    strongPoints: string[];
-    weakPoints: string[];
-    uniqueSellingPoints: string[];
-    estimatedPassRate: string;
-  };
-  tailoredSummary: string;
-  topMissingKeywordsToAdd: string[];
-  cached?: boolean;
-  resumeFileName?: string;
-}
-
-export interface ScoreHistoryItem {
+export interface JobListing {
   id: string;
-  jobTitle: string;
-  companyName: string;
-  overallScore: number;
-  matchSummary: string;
-  createdAt: string;
+  job_title: string;
+  company_name: string;
+  company_logo?: string | null;
+  location: string;
+  job_type: string;
+  experience_level: string;
+  salary_range: string | null;
+  tech_stack: string[];
+  category: string;
+  is_featured: boolean;
+  posted_at: string;
+  requirements?: string;
+  existingScore: { score: number; label: string | null } | null;
 }
+
+export type JobATSResult = Record<string, unknown>;
 
 interface JobATSStore {
+  listings: JobListing[];
+  isLoadingListings: boolean;
+  selectedJob: JobListing | null;
+  scoringJobId: string | null;
   currentResult: JobATSResult | null;
-  scoreHistory: ScoreHistoryItem[];
-  isLoading: boolean;
-  historyLoading: boolean;
-  error: string | null;
-  activeHistoryId: string | null;
+  isScoring: boolean;
+  isLoadingDetail: boolean;
+  scoringError: string | null;
+  showScoreModal: boolean;
 
-  analyzeJob: (
-    jobTitle: string,
-    companyName: string,
-    jobDescription: string
-  ) => Promise<void>;
-
-  loadHistory: () => Promise<void>;
-  selectHistoryItem: (item: ScoreHistoryItem) => Promise<void>;
-  clearResult: () => void;
-  clearError: () => void;
+  loadListings: () => Promise<void>;
+  selectJob: (job: JobListing) => Promise<void>;
+  scoreJob: (job: JobListing) => Promise<void>;
+  closeModal: () => void;
 }
 
 export const useJobATSStore = create<JobATSStore>((set, get) => ({
+  listings: [],
+  isLoadingListings: false,
+  selectedJob: null,
+  scoringJobId: null,
   currentResult: null,
-  scoreHistory: [],
-  isLoading: false,
-  historyLoading: false,
-  error: null,
-  activeHistoryId: null,
+  isScoring: false,
+  isLoadingDetail: false,
+  scoringError: null,
+  showScoreModal: false,
 
-  // ── ANALYZE JOB ────────────────────────────────────────────────
-  // Uses fetch() → POST /api/v1/jobs/ats-score (server API route)
-  // The API route handles InsForge internally
-  analyzeJob: async (jobTitle, companyName, jobDescription) => {
-    set({ isLoading: true, error: null, currentResult: null });
+  loadListings: async () => {
+    set({ isLoadingListings: true });
+    try {
+      const res = await fetch("/api/v1/jobs/listings", { credentials: "include" });
+      const json = await res.json().catch(() => ({ success: false, data: [] }));
+      if (!res.ok || !json.success) {
+        console.error("loadListings failed:", json.error ?? res.status);
+        set({ listings: [], isLoadingListings: false });
+        return;
+      }
+      set({ listings: json.data ?? [], isLoadingListings: false });
+    } catch (e) {
+      console.error("loadListings failed:", e);
+      set({ isLoadingListings: false });
+    }
+  },
+
+  selectJob: async (job: JobListing) => {
+    set({
+      selectedJob: job,
+      showScoreModal: true,
+      scoringError: null,
+    });
+
+    const hasCached =
+      job.existingScore != null &&
+      typeof job.existingScore.score === "number";
+
+    if (hasCached) {
+      set({
+        isLoadingDetail: true,
+        currentResult: null,
+        isScoring: false,
+        scoringJobId: null,
+      });
+      try {
+        const res = await fetch(
+          `/api/v1/jobs/ats-score?job_listing_id=${encodeURIComponent(job.id)}`,
+          { credentials: "include" }
+        );
+        const json = await res.json();
+        if (res.ok && json.success && json.data) {
+          set({ currentResult: json.data, isLoadingDetail: false });
+          return;
+        }
+      } catch {
+        /* fall through to scoreJob */
+      }
+      set({ isLoadingDetail: false });
+    }
+
+    await get().scoreJob(job);
+  },
+
+  scoreJob: async (job: JobListing) => {
+    set({
+      isScoring: true,
+      scoringJobId: job.id,
+      scoringError: null,
+      currentResult: null,
+      showScoreModal: true,
+      isLoadingDetail: false,
+    });
 
     try {
       const res = await fetch("/api/v1/jobs/ats-score", {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ jobTitle, companyName, jobDescription }),
+        body: JSON.stringify({ job_listing_id: job.id }),
       });
 
       const json = await res.json().catch(() => ({
@@ -130,76 +126,47 @@ export const useJobATSStore = create<JobATSStore>((set, get) => ({
       }));
 
       if (!res.ok || !json.success) {
-        throw new Error(
-          json.error ?? `Request failed with status ${res.status}`
-        );
-      }
-
-      if (!json.data) {
-        throw new Error("API returned success but no data");
+        throw new Error(json.error ?? `Error ${res.status}`);
       }
 
       set({
         currentResult: json.data,
-        isLoading: false,
-        activeHistoryId: json.data.id ?? null,
+        isScoring: false,
+        scoringJobId: null,
       });
 
-      get().loadHistory();
+      const overall = json.data?.overallScore as number | undefined;
+      const label = (json.data?.scoreLabel as string | null) ?? null;
+      if (typeof overall === "number") {
+        set((state) => ({
+          listings: state.listings.map((l) =>
+            l.id === job.id
+              ? {
+                  ...l,
+                  existingScore: { score: overall, label },
+                }
+              : l
+          ),
+        }));
+      }
     } catch (error) {
-      const msg =
-        error instanceof Error ? error.message : "Analysis failed";
-      set({ error: msg, isLoading: false });
-    }
-  },
-
-  // ── LOAD HISTORY ───────────────────────────────────────────────
-  // Uses fetch() → GET /api/v1/jobs/ats-score (server API route)
-  // Never calls InsForge directly
-  loadHistory: async () => {
-    set({ historyLoading: true });
-
-    try {
-      const res = await fetch("/api/v1/jobs/ats-score", {
-        method: "GET",
-        credentials: "include",
-      });
-
-      if (!res.ok) {
-        set({ historyLoading: false });
-        return;
-      }
-
-      const json = await res.json().catch(() => ({ success: false, data: [] }));
-
+      const msg = error instanceof Error ? error.message : "Scoring failed";
       set({
-        scoreHistory: json.data ?? [],
-        historyLoading: false,
+        scoringError: msg,
+        isScoring: false,
+        scoringJobId: null,
       });
-    } catch {
-      set({ historyLoading: false });
     }
   },
 
-  // ── SELECT HISTORY ITEM ────────────────────────────────────────
-  // Fetches full detail from GET /api/v1/jobs/ats-score/:id
-  selectHistoryItem: async (item: ScoreHistoryItem) => {
-    set({ activeHistoryId: item.id });
-    try {
-      const res = await fetch(`/api/v1/jobs/ats-score/${item.id}`, {
-        credentials: "include",
-      });
-      if (res.ok) {
-        const json = await res.json();
-        if (json.success && json.data) {
-          set({ currentResult: json.data });
-        }
-      }
-    } catch {
-      // Non-blocking; keep selection state
-    }
-  },
-
-  clearResult: () => set({ currentResult: null, error: null }),
-  clearError: () => set({ error: null }),
+  closeModal: () =>
+    set({
+      showScoreModal: false,
+      currentResult: null,
+      selectedJob: null,
+      scoringError: null,
+      isLoadingDetail: false,
+      isScoring: false,
+      scoringJobId: null,
+    }),
 }));

@@ -5,10 +5,12 @@ import { motion } from 'framer-motion'
 export function TargetRoleResults({
   analysis,
   targetRole,
+  companyName = '',
   experienceLevel,
 }: {
   analysis: any
   targetRole: string
+  companyName?: string
   experienceLevel: string
 }) {
   if (!analysis) return null
@@ -21,6 +23,7 @@ export function TargetRoleResults({
     partialSkills = [],
     personalizedInsights = [],
     learningRoadmap,
+    applicationReadiness,
   } = analysis
 
   return (
@@ -28,7 +31,14 @@ export function TargetRoleResults({
       <div className="rounded-2xl border border-violet-100 bg-gradient-to-br from-violet-50 to-purple-50 p-6">
         <div className="mb-3 flex items-center justify-between">
           <div>
-            <h3 className="text-lg font-bold text-gray-900">{targetRole}</h3>
+            <h3 className="text-lg font-bold text-gray-900">
+              {targetRole}
+              {companyName ? (
+                <span className="block text-sm font-semibold text-gray-500">
+                  @ {companyName}
+                </span>
+              ) : null}
+            </h3>
             <p className="capitalize text-sm text-gray-400">
               {experienceLevel} Level
             </p>
@@ -163,7 +173,9 @@ export function TargetRoleResults({
                   />
                 </div>
 
-                <p className="mb-3 text-xs text-gray-500">{gap.why}</p>
+                {gap.why ? (
+                  <p className="mb-3 text-xs text-gray-500">{gap.why}</p>
+                ) : null}
 
                 <div className="flex items-center justify-between">
                   <span className="text-xs text-gray-400">
@@ -258,6 +270,56 @@ export function TargetRoleResults({
               </motion.div>
             ))}
           </div>
+        </div>
+      )}
+
+      {applicationReadiness && (
+        <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
+          <h4 className="mb-4 text-base font-bold text-gray-800">
+            Application readiness
+          </h4>
+
+          <div
+            className={`mb-4 inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold ${
+              applicationReadiness.canApplyNow
+                ? 'bg-emerald-100 text-emerald-700'
+                : 'bg-amber-100 text-amber-700'
+            }`}
+          >
+            {applicationReadiness.canApplyNow
+              ? 'Ready to apply'
+              : 'Not ready yet'}
+          </div>
+
+          {applicationReadiness.recommendedAction ? (
+            <p className="mb-4 text-sm text-gray-600">
+              {applicationReadiness.recommendedAction}
+            </p>
+          ) : null}
+
+          {applicationReadiness.estimatedInterviewChance ? (
+            <p className="mb-2 text-xs font-semibold text-gray-500">
+              Interview outlook: {applicationReadiness.estimatedInterviewChance}
+            </p>
+          ) : null}
+
+          {applicationReadiness.mustFixBeforeApplying?.length > 0 && (
+            <div className="mt-3">
+              <p className="mb-2 text-xs font-bold text-red-600">
+                Fix before applying:
+              </p>
+              <ul className="space-y-1">
+                {applicationReadiness.mustFixBeforeApplying.map(
+                  (item: string, i: number) => (
+                    <li key={i} className="flex gap-2 text-xs text-gray-600">
+                      <span className="flex-shrink-0 text-red-400">•</span>
+                      {item}
+                    </li>
+                  )
+                )}
+              </ul>
+            </div>
+          )}
         </div>
       )}
     </div>

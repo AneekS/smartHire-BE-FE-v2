@@ -1,35 +1,17 @@
 import { NextRequest } from "next/server";
-import { requireAuth } from "@/lib/insforge-server";
-import { prisma } from "@/lib/db";
-
-function ok(data: unknown, status = 200) {
-  return new Response(JSON.stringify({ success: true, data }), {
-    status,
-    headers: { "Content-Type": "application/json" },
-  });
-}
-
-function err(message: string, status = 400) {
-  return new Response(JSON.stringify({ success: false, error: message }), {
-    status,
-    headers: { "Content-Type": "application/json" },
-  });
-}
+import { ok, err } from "@/lib/api-response";
+import { UnauthorizedError, withAuth } from "@/lib/auth-helpers";
+import { insforge } from "@/lib/insforge";
 
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { user, client } = await requireAuth();
+    const { dbUser } = await withAuth(req);
     const { id } = await params;
 
-    const dbUser = await prisma.user.findUnique({
-      where: { email: user.email ?? undefined },
-    });
-    if (!dbUser) return err("User not found", 404);
-
-    const { data, error } = await client.database
+    const { data, error } = await insforge.database
       .from("job_ats_scores")
       .select("*")
       .eq("id", id)
@@ -42,6 +24,7 @@ export async function GET(
       id: data.id,
       jobTitle: data.job_title,
       companyName: data.company_name,
+      jobListingId: data.job_listing_id ?? null,
       overallScore: data.overall_score,
       scoreLabel: data.score_label ?? "Match",
       matchSummary: data.match_summary,
@@ -55,8 +38,10 @@ export async function GET(
       createdAt: data.created_at,
     });
   } catch (error: unknown) {
-    const msg =
-      error instanceof Error ? error.message : "Fetch failed";
+    if (error instanceof UnauthorizedError) {
+      return err(error.message, 401);
+    }
+    const msg = error instanceof Error ? error.message : "Fetch failed";
     return err(msg, 500);
   }
 }

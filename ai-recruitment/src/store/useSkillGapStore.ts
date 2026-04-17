@@ -13,7 +13,10 @@ export interface GapAnalysisSkillRequired {
 export interface GapAnalysisSkillHave {
   name: string;
   proficiency: "beginner" | "intermediate" | "expert";
-  meetsRequirement: boolean;
+  meetsRequirement?: boolean;
+  category?: string;
+  relevanceToRole?: number;
+  evidence?: string;
 }
 
 export interface GapAnalysisCriticalGap {
@@ -21,13 +24,17 @@ export interface GapAnalysisCriticalGap {
   demandScore: number;
   estimatedWeeks: number;
   relevantRoles: string[];
+  priority?: "critical" | "important" | "nice_to_have";
+  why?: string;
+  foundInJD?: string;
 }
 
 export interface GapAnalysisPartialSkill {
   skill: string;
   currentLevel: "beginner" | "intermediate";
   requiredLevel: "intermediate" | "expert";
-  gapSize: "small" | "medium" | "large";
+  gapSize?: "small" | "medium" | "large";
+  specificGap?: string;
 }
 
 export interface GapAnalysisDomainBreakdown {
@@ -69,6 +76,14 @@ export interface GapAnalysisRoadmap {
   phases: GapAnalysisRoadmapPhase[];
 }
 
+export interface GapAnalysisApplicationReadiness {
+  canApplyNow?: boolean;
+  recommendedAction?: string;
+  estimatedInterviewChance?: string;
+  keyStrengthsToHighlight?: string[];
+  mustFixBeforeApplying?: string[];
+}
+
 export interface GapAnalysis {
   roleMatchScore: number;
   estimatedWeeksToReady: number;
@@ -80,6 +95,18 @@ export interface GapAnalysis {
   domainBreakdown: GapAnalysisDomainBreakdown[];
   radarData: GapAnalysisRadarPoint[];
   learningRoadmap: GapAnalysisRoadmap;
+  timeToReady?: string;
+  totalSkillsRequired?: number;
+  jobContext?: Record<string, unknown>;
+  personalizedInsights?: string[];
+  applicationReadiness?: GapAnalysisApplicationReadiness;
+  /** API-enriched fields */
+  resumeFileName?: string | null;
+  cached?: boolean;
+  cachedAt?: string;
+  analysisId?: string;
+  jobTitle?: string;
+  companyName?: string;
 }
 
 export interface SkillGapHistoryEntry {
@@ -132,7 +159,7 @@ function mapLegacyResponseToGapAnalysis(raw: Record<string, unknown>): GapAnalys
     skillsYouHave: strong.filter(Boolean).map((name) => ({
       name,
       proficiency: "intermediate" as const,
-      meetsRequirement: true,
+      meetsRequirement: true as const,
     })),
     criticalGaps: missing.map((m) => ({
       skill: m.skill,
@@ -185,7 +212,11 @@ interface SkillGapStore {
   setExperienceLevel: (level: ExperienceLevel) => void;
 
   analyzeFromResume: () => Promise<void>;
-  analyzeTargetRole: (role?: string, level?: ExperienceLevel) => Promise<void>;
+  analyzeTargetRole: (
+    role?: string,
+    level?: ExperienceLevel,
+    jobListingId?: string
+  ) => Promise<void>;
   toggleItemComplete: (itemId: string, roadmapId?: string) => Promise<void>;
   saveRoadmap: (source: "resume" | "target") => Promise<void>;
   openResourceDrawer: (skill: string) => void;
@@ -254,13 +285,31 @@ export const useSkillGapStore = create<SkillGapStore>((set, get) => ({
         return;
       }
 
+      if (
+        json?.success === true &&
+        json?.data &&
+        typeof (json.data as GapAnalysis).roleMatchScore === "number"
+      ) {
+        set({
+          resumeAnalysis: json.data as GapAnalysis,
+          resumeAnalysisLoading: false,
+          resumeAnalysisError: null,
+          resumeLastAnalyzedAt:
+            (json.data as { cachedAt?: string }).cachedAt ??
+            new Date().toISOString(),
+        });
+        return;
+      }
+
       const raw = (json ?? {}) as Record<string, unknown>;
-      const analysis = (raw.analysis as GapAnalysis) ?? mapLegacyResponseToGapAnalysis(raw);
+      const analysis =
+        (raw.analysis as GapAnalysis) ?? mapLegacyResponseToGapAnalysis(raw);
       set({
         resumeAnalysis: analysis,
         resumeAnalysisLoading: false,
         resumeAnalysisError: null,
-        resumeLastAnalyzedAt: json.lastAnalyzedAt ?? new Date().toISOString(),
+        resumeLastAnalyzedAt:
+          (raw.lastAnalyzedAt as string) ?? new Date().toISOString(),
       });
     } catch (e) {
       console.error(e);
@@ -271,20 +320,20 @@ export const useSkillGapStore = create<SkillGapStore>((set, get) => ({
     }
   },
 
-  async analyzeTargetRole(roleArg, levelArg) {
+  async analyzeTargetRole(roleArg, levelArg, jobListingId) {
     const { targetRole, experienceLevel } = get();
     const role = (roleArg ?? targetRole)?.trim?.() ?? "";
     const level = levelArg ?? experienceLevel;
 
-    console.log("4. Store action called with:", { role, level });
+    console.log("[Store] analyzeTargetRole:", { role, level, jobListingId });
 
-    if (!role) {
-      set({ targetAnalysisError: "Please enter a target role" });
+    if (!jobListingId && !role) {
+      set({ targetAnalysisError: "Please enter or select a target role" });
       return;
     }
 
     set({
-      targetRole: role,
+      targetRole: role || targetRole,
       experienceLevel: level,
       targetAnalysis: null,
       targetAnalysisLoading: true,
@@ -292,30 +341,28 @@ export const useSkillGapStore = create<SkillGapStore>((set, get) => ({
     });
 
     try {
-      console.log("5. About to call API");
       const res = await fetch("/api/v1/skills/gap-analysis", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
         body: JSON.stringify({
-          source: "manual",
-          targetRole: role,
+          job_listing_id: jobListingId ?? null,
+          targetRole: role || undefined,
           experienceLevel: level,
+          source: jobListingId ? "job_listing" : "manual",
         }),
       });
 
-      console.log("6. API response status:", res.status);
-
       let json: Record<string, unknown> = {};
       try {
-        json = await res.json();
+        json = (await res.json()) as Record<string, unknown>;
       } catch {
         json = {};
       }
-      console.log("7. API response keys:", Object.keys(json));
 
       if (!res.ok) {
-        const errMsg = (json.error as string) ?? "Failed to analyze target role";
+        const errMsg =
+          (json.error as string) ?? `Failed to analyze target role (${res.status})`;
         set({
           targetAnalysisLoading: false,
           targetAnalysisError: errMsg,
@@ -324,32 +371,38 @@ export const useSkillGapStore = create<SkillGapStore>((set, get) => ({
         return;
       }
 
-      // Support both { success, data } and legacy { readiness_score, strong_skills, missing_skills }
       let analysis: GapAnalysis;
       const data = json.data as GapAnalysis | undefined;
-      if (json.success === true && data) {
+      if (
+        json.success === true &&
+        data &&
+        typeof data.roleMatchScore === "number"
+      ) {
         analysis = data;
       } else {
         analysis = mapLegacyResponseToGapAnalysis(json);
       }
 
-      console.log("8. Store updated, targetAnalysis:", {
-        skillsYouHave: analysis.skillsYouHave?.length,
-        criticalGaps: analysis.criticalGaps?.length,
-        roleMatchScore: analysis.roleMatchScore,
+      console.log("[Store] Analysis received:", {
+        score: analysis.roleMatchScore,
+        skills: analysis.skillsYouHave?.length,
+        gaps: analysis.criticalGaps?.length,
       });
 
       set({
         targetAnalysis: analysis,
         targetAnalysisLoading: false,
         targetAnalysisError: null,
-        targetLastAnalyzedAt: (json.lastAnalyzedAt as string) ?? new Date().toISOString(),
+        targetLastAnalyzedAt:
+          (analysis.cachedAt as string | undefined) ??
+          new Date().toISOString(),
       });
     } catch (e) {
       console.error("analyzeTargetRole failed:", e);
       set({
         targetAnalysisLoading: false,
-        targetAnalysisError: e instanceof Error ? e.message : "Failed to analyze target role",
+        targetAnalysisError:
+          e instanceof Error ? e.message : "Failed to analyze target role",
         targetAnalysis: null,
       });
     }

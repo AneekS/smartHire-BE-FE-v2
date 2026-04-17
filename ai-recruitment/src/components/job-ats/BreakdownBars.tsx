@@ -8,11 +8,11 @@ interface BreakdownItem {
   reason: string;
 }
 
-interface Props {
+export function BreakdownBars({
+  breakdown,
+}: {
   breakdown: Record<string, BreakdownItem>;
-}
-
-export function BreakdownBars({ breakdown }: Props) {
+}) {
   const [animated, setAnimated] = useState(false);
 
   useEffect(() => {
@@ -22,29 +22,32 @@ export function BreakdownBars({ breakdown }: Props) {
 
   const entries = Object.entries(breakdown ?? {});
 
+  const labelFor = (key: string) => {
+    switch (key) {
+      case "keywordMatch":
+        return "Keyword Match";
+      case "experienceMatch":
+        return "Experience Match";
+      case "skillsMatch":
+        return "Skills Match";
+      case "educationMatch":
+        return "Education Match";
+      case "formattingScore":
+        return "Formatting";
+      default:
+        return key;
+    }
+  };
+
   return (
-    <div className="space-y-3">
+    <div className="space-y-3 mt-4">
       {entries.map(([key, value], index) => {
-        const label =
-          key === "keywordMatch"
-            ? "Keyword Match"
-            : key === "experienceMatch"
-            ? "Experience Match"
-            : key === "skillsMatch"
-            ? "Skills Match"
-            : key === "educationMatch"
-            ? "Education Match"
-            : key === "formattingScore"
-            ? "Formatting"
-            : key;
-
         const width = Math.max(0, Math.min(100, value.score));
-
         return (
           <div key={key}>
             <div className="flex items-center justify-between text-xs mb-1">
               <span className="font-medium text-slate-700">
-                {label}{" "}
+                {labelFor(key)}{" "}
                 <span className="text-slate-400 font-normal">
                   ({value.weight}%)
                 </span>
@@ -69,4 +72,3 @@ export function BreakdownBars({ breakdown }: Props) {
     </div>
   );
 }
-
