@@ -55,7 +55,7 @@ export function calculateCompleteness(candidate: {
   skillRecords?:   unknown[];
   experiences?:    unknown[];
   projects?:       unknown[];
-  careerPreference?: unknown | null;
+  preferredRoles?: unknown[];
 }): CompletenessResult {
   const sections = {
     name:        !!(candidate.name?.trim()),
@@ -65,7 +65,7 @@ export function calculateCompleteness(candidate: {
     resume:      !!(candidate.resumeUrl),
     projects:    !!(candidate.projects?.length),
     experience:  !!(candidate.experiences?.length),
-    careerPrefs: !!(candidate.careerPreference),
+    careerPrefs: !!(candidate.preferredRoles && candidate.preferredRoles.length > 0),
   };
 
   let score = 0;
@@ -98,7 +98,7 @@ export async function refreshCompleteness(candidateId: string): Promise<number> 
         skillRecords:    { select: { id: true } },
         experiences:     { select: { id: true } },
         projects:        { select: { id: true } },
-        careerPreference:{ select: { id: true } },
+        preferredRoles:  { select: { id: true }, take: 1 },
       },
     });
 

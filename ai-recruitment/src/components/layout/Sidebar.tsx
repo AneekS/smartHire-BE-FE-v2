@@ -34,7 +34,7 @@ const navItems = [
 
 export function Sidebar() {
   const pathname = usePathname();
-  const { profile } = useProfile();
+  const { profile, isLoading, error } = useProfile();
 
   const avatarSrc =
     profile?.avatarUrl ||
@@ -43,6 +43,12 @@ export function Sidebar() {
     `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(profile?.name ?? "user")}`;
   const displayName = profile?.name ?? "";
   const displayTitle = profile?.headline ?? "";
+  const preferredRole = profile?.preferredRoles?.[0] ?? profile?.preferredRole ?? null;
+  const preferredRoleLabel = isLoading
+    ? "Loading preferred role..."
+    : error
+      ? "Unable to load preferred role"
+      : preferredRole ?? "Not selected";
 
   return (
     <aside className="w-64 flex-shrink-0 border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex flex-col">
@@ -79,6 +85,9 @@ export function Sidebar() {
             <div>
               <p className="font-bold text-sm">{displayName}</p>
               <p className="text-xs text-slate-500">{displayTitle}</p>
+              <p className="mt-0.5 text-[11px] text-slate-500">
+                Preferred role: {preferredRoleLabel}
+              </p>
             </div>
           </div>
           <Link href="/profile">

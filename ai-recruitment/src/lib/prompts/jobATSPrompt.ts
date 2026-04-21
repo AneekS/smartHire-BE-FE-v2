@@ -29,8 +29,8 @@ export function buildJobATSPrompt(
       name: (p.name as string) ?? "",
       tech: (
         Array.isArray(p.techStack ?? p.technologies)
-          ? (p.techStack ?? p.technologies)
-          : []
+          ? (p.techStack ?? p.technologies) as string[]
+          : [] as string[]
       ).join(", "),
       points: ((p.bullets ?? []) as unknown[])
         .slice(0, 2)

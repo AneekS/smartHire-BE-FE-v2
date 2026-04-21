@@ -1,21 +1,17 @@
 /**
  * GET  /api/jobs/recommendations
- * POST /api/jobs/recommendations  (refresh / invalidate cache)
+ * POST /api/jobs/recommendations  (enqueue score refresh)
  *
- * Three-tier response path (target p99 < 150 ms):
- *  Tier 1 — Redis cache hit   → JSON.parse + return          (~5 ms)
- *  Tier 2 — Precomputed table → batch DB reads + cache write (~80 ms)
- *  Tier 3 — Full scoring      → service layer fallback        (~500 ms)
- *
- * After every Tier-2/3 response a background job is enqueued to keep
- * the precomputed JobRecommendationScore table and Redis cache warm.
+ * Response path:
+ *  Tier 1 — Precomputed JobRecommendationScore + job hydrate (no app cache)
+ *  Tier 2 — Full scoring via JobRecommendationService
  */
 
 import { NextResponse } from 'next/server';
 import { withAuth, type AuthenticatedRequest } from '@/lib/auth-middleware';
 import { prisma } from '@/lib/db';
-import { CacheService } from '@/lib/cache-utils';
-import { enqueueRecommendationUpdate } from '@/services/queue-producers';
+import { uniqueNonEmptyStrings, candidateOrWhere } from '@/lib/prisma-safe';
+import { safeInQuery } from '@/lib/db/safeInQuery';
 import { JobRecommendationService, type RecommendationResponse } from '@/services/recommendations/job-recommendation.service';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -93,14 +89,16 @@ export async function GET(req: AuthenticatedRequest) {
     const limit  = Math.min(parseInt(url.searchParams.get('limit') || '20', 10), 100);
     const cursor = url.searchParams.get('cursor') ?? undefined;
 
-    // Resolve candidate ------------------------------------------------------
+    const candWhere = candidateOrWhere({
+      candidateId: authedReq.user?.candidateId,
+      email: authedReq.user!.email,
+    });
+    if (!candWhere) {
+      return NextResponse.json({ error: 'Invalid session' }, { status: 401 });
+    }
+
     const candidate = await prisma.candidate.findFirst({
-      where: {
-        OR: [
-          authedReq.user?.candidateId ? { id: authedReq.user.candidateId } : undefined,
-          { email: authedReq.user!.email },
-        ].filter(Boolean) as Array<{ id?: string; email?: string }>,
-      },
+      where: candWhere,
       select: { id: true },
     });
 
@@ -110,21 +108,7 @@ export async function GET(req: AuthenticatedRequest) {
 
     const { id: candidateId } = candidate;
 
-    // ── TIER 1: Redis cache ──────────────────────────────────────────────────
-    // Only cache the first page (no cursor) to keep the cache small and deterministic.
-    if (!cursor) {
-      const cached = await CacheService.getRecommendations<RecommendationResponse>(candidateId);
-      if (cached) {
-        return NextResponse.json({
-          success:   true,
-          data:      cached,
-          source:    'cache',
-          timestamp: new Date().toISOString(),
-        });
-      }
-    }
-
-    // ── TIER 2: Precomputed JobRecommendationScore ──────────────────────────
+    // ── TIER 1: Precomputed JobRecommendationScore ──────────────────────────
     if (!cursor) {
       const precomputed = await prisma.jobRecommendationScore.findMany({
         where:   {
@@ -145,36 +129,32 @@ export async function GET(req: AuthenticatedRequest) {
       });
 
       if (precomputed.length > 0) {
-        const jobIds = precomputed.map((s: { jobId: string }) => s.jobId);
+        const jobIds = uniqueNonEmptyStrings(precomputed.map((s: { jobId: string }) => s.jobId));
+        const jobIdFilter = safeInQuery(jobIds);
+        if (jobIdFilter) {
+          const jobs = await prisma.job.findMany({
+            where:  { id: jobIdFilter, status: 'ACTIVE' },
+            select: {
+              id: true, title: true, location: true, createdAt: true,
+              company: { select: { id: true, name: true, industry: true } },
+              _count:  { select: { applications: true } },
+            },
+          });
 
-        const jobs = await prisma.job.findMany({
-          where:  { id: { in: jobIds }, status: 'ACTIVE' },
-          select: {
-            id: true, title: true, location: true, createdAt: true,
-            company: { select: { id: true, name: true, industry: true } },
-            _count:  { select: { applications: true } },
-          },
-        });
+          const jobMap = new Map(jobs.map((j) => [j.id, j as SlimJob]));
+          const response = buildPrecomputedResponse(precomputed, jobMap);
 
-        const jobMap = new Map(jobs.map((j) => [j.id, j as SlimJob]));
-        const response = buildPrecomputedResponse(precomputed, jobMap);
-
-        // Warm cache for next request
-        await CacheService.setRecommendations(candidateId, response);
-
-        // Enqueue background refresh so scores stay current
-        void enqueueRecommendationUpdate(candidateId);
-
-        return NextResponse.json({
-          success:   true,
-          data:      response,
-          source:    'precomputed',
-          timestamp: new Date().toISOString(),
-        });
+          return NextResponse.json({
+            success:   true,
+            data:      response,
+            source:    'precomputed',
+            timestamp: new Date().toISOString(),
+          });
+        }
       }
     }
 
-    // ── TIER 3: Full scoring fallback ────────────────────────────────────────
+    // ── TIER 2: Full scoring fallback ────────────────────────────────────────
     const service  = new JobRecommendationService();
     const response = await service.getRecommendations({
       candidateId,
@@ -182,12 +162,6 @@ export async function GET(req: AuthenticatedRequest) {
       limit,
       cursor,
     });
-
-    // Cache and enqueue background score precomputation
-    if (!cursor) {
-      await CacheService.setRecommendations(candidateId, response);
-      void enqueueRecommendationUpdate(candidateId);
-    }
 
     return NextResponse.json({
       success:   true,
@@ -211,13 +185,16 @@ export async function GET(req: AuthenticatedRequest) {
 export async function POST(req: AuthenticatedRequest) {
   return withAuth(req, async (authedReq) => {
   try {
+    const postCandWhere = candidateOrWhere({
+      candidateId: authedReq.user?.candidateId,
+      email: authedReq.user!.email,
+    });
+    if (!postCandWhere) {
+      return NextResponse.json({ error: 'Invalid session' }, { status: 401 });
+    }
+
     const candidate = await prisma.candidate.findFirst({
-      where: {
-        OR: [
-          authedReq.user?.candidateId ? { id: authedReq.user.candidateId } : undefined,
-          { email: authedReq.user!.email },
-        ].filter(Boolean) as Array<{ id?: string; email?: string }>,
-      },
+      where: postCandWhere,
       select: { id: true },
     });
 
@@ -225,12 +202,9 @@ export async function POST(req: AuthenticatedRequest) {
       return NextResponse.json({ error: 'Candidate profile not found' }, { status: 404 });
     }
 
-    await CacheService.invalidateRecommendations(candidate.id);
-    void enqueueRecommendationUpdate(candidate.id);
-
     return NextResponse.json({
       success: true,
-      message: 'Recommendation cache invalidated; background refresh enqueued',
+      message: 'Recommendation refresh acknowledged',
     });
 
   } catch (err) {

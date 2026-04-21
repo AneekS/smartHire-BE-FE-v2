@@ -22,6 +22,44 @@ function appendCacheBuster(url: string | null | undefined, version: string): str
 export function adaptCandidate(raw: RawCandidate): CandidateProfile {
   const avatarVersion = String(raw.updatedAt ?? raw.avatarUpdatedAt ?? Date.now());
   const avatarUrl = appendCacheBuster((raw.avatarUrl as string) ?? null, avatarVersion);
+  const rawPref = raw.preferredRoles;
+  let preferredRoleItems: CandidateProfile["preferredRoleItems"];
+  let preferredRolesFromApi: string[] = [];
+
+  if (Array.isArray(rawPref) && rawPref.length > 0) {
+    const first = rawPref[0] as unknown;
+    if (typeof first === "object" && first !== null && "role" in first) {
+      preferredRoleItems = (rawPref as Array<Record<string, unknown>>)
+        .map((x) => ({
+          role: String(x.role ?? ""),
+          priority: typeof x.priority === "number" ? x.priority : 0,
+          confidenceScore: typeof x.confidenceScore === "number" ? x.confidenceScore : 0,
+          source: typeof x.source === "string" ? x.source : undefined,
+        }))
+        .filter((x) => x.role);
+      preferredRolesFromApi = preferredRoleItems.map((x) => x.role);
+    } else {
+      preferredRolesFromApi = rawPref as string[];
+    }
+  }
+
+  const salaryProfileRaw = raw.salaryProfile as Record<string, unknown> | null | undefined;
+  const salaryProfile =
+    salaryProfileRaw &&
+    typeof salaryProfileRaw.minSalary === "number" &&
+    typeof salaryProfileRaw.maxSalary === "number"
+      ? {
+          minSalary: salaryProfileRaw.minSalary,
+          maxSalary: salaryProfileRaw.maxSalary,
+          currency: (salaryProfileRaw.currency as string) ?? "INR",
+          salaryType: salaryProfileRaw.salaryType as string | undefined,
+          isNegotiable: Boolean(salaryProfileRaw.isNegotiable),
+          confidenceScore:
+            typeof salaryProfileRaw.confidenceScore === "number"
+              ? salaryProfileRaw.confidenceScore
+              : undefined,
+        }
+      : null;
 
   return {
     id: String(raw.id ?? ""),
@@ -50,9 +88,18 @@ export function adaptCandidate(raw: RawCandidate): CandidateProfile {
     internshipInterest: Boolean(raw.internshipInterest),
     languagesSpoken: (raw.languagesSpoken as string[]) ?? [],
     // Preferences
-    preferredRoles: (raw.preferredRoles as string[]) ?? [],
-    salaryExpectationMin: (raw.salaryExpectationMin as number) ?? null,
-    salaryExpectationMax: (raw.salaryExpectationMax as number) ?? null,
+    preferredRole:
+      (raw.preferredRole as string) ??
+      preferredRolesFromApi[0] ??
+      preferredRoleItems?.[0]?.role ??
+      null,
+    preferredRoles: preferredRolesFromApi,
+    preferredRoleItems,
+    salaryProfile,
+    salaryExpectationMin:
+      (raw.salaryExpectationMin as number) ?? salaryProfile?.minSalary ?? null,
+    salaryExpectationMax:
+      (raw.salaryExpectationMax as number) ?? salaryProfile?.maxSalary ?? null,
     visibility: (raw.visibility as string) ?? "PUBLIC",
     // Scores
     reputationScore: (raw.reputationScore as number) ?? 0,
@@ -72,9 +119,7 @@ export function adaptCandidate(raw: RawCandidate): CandidateProfile {
     experiences: (raw.experiences as CandidateProfile["experiences"]) ?? [],
     projects: (raw.projects as CandidateProfile["projects"]) ?? [],
     certifications: (raw.certifications as CandidateProfile["certifications"]) ?? [],
-    careerPreference: (raw.careerPreference as CandidateProfile["careerPreference"]) ?? null,
     privacy: (raw.privacy as CandidateProfile["privacy"]) ?? null,
-    aiInsights: (raw.aiInsights as CandidateProfile["aiInsights"]) ?? null,
     reputation: (raw.reputation as CandidateProfile["reputation"]) ?? null,
   };
 }

@@ -16,7 +16,6 @@ export const CandidateProfileSchema = z.object({
   jobAlerts: z.boolean().optional(),
   aiSuggestions: z.boolean().optional(),
   publicProfile: z.boolean().optional(),
-  preferredRoles: z.array(z.string()).optional(),
   salaryExpectationMin: z.number().int().optional(),
   salaryExpectationMax: z.number().int().optional(),
   visibility: z.enum(["PUBLIC", "PRIVATE", "RECRUITERS_ONLY"]).optional(),

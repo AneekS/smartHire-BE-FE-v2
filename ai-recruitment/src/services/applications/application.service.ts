@@ -1,5 +1,4 @@
 import type { ApplicationStatus, RecruiterActivityType } from "@prisma/client";
-import { cacheGet, cacheSet, cacheDelete } from "@/lib/cache";
 import { NotFoundError, ValidationError, AppError } from "@/lib/errors";
 import {
   findApplicationsByCandidate,
@@ -19,9 +18,6 @@ import {
 import { prisma } from "@/lib/db";
 
 // ─── Constants ───────────────────────────────────────────────────────────
-
-const CACHE_TTL = 300; // 5 minutes
-const ANALYTICS_CACHE_TTL = 600; // 10 minutes
 
 const STATUS_ORDER: ApplicationStatus[] = [
   "APPLIED",
@@ -98,10 +94,6 @@ export async function applyToJob(
     aiNotes: JSON.stringify(profileSnapshot),
   });
 
-  // Invalidate caches
-  await cacheDelete(`apps:candidate:${candidateId}`);
-  await cacheDelete(`analytics:${candidateId}`);
-
   return application;
 }
 
@@ -115,38 +107,18 @@ export async function getCandidateApplications(
 ) {
   const { limit = 20 } = options;
 
-  // Only cache first page with no filters
-  const cacheKey = !options.status && !options.cursor
-    ? `apps:candidate:${candidateId}`
-    : null;
-
-  if (cacheKey) {
-    const cached = await cacheGet<{ applications: unknown[]; nextCursor: string | null }>(cacheKey);
-    if (cached) return cached;
-  }
-
   const rows = await findApplicationsByCandidate(candidateId, options);
   const hasMore = rows.length > limit;
   const applications = hasMore ? rows.slice(0, limit) : rows;
   const nextCursor = hasMore ? applications[applications.length - 1].id : null;
 
-  const result = { applications, nextCursor };
-
-  if (cacheKey) {
-    await cacheSet(cacheKey, result, CACHE_TTL);
-  }
-
-  return result;
+  return { applications, nextCursor };
 }
 
 export async function getApplicationDetail(
   applicationId: string,
   candidateId: string
 ) {
-  const cacheKey = `app:detail:${applicationId}`;
-  const cached = await cacheGet<Record<string, unknown>>(cacheKey);
-  if (cached) return cached;
-
   const application = await findApplicationById(applicationId);
   if (!application) {
     throw new NotFoundError("Application");
@@ -156,13 +128,10 @@ export async function getApplicationDetail(
     throw new NotFoundError("Application");
   }
 
-  const result = {
+  return {
     ...application,
     timeline: application.statusHistory,
   };
-
-  await cacheSet(cacheKey, result, CACHE_TTL);
-  return result;
 }
 
 export async function changeApplicationStatus(
@@ -194,13 +163,6 @@ export async function changeApplicationStatus(
   // Update analytics counters based on status
   await updateAnalyticsForStatusChange(application.candidateId, newStatus);
 
-  // Invalidate caches
-  await Promise.all([
-    cacheDelete(`app:detail:${applicationId}`),
-    cacheDelete(`apps:candidate:${application.candidateId}`),
-    cacheDelete(`analytics:${application.candidateId}`),
-  ]);
-
   return updated;
 }
 
@@ -231,12 +193,6 @@ export async function withdrawApplication(
 
   await updateAnalyticsForStatusChange(candidateId, "WITHDRAWN");
 
-  await Promise.all([
-    cacheDelete(`app:detail:${applicationId}`),
-    cacheDelete(`apps:candidate:${candidateId}`),
-    cacheDelete(`analytics:${candidateId}`),
-  ]);
-
   return updated;
 }
 
@@ -254,10 +210,7 @@ export async function addNote(
     throw new NotFoundError("Application");
   }
 
-  const note = await addApplicationNote(applicationId, content, candidateId, authorRole);
-
-  await cacheDelete(`app:detail:${applicationId}`);
-  return note;
+  return addApplicationNote(applicationId, content, candidateId, authorRole);
 }
 
 // ─── Recruiter Activity ──────────────────────────────────────────────────
@@ -292,10 +245,6 @@ export async function trackRecruiterActivity(
       await updateAnalyticsForStatusChange(application.candidateId, "RESUME_VIEWED");
     }
 
-    await Promise.all([
-      cacheDelete(`app:detail:${applicationId}`),
-      cacheDelete(`apps:candidate:${application.candidateId}`),
-    ]);
   }
 
   return activity;
@@ -304,10 +253,6 @@ export async function trackRecruiterActivity(
 // ─── Analytics ───────────────────────────────────────────────────────────
 
 export async function getCandidateDashboardAnalytics(candidateId: string) {
-  const cacheKey = `analytics:${candidateId}`;
-  const cached = await cacheGet<Record<string, unknown>>(cacheKey);
-  if (cached) return cached;
-
   const [analytics, statusCounts] = await Promise.all([
     getCandidateAnalytics(candidateId),
     getApplicationCountsByStatus(candidateId),
@@ -329,7 +274,6 @@ export async function getCandidateDashboardAnalytics(candidateId: string) {
       .reduce((sum, [, count]) => sum + count, 0),
   };
 
-  await cacheSet(cacheKey, result, ANALYTICS_CACHE_TTL);
   return result;
 }
 
@@ -467,11 +411,6 @@ export async function refreshApplicationScores(candidateId: string) {
       updates.reduce((sum, u) => sum + u.healthScore, 0) / updates.length;
     await upsertCandidateAnalytics(candidateId, { avgHealthScore: avgHealth });
   }
-
-  await Promise.all([
-    cacheDelete(`apps:candidate:${candidateId}`),
-    cacheDelete(`analytics:${candidateId}`),
-  ]);
 
   return updates;
 }

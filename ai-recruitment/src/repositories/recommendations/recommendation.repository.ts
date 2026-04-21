@@ -1,5 +1,5 @@
+import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
-import { cacheGet, cacheSet } from "@/lib/cache";
 
 export type BehaviorEventType =
   | "JOB_VIEW"
@@ -15,6 +15,7 @@ export type CandidateContext = {
   experience: number;
   skills: string[];
   preferredRoles: string[];
+  preferredRoleSignals: Array<{ role: string; priority: number; confidenceScore: number }>;
   preferredIndustries: string[];
   preferredLocations: string[];
   preferredWorkMode: string | null;
@@ -65,13 +66,20 @@ type StoredEmbeddingRow = {
   createdAt: Date;
 };
 
+function locationsFromSalaryProfile(
+  sp: { preferredLocations?: unknown } | null | undefined
+): string[] {
+  const raw = sp?.preferredLocations;
+  if (!raw) return [];
+  if (Array.isArray(raw)) {
+    return raw.filter((x): x is string => typeof x === "string");
+  }
+  return [];
+}
+
 export class RecommendationRepository {
   async getCandidateContext(userCandidateId?: string, email?: string): Promise<CandidateContext | null> {
     if (!userCandidateId && !email) return null;
-
-    const cacheKey = `candidate-ctx:${userCandidateId ?? email}`;
-    const cached = await cacheGet<CandidateContext>(cacheKey);
-    if (cached) return cached;
 
     // Single relational query replaces 3 separate queries (N+1 fix)
     const candidate = await prisma.candidate.findFirst({
@@ -89,7 +97,25 @@ export class RecommendationRepository {
         summary: true,
         skills: true,
         skillRecords: { select: { name: true } },
-        careerPreference: true,
+        user: {
+          select: {
+            salaryProfile: {
+              select: { minSalary: true, maxSalary: true, preferredLocations: true },
+            },
+          },
+        },
+        preferredRoles: {
+          select: {
+            role: true,
+            priority: true,
+            confidenceScore: true,
+          },
+          orderBy: [
+            { priority: "asc" },
+            { confidenceScore: "desc" },
+          ] as Prisma.PreferredRoleOrderByWithRelationInput[],
+          take: 5,
+        },
         profile: {
           select: {
             id: true,
@@ -116,24 +142,31 @@ export class RecommendationRepository {
       .filter(Boolean)
       .join(" ");
 
+    const signalRoles = candidate.preferredRoles;
+    const preferredRolesMerged = signalRoles.map((r) => r.role);
+
     const result: CandidateContext = {
       id: candidate.id,
       email: candidate.email,
       location: candidate.location,
       experience: candidate.experience ?? 0,
       skills: Array.from(mergedSkills),
-      preferredRoles: candidate.careerPreference?.preferredRoles ?? [],
-      preferredIndustries: candidate.careerPreference?.preferredIndustries ?? [],
-      preferredLocations: candidate.careerPreference?.preferredLocations ?? [],
-      preferredWorkMode: candidate.careerPreference?.workMode ?? null,
-      expectedSalaryMin: candidate.careerPreference?.salaryMin ?? null,
-      expectedSalaryMax: candidate.careerPreference?.salaryMax ?? null,
-      openToRelocation: candidate.careerPreference?.openToRelocation ?? false,
+      preferredRoles: preferredRolesMerged,
+      preferredRoleSignals: candidate.preferredRoles.map((role) => ({
+        role: role.role,
+        priority: role.priority,
+        confidenceScore: role.confidenceScore,
+      })),
+      preferredIndustries: [],
+      preferredLocations: locationsFromSalaryProfile(candidate.user?.salaryProfile ?? null),
+      preferredWorkMode: null,
+      expectedSalaryMin: candidate.user?.salaryProfile?.minSalary ?? null,
+      expectedSalaryMax: candidate.user?.salaryProfile?.maxSalary ?? null,
+      openToRelocation: false,
       profileId: candidate.profile?.id ?? null,
       resumeText,
     };
 
-    await cacheSet(cacheKey, result, 1800); // 30min TTL
     return result;
   }
 
@@ -269,7 +302,7 @@ export class RecommendationRepository {
   }
 
   async getJobEmbeddings(jobIds: string[]): Promise<Array<StoredEmbeddingRow & { jobId: string }>> {
-    if (jobIds.length === 0) return [];
+    if (!jobIds || jobIds.length === 0) return [];
 
     return prisma.$queryRaw<Array<StoredEmbeddingRow & { jobId: string }>>`
       SELECT
@@ -468,14 +501,6 @@ export class RecommendationRepository {
   }
 
   async getMarketIntelligence() {
-    const cacheKey = "market-intelligence";
-    const cached = await cacheGet<{
-      trendingSkills: Array<{ skill: string; demandCount: number }>;
-      highDemandRoles: Array<{ role: string; demandCount: number }>;
-      topHiringCompanies: Array<{ companyName: string; activeJobs: number }>;
-    }>(cacheKey);
-    if (cached) return cached;
-
     const [trendingSkills, highDemandRoles, topHiringCompanies] = await Promise.all([
       prisma.$queryRaw<Array<{ skill: string; demandCount: number }>>`
         SELECT skill, COUNT(*)::int as "demandCount"
@@ -507,13 +532,10 @@ export class RecommendationRepository {
       `,
     ]);
 
-    const result = {
+    return {
       trendingSkills,
       highDemandRoles,
       topHiringCompanies,
     };
-
-    await cacheSet(cacheKey, result, 3600); // 60min TTL
-    return result;
   }
 }

@@ -1,6 +1,6 @@
 /**
  * useProfileSections
- * Hooks for Experience, Projects, Certifications, Career Preferences, Privacy, AI Insights.
+ * Hooks for Experience, Projects, Certifications, and Privacy.
  * All mutations call the relevant /api/profile/* endpoints.
  */
 
@@ -12,9 +12,7 @@ import type {
   ExperienceRecord,
   ProjectRecord,
   CertificationRecord,
-  CareerPreference,
   ProfilePrivacy,
-  AIInsights,
 } from "@/lib/api-client";
 
 // ─── Fetcher ─────────────────────────────────────────────────────────────────
@@ -171,28 +169,6 @@ export function useCertifications() {
   return { certifications: data ?? [], isLoading, error, add, update, remove };
 }
 
-// ─── useCareerPreferences ─────────────────────────────────────────────────────
-
-export function useCareerPreferences() {
-  const { data, error, isLoading, mutate: revalidate } = useSWR<CareerPreference | null>(
-    "/api/profile/career-preferences",
-    fetcher
-  );
-
-  const save = async (prefs: CareerPreference) => {
-    try {
-      await mutate("/api/profile/career-preferences", "PUT", prefs);
-      toast.success("Career preferences saved");
-      await revalidate();
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Failed to save preferences");
-      throw e;
-    }
-  };
-
-  return { careerPreference: data ?? null, isLoading, error, save };
-}
-
 // ─── usePrivacy ───────────────────────────────────────────────────────────────
 
 export function usePrivacy() {
@@ -220,18 +196,3 @@ export function usePrivacy() {
   };
 }
 
-// ─── useAIInsights ────────────────────────────────────────────────────────────
-
-export function useAIInsights() {
-  const { data, error, isLoading } = useSWR<AIInsights>(
-    "/api/profile/ai-insights",
-    fetcher
-  );
-
-  return {
-    insights: data ?? null,
-    isLoading,
-    error,
-    hasInsights: !!(data?.careerLevel),
-  };
-}

@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState, useEffect, useRef } from "react";
 import { useForm } from "react-hook-form";
@@ -13,13 +13,10 @@ import {
   Github,
   Linkedin,
   Globe,
-  Star,
   GraduationCap,
-  AlertCircle,
   MapPin,
   Camera,
   Lock,
-  Sparkles,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -31,15 +28,15 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
-import { useProfile, useResumes, useConnectedAccounts } from "@/hooks";
+import { useProfile, useResumes, useConnectedAccounts, useProfilePreferences } from "@/hooks";
 import { toast } from "sonner";
 
 // â”€â”€ New section components â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 import { ExperienceSection }        from "@/components/profile/ExperienceSection";
 import { ProjectsSection }          from "@/components/profile/ProjectsSection";
 import { CertificationsSection }    from "@/components/profile/CertificationsSection";
-import { CareerPreferencesSection } from "@/components/profile/CareerPreferencesSection";
-import { AIInsightsPanel }          from "@/components/profile/AIInsightsPanel";
+import { PreferredRoleSelectionSection } from "@/components/profile/PreferredRoleSelectionSection";
+import { SalaryExpectationSection } from "@/components/profile/SalaryExpectationSection";
 import { PrivacySettingsSection }   from "@/components/profile/PrivacySettingsSection";
 import { AvatarUploadModal }        from "@/components/profile/AvatarUploadModal";
 import { ConnectedAccountsSection } from "@/components/profile/ConnectedAccountsSection";
@@ -61,9 +58,8 @@ const TABS = [
   { value: "experience",      label: "Experience"        },
   { value: "projects",        label: "Projects"          },
   { value: "certifications",  label: "Certifications"    },
-  { value: "career",          label: "Career Prefs"      },
+  { value: "career",          label: "Roles & salary"    },
   { value: "resume",          label: "Resume"            },
-  { value: "ai-insights",     label: "AI Insights"       },
   { value: "settings",        label: "Settings"          },
   { value: "privacy",         label: "Privacy"           },
 ] as const;
@@ -73,6 +69,7 @@ export default function ProfilePage() {
   const { profile, isLoading, updateProfile }                = useProfile();
   const { resumes, isLoading: resumesLoading, uploadResume } = useResumes();
   const { getAccount, isConnected }                          = useConnectedAccounts();
+  const { preferredRoles: prefRoles, salaryProfile: salaryProf, isLoading: prefsLoading } = useProfilePreferences();
 
   const [avatarOpen, setAvatarOpen] = useState(false);
   const [activeTab, setActiveTab]   = useState<string>("overview");
@@ -189,22 +186,6 @@ export default function ProfilePage() {
     e.target.value = "";
   };
 
-  const completeness    = profile?.profileCompleteness ?? 0;
-  const isProfileLocked = completeness < 40;
-
-  // Derive missing sections client-side for CompletenessBar
-  const missingSections: string[] = [];
-  if (!profile?.name)                                                         missingSections.push("name");
-  if (!profile?.headline)                                                      missingSections.push("headline");
-  if (!profile?.educations?.length)                                           missingSections.push("education");
-  if ((profile?.skillRecords?.length ?? 0) < 3)                              missingSections.push("skills");
-  if (!resumes?.length)                                                       missingSections.push("resume");
-  if (!profile?.experiences?.length)                                            missingSections.push("experience");
-  if (!profile?.projects?.length)                                               missingSections.push("projects");
-  if (!profile?.careerPreference)                                               missingSections.push("careerPrefs");
-
-  const reputation = profile?.reputation as Record<string, unknown> | undefined;
-
   // â”€â”€â”€ Loading â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   if (isLoading) {
     return (
@@ -217,6 +198,47 @@ export default function ProfilePage() {
       </div>
     );
   }
+
+  if (!profile) {
+    return (
+      <div className="flex items-center justify-center p-12 text-sm text-slate-500">
+        Could not load profile. Try refreshing the page.
+      </div>
+    );
+  }
+
+  const completeness = profile.profileCompleteness ?? 0;
+  const isProfileLocked = completeness < 40;
+
+  // Prefer data from the dedicated preferences endpoint (fresh, lean query)
+  const roleItemsForDisplay = prefRoles.length > 0
+    ? prefRoles
+    : (profile.preferredRoleItems ?? []);
+
+  const preferredRole =
+    roleItemsForDisplay[0]?.role ??
+    profile.preferredRole ??
+    "Not selected";
+
+  const activeSalary = salaryProf ?? profile.salaryProfile ?? null;
+
+  const formatSalaryRange = (min: number, max: number, currency: string) => {
+    const sym = currency === "USD" ? "$" : currency === "EUR" ? "€" : "₹";
+    return `${sym}${min.toLocaleString()} – ${sym}${max.toLocaleString()}`;
+  };
+
+  // Derive missing sections client-side for CompletenessBar
+  const missingSections: string[] = [];
+  if (!profile.name) missingSections.push("name");
+  if (!profile.headline) missingSections.push("headline");
+  if (!profile.educations?.length) missingSections.push("education");
+  if ((profile.skillRecords?.length ?? 0) < 3) missingSections.push("skills");
+  if (!resumes?.length) missingSections.push("resume");
+  if (!profile.experiences?.length) missingSections.push("experience");
+  if (!profile.projects?.length) missingSections.push("projects");
+  if ((prefRoles?.length ?? 0) === 0) missingSections.push("careerPrefs");
+
+  const reputation = profile.reputation as Record<string, unknown> | undefined;
 
   // â”€â”€â”€ Page layout â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   return (
@@ -247,10 +269,10 @@ export default function ProfilePage() {
                 <div className="group relative h-28 w-28 overflow-hidden rounded-3xl border-[6px] border-white bg-white shadow-2xl dark:border-slate-900 dark:bg-slate-800">
                   <img
                     src={
-                      profile?.avatarUrl ||
-                      profile?.photoUrl ||
-                      profile?.image ||
-                      `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(profile?.name ?? "user")}`
+                      profile.avatarUrl ||
+                      profile.photoUrl ||
+                      profile.image ||
+                      `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(profile.name ?? "user")}`
                     }
                     alt="Profile"
                     className="h-full w-full object-cover"
@@ -282,7 +304,7 @@ export default function ProfilePage() {
                     />
                   ) : (
                     <h2 className="font-display text-xl font-bold tracking-tight text-slate-900 dark:text-white group-hover:text-primary transition-colors">
-                      {profile?.name || <span className="text-slate-400 italic">Add Name</span>}
+                      {profile.name || <span className="text-slate-400 italic">Add Name</span>}
                       <Edit2 className="inline ml-2 h-3.5 w-3.5 opacity-0 group-hover:opacity-100 transition-opacity" />
                     </h2>
                   )}
@@ -304,10 +326,14 @@ export default function ProfilePage() {
                     />
                   ) : (
                     <p className="text-sm font-medium text-slate-500 dark:text-slate-400 group-hover:text-primary transition-colors max-w-[240px] mx-auto line-clamp-2">
-                      {profile?.headline || <span className="italic">Add Headline</span>}
+                      {profile.headline || <span className="italic">Add Headline</span>}
                       <Edit2 className="inline ml-1.5 h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" />
                     </p>
                   )}
+                </div>
+
+                <div className="mt-2 text-xs font-medium text-slate-500 dark:text-slate-400">
+                  Preferred role: {preferredRole}
                 </div>
 
                 {/* Editable Location */}
@@ -372,15 +398,58 @@ export default function ProfilePage() {
               </div>
             </motion.div>
 
-            {/* Locked / AI Enabled card */}
+            {!prefsLoading && activeSalary && (
+              <div className="rounded-2xl border border-slate-200/60 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+                <h3 className="font-semibold text-slate-900 dark:text-white">Salary expectation</h3>
+                <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
+                  {formatSalaryRange(
+                    activeSalary.minSalary,
+                    activeSalary.maxSalary,
+                    activeSalary.currency ?? "INR",
+                  )}
+                  <span className="ml-1 text-xs text-slate-400">
+                    ({activeSalary.currency ?? "INR"} · {activeSalary.salaryType ?? "YEARLY"})
+                  </span>
+                </p>
+              </div>
+            )}
+
+            <div className="rounded-2xl border border-slate-200/60 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+              <h3 className="font-semibold text-slate-900 dark:text-white">Preferred roles</h3>
+              {prefsLoading ? (
+                <div className="mt-2 space-y-1.5">
+                  <Skeleton className="h-4 w-3/4" />
+                  <Skeleton className="h-4 w-1/2" />
+                </div>
+              ) : roleItemsForDisplay.length > 0 ? (
+                <ul className="mt-2 space-y-1.5 text-left text-sm text-slate-600 dark:text-slate-300">
+                  {roleItemsForDisplay.map((r, i) => (
+                    <li key={("id" in r ? (r as { id?: string }).id : undefined) ?? `${r.role}-${i}`}>
+                      <span className="font-medium text-slate-800 dark:text-slate-200">{r.role}</span>
+                      <span className="text-xs text-slate-400">
+                        {" "}· Priority {r.priority}
+                        {(r.confidenceScore ?? 0) > 0
+                          ? ` · ${Math.round((r.confidenceScore ?? 0) * 100)}% confidence`
+                          : null}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="mt-2 text-sm text-muted-foreground">
+                  None yet. Open <strong>Roles &amp; salary</strong> to add preferred roles.
+                </p>
+              )}
+            </div>
+
             {isProfileLocked ? (
               <Card className="border-amber-100 bg-amber-50 p-5 dark:border-amber-900/30 dark:bg-amber-900/10">
                 <div className="flex items-start gap-3">
                   <Lock className="h-5 w-5 shrink-0 mt-0.5 text-amber-600" />
                   <div>
-                    <h4 className="font-bold text-sm text-amber-800 dark:text-amber-400">Unlock AI Features</h4>
+                    <h4 className="font-bold text-sm text-amber-800 dark:text-amber-400">Strengthen your profile</h4>
                     <p className="text-xs mt-1 text-amber-700/80 dark:text-amber-400/80">
-                      Reach 40% completeness (add Education, Skills &amp; Resume) to activate ATS scoring and AI Insights.
+                      Reach 40% completeness (add Education, Skills &amp; Resume) to unlock full job matching and ATS tools.
                     </p>
                     <Button
                       size="sm"
@@ -388,28 +457,12 @@ export default function ProfilePage() {
                       className="mt-3 h-7 rounded-lg border-amber-300 text-xs text-amber-700 hover:bg-amber-100 dark:border-amber-700 dark:text-amber-400"
                       onClick={() => setActiveTab("overview")}
                     >
-                      Complete Profile â†’
+                      Complete profile
                     </Button>
                   </div>
                 </div>
               </Card>
-            ) : (
-              <Card className="relative overflow-hidden border-0 bg-gradient-to-br from-primary to-indigo-700 p-5 text-white shadow-2xl shadow-primary/20">
-                <div className="relative z-10">
-                  <Sparkles className="h-5 w-5 mb-2 text-white/80" />
-                  <h4 className="text-base font-bold tracking-tight">AI Enabled âœ¨</h4>
-                  <p className="mt-1 text-xs text-white/75">Your profile is robust enough for deep AI analysis.</p>
-                  <Button
-                    size="sm"
-                    className="mt-3 h-7 rounded-lg bg-white/20 text-[11px] text-white hover:bg-white/30 border-0"
-                    onClick={() => setActiveTab("ai-insights")}
-                  >
-                    View Insights â†’
-                  </Button>
-                </div>
-                <Star className="absolute -bottom-6 -right-6 h-36 w-36 text-white/10" />
-              </Card>
-            )}
+            ) : null}
 
             {/* Reputation section */}
             <ReputationSection reputation={reputation} />
@@ -455,9 +508,10 @@ export default function ProfilePage() {
                   <CertificationsSection />
                 </TabsContent>
 
-                {/* 5. CAREER PREFERENCES */}
-                <TabsContent value="career" className="mt-0">
-                  <CareerPreferencesSection />
+                {/* 5. ROLES & SALARY */}
+                <TabsContent value="career" className="mt-0 space-y-6">
+                  <PreferredRoleSelectionSection />
+                  <SalaryExpectationSection />
                 </TabsContent>
 
                 {/* 6. RESUME */}
@@ -501,23 +555,7 @@ export default function ProfilePage() {
                   </div>
                 </TabsContent>
 
-                {/* 7. AI INSIGHTS */}
-                <TabsContent value="ai-insights" className="mt-0">
-                  {isProfileLocked ? (
-                    <Card className="rounded-3xl border-dashed border-slate-300 p-12 text-center dark:border-slate-700">
-                      <AlertCircle className="mx-auto h-10 w-10 text-amber-400 mb-4" />
-                      <h3 className="font-bold text-lg text-slate-800 dark:text-white">Profile Incomplete</h3>
-                      <p className="text-sm text-slate-500 mt-2">Reach 40% profile completeness to unlock AI Insights.</p>
-                      <Button variant="outline" className="mt-6 rounded-xl" onClick={() => setActiveTab("overview")}>
-                        Complete Profile â†’
-                      </Button>
-                    </Card>
-                  ) : (
-                    <AIInsightsPanel />
-                  )}
-                </TabsContent>
-
-                {/* 8. SETTINGS */}
+                {/* 7. SETTINGS */}
                 <TabsContent value="settings" className="mt-0 space-y-8">
                   {/* Connected Accounts */}
                   <ConnectedAccountsSection />
