@@ -138,3 +138,25 @@
     @apply bg-background text-foreground;
   }
 }
+
+@keyframes roadmap-border-pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(249, 115, 22, 0.45), 0 10px 30px -12px rgba(249, 115, 22, 0.35);
+  }
+  50% {
+    box-shadow: 0 0 0 10px rgba(249, 115, 22, 0), 0 10px 30px -12px rgba(249, 115, 22, 0.2);
+  }
+}
+
+.roadmap-milestone-active {
+  animation: roadmap-border-pulse 2.6s ease-in-out infinite;
+}
+
+@keyframes roadmap-orb-float {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  50% { transform: translate3d(0, -12px, 0) scale(1.05); }
+}
+
+.roadmap-orb {
+  animation: roadmap-orb-float 9s ease-in-out infinite;
+}

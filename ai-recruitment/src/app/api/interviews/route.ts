@@ -1,35 +1,30 @@
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/lib/insforge-server";
 import { z } from "zod";
+import { requireAuth } from "@/lib/insforge-server";
+import type { InterviewSessionRow } from "@/lib/interviews/types";
+import { totalQuestionsFor } from "@/lib/interviews/types";
 
 const createSchema = z.object({
-  title: z.string().optional(),
-  type: z.enum(["BEHAVIORAL", "TECHNICAL", "SYSTEM_DESIGN"]).optional(),
+  role: z.string().min(1),
+  interviewType: z.enum(["technical", "behavioral", "system_design", "dsa"]),
+  difficulty: z.enum(["easy", "medium", "hard"]).default("medium"),
+  durationMinutes: z.number().int().min(5).max(180).default(45),
 });
 
-function mapSession(s: Record<string, unknown>) {
+function mapSession(s: InterviewSessionRow) {
   return {
     id: s.id,
     userId: s.user_id,
-    title: s.title,
-    type: s.type,
+    role: s.role,
+    interviewType: s.interview_type,
+    difficulty: s.difficulty,
     status: s.status,
+    durationMinutes: s.duration_minutes,
     startedAt: s.started_at,
     endedAt: s.ended_at,
-    transcript: s.transcript,
-    aiFeedback: s.ai_feedback,
+    overallScore: s.overall_score,
     createdAt: s.created_at,
-    updatedAt: s.updated_at,
-  };
-}
-
-function mapMessage(m: Record<string, unknown>) {
-  return {
-    id: m.id,
-    sessionId: m.session_id,
-    role: m.role,
-    content: m.content,
-    createdAt: m.created_at,
+    totalQuestions: totalQuestionsFor(s.duration_minutes),
   };
 }
 
@@ -37,22 +32,18 @@ export async function GET() {
   try {
     const { client, user } = await requireAuth();
 
-    const { data: sessions, error } = await client.database
-      .from("mock_interview_sessions")
-      .select("*, mock_interview_messages(*)")
+    const { data, error } = await client.database
+      .from("interview_sessions")
+      .select("*")
       .eq("user_id", user.id)
-      .order("started_at", { ascending: false });
+      .order("created_at", { ascending: false });
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    const mapped = (sessions ?? []).map((s) => ({
-      ...mapSession(s),
-      messages: (s.mock_interview_messages ?? []).map(mapMessage),
-    }));
-
-    return NextResponse.json(mapped);
+    const sessions = ((data ?? []) as InterviewSessionRow[]).map(mapSession);
+    return NextResponse.json({ sessions });
   } catch {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -63,31 +54,38 @@ export async function POST(req: Request) {
     const { client, user } = await requireAuth();
 
     const body = await req.json().catch(() => ({}));
-    const { title, type } = createSchema.parse(body);
+    const parsed = createSchema.parse(body);
 
-    const { data: session, error } = await client.database
-      .from("mock_interview_sessions")
+    const { data, error } = await client.database
+      .from("interview_sessions")
       .insert({
         user_id: user.id,
-        title: title ?? "Mock Interview",
-        type: type ?? "TECHNICAL",
+        role: parsed.role,
+        interview_type: parsed.interviewType,
+        difficulty: parsed.difficulty,
+        duration_minutes: parsed.durationMinutes,
+        status: "active",
+        started_at: new Date().toISOString(),
       })
       .select()
       .single();
 
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error || !data) {
+      return NextResponse.json(
+        { error: error?.message ?? "Failed to create session" },
+        { status: 500 },
+      );
     }
 
-    return NextResponse.json({
-      ...mapSession(session),
-      messages: [],
-    });
-  } catch (e) {
-    if (e instanceof z.ZodError) {
+    return NextResponse.json(
+      { session: mapSession(data as InterviewSessionRow) },
+      { status: 201 },
+    );
+  } catch (err) {
+    if (err instanceof z.ZodError) {
       return NextResponse.json(
-        { error: e.issues.map((x) => x.message).join(", ") },
-        { status: 400 }
+        { error: err.issues.map((i) => i.message).join(", ") },
+        { status: 400 },
       );
     }
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

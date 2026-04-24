@@ -33,16 +33,23 @@ Get the anon key via InsForge MCP: `mcp insforge get-anon-key`
 | Jobs | JobsPage | (mock data) | GET /api/v1/jobs | GET | NEW — real jobs from `jobs` table |
 | Jobs | JobSearch | (none) | GET /api/v1/jobs/search | GET | Params: role, location, skills, experience, page, limit |
 | Jobs | ApplyButton | (none) | POST /api/v1/jobs/apply | POST | Body: job_id, cover_note (optional) |
-| Interviews | InterviewPage | GET /api/interviews | GET /api/v1/interviews/mock | GET | `mock_interview_sessions` → `mock_interviews` |
-| Interviews | StartSession | POST /api/interviews | POST /api/v1/interviews/mock/start | POST | Creates mock_interviews row; returns session id |
-| Interviews | InterviewChat | POST /api/interviews/[id]/messages | POST /api/v1/interviews/mock | POST | Body: messages, target_role, session_type, sessionId; streams response |
+| Interviews | InterviewPage | GET /api/interviews | GET /api/interviews | GET | Lists `interview_sessions` for the authenticated user |
+| Interviews | StartSession | POST /api/interviews | POST /api/interviews | POST | Creates an `interview_sessions` row; body: role, interviewType, difficulty, durationMinutes |
+| Interviews | InterviewRoom | GET /api/interviews/[id] | GET /api/interviews/[id] | GET | Returns session + full message transcript |
+| Interviews | SendMessage | POST /api/interviews/[id]/message | POST /api/interviews/[id]/message | POST | Persists candidate turn, returns next AI question + progress |
+| Interviews | EndSession | POST /api/interviews/[id]/end | POST /api/interviews/[id]/end | POST | Marks session completed and enqueues feedback generation |
+| Interviews | FeedbackPage | GET /api/interviews/[id]/feedback | GET /api/interviews/[id]/feedback | GET | Returns generated `interview_feedback` report or `status: "generating"` |
 
 ## New v1 Routes Added
 
 - `POST /api/v1/auth/signin` — Sign in (email/password), establishes InsForge session
 - `GET /api/v1/resumes` — List resumes for authenticated candidate
-- `GET /api/v1/interviews/mock` — List mock interview sessions
-- `POST /api/v1/interviews/mock/start` — Create new mock interview session
+- `GET /api/interviews` — List mock interview sessions for the authenticated user
+- `POST /api/interviews` — Create a new mock interview session (AI Mock Interview Room)
+- `GET /api/interviews/[id]` — Load a session with its full transcript
+- `POST /api/interviews/[id]/message` — Send a candidate turn and receive the next AI question
+- `POST /api/interviews/[id]/end` — End a session and enqueue feedback generation
+- `GET /api/interviews/[id]/feedback` — Fetch the generated feedback report
 
 ## Data Adapter Mappings
 
@@ -70,10 +77,12 @@ Get the anon key via InsForge MCP: `mcp insforge get-anon-key`
 - `completed` → not in v1 (stages are informational)
 - `targetDate` → `timeline_months` (convert)
 
-### Mock Interview
-- `id` → `id`
-- `title` → `target_role`
-- `type` → `session_type`
-- `status` → `status`
-- `startedAt` → `started_at`
-- `messages` → `messages` (array of {role, content})
+### AI Mock Interview Room (`interview_sessions` / `interview_messages` / `interview_feedback`)
+- Session fields:
+  - `role`, `interview_type`, `difficulty`, `status`, `duration_minutes`
+  - `started_at`, `ended_at`, `overall_score`, `created_at`
+- Messages: `role: "interviewer" | "candidate"`, `content`, `question_number`, `created_at`
+- Feedback: `overall_score`, `technical_score`, `communication_score`, `depth_score`,
+  `strengths[]`, `improvements[]`, `recommended_resources[]`, `summary`
+- Powered by `anthropic/claude-sonnet-4.5` via the InsForge AI gateway.
+  See `docs/sql/20260424_ai_mock_interview_room.sql` for the schema.

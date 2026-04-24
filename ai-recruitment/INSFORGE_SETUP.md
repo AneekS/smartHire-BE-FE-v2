@@ -37,7 +37,7 @@ Alternatively, use the verification link sent to your email when you signed up.
 | `get-backend-metadata` | Auth config, buckets, functions, AI models |
 | `get-anon-key` | Client anon token |
 | `create-bucket` | Created `resumes` bucket |
-| `run-raw-sql` | Created tables: profiles, resume_versions, resume_suggestions, mock_interview_sessions, mock_interview_messages, career_milestones, skill_goals |
+| `run-raw-sql` | Created tables: profiles, resume_versions, resume_suggestions, interview_sessions, interview_messages, interview_evaluations, interview_feedback, question_bank, career_milestones, skill_goals |
 | `create-function` | Deploy edge functions for AI resume analysis and mock interview |
 
 ## Database Tables (InsForge PostgreSQL)
@@ -45,7 +45,10 @@ Alternatively, use the verification link sent to your email when you signed up.
 - `profiles` – User profile (headline, scores, preferences)
 - `resume_versions` – Resume versions with ATS scores
 - `resume_suggestions` – AI suggestions per version
-- `mock_interview_sessions` – Interview sessions
-- `mock_interview_messages` – Chat messages
+- `interview_sessions` – AI Mock Interview Room sessions (role, type, difficulty, status, scores)
+- `interview_messages` – Full transcript of interviewer/candidate turns
+- `interview_evaluations` – Per-answer model evaluation with keyword and gap analysis
+- `interview_feedback` – Post-session scorecard (overall + breakdown + recommendations)
+- `question_bank` – Seeded question library by role, type, and difficulty
 - `career_milestones` – Roadmap milestones
 - `skill_goals` – Skill Lab goals

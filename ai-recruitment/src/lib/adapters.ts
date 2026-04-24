@@ -3,13 +3,11 @@
  * All data from API goes through these adapters — no raw responses in UI.
  */
 
-import type { CandidateProfile, ResumeVersion, InterviewSession } from "./api-client";
+import type { CandidateProfile, ResumeVersion } from "./api-client";
 
 type RawCandidate = Record<string, unknown>;
 type RawResume = Record<string, unknown>;
 type RawCareerResponse = Record<string, unknown>;
-type RawInterview = Record<string, unknown>;
-
 function appendCacheBuster(url: string | null | undefined, version: string): string | null {
   if (!url) {
     return null;
@@ -159,21 +157,4 @@ export function adaptCareerPath(raw: RawCareerResponse): Array<{
     dueDate: null,
     skills: (m.required_skills as string[]) ?? [],
   }));
-}
-
-export function adaptInterview(raw: RawInterview): InterviewSession {
-  const messages = (raw.messages as Array<Record<string, unknown>>) ?? [];
-  return {
-    id: String(raw.id ?? ""),
-    title: (raw.title as string) ?? (raw.target_role as string) ?? "Mock Interview",
-    type: (raw.type as string) ?? (raw.session_type as string) ?? "TECHNICAL",
-    status: (raw.status as string) ?? "IN_PROGRESS",
-    startedAt: (raw.startedAt as string) ?? (raw.started_at as string) ?? "",
-    messages: messages.map((m, i) => ({
-      id: String(m.id ?? `msg-${i}`),
-      role: (m.role === "user" ? "USER" : "ASSISTANT") as string,
-      content: (m.content as string) ?? "",
-      createdAt: (m.created_at as string) ?? "",
-    })),
-  };
 }

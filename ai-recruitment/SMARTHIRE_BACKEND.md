@@ -31,7 +31,11 @@ Obtain via InsForge MCP tools:
 | `learning_paths` | Learning milestones |
 | `career_paths` | Career stage roadmaps |
 | `applications` | Job applications |
-| `mock_interviews` | Mock interview sessions |
+| `interview_sessions` | AI Mock Interview Room sessions |
+| `interview_messages` | Transcript turns (interviewer + candidate) |
+| `interview_evaluations` | Per-answer model evaluations |
+| `interview_feedback` | Post-session feedback reports |
+| `question_bank` | Seeded questions by role, type, difficulty |
 | `notifications` | In-app notifications |
 
 ## Storage Buckets

@@ -283,13 +283,63 @@ export interface JobAlert {
   createdAt: string;
 }
 
+export type InterviewType = "technical" | "behavioral" | "system_design" | "dsa";
+export type InterviewDifficulty = "easy" | "medium" | "hard";
+export type InterviewStatus = "setup" | "active" | "completed" | "abandoned";
+
 export interface InterviewSession {
   id: string;
-  title: string;
-  type: string;
-  status: string;
-  startedAt: string;
-  messages: Array<{ id: string; role: string; content: string; createdAt: string }>;
+  userId: string;
+  role: string;
+  interviewType: InterviewType;
+  difficulty: InterviewDifficulty;
+  status: InterviewStatus;
+  durationMinutes: number;
+  startedAt: string | null;
+  endedAt: string | null;
+  overallScore: number | null;
+  createdAt: string;
+  totalQuestions: number;
+}
+
+export interface InterviewTranscriptMessage {
+  id: string;
+  sessionId: string;
+  role: "interviewer" | "candidate";
+  content: string;
+  questionNumber: number | null;
+  createdAt: string;
+}
+
+export interface InterviewTurnResponse {
+  message: {
+    id: string;
+    role: "interviewer";
+    content: string;
+    questionNumber: number;
+    createdAt: string;
+  };
+  questionNumber: number;
+  totalQuestions: number;
+  isComplete: boolean;
+}
+
+export interface InterviewFeedbackReport {
+  overallScore: number | null;
+  technicalScore: number | null;
+  communicationScore: number | null;
+  depthScore: number | null;
+  strengths: string[];
+  improvements: string[];
+  recommendedResources: string[];
+  summary: string;
+  createdAt: string;
+}
+
+export interface InterviewFeedbackResponse {
+  session: Omit<InterviewSession, "userId">;
+  feedback: InterviewFeedbackReport | null;
+  status: "ready" | "generating";
 }
 
 export interface CareerStage {
@@ -748,47 +798,44 @@ export const careerApi = {
 
 // ─── Interviews ────────────────────────────────────────────────────────────
 
-export const interviewsApi = {
-  list: () => request<InterviewSession[]>("/interviews/mock"),
+export interface CreateInterviewInput {
+  role: string;
+  interviewType: InterviewType;
+  difficulty: InterviewDifficulty;
+  durationMinutes: number;
+}
 
-  start: (data: { target_role?: string; session_type?: string }) =>
-    request<InterviewSession>("/interviews/mock/start", {
+export const interviewsApi = {
+  list: () =>
+    request<{ sessions: InterviewSession[] }>("/api/interviews").then((r) => r.sessions),
+
+  create: (data: CreateInterviewInput) =>
+    request<{ session: InterviewSession }>("/api/interviews", {
       method: "POST",
       body: JSON.stringify(data),
+    }).then((r) => r.session),
+
+  get: (sessionId: string) =>
+    request<{
+      session: InterviewSession;
+      messages: InterviewTranscriptMessage[];
+    }>(`/api/interviews/${sessionId}`),
+
+  sendMessage: (
+    sessionId: string,
+    content: string,
+    questionNumber: number,
+  ) =>
+    request<InterviewTurnResponse>(`/api/interviews/${sessionId}/message`, {
+      method: "POST",
+      body: JSON.stringify({ content, questionNumber }),
     }),
 
-  streamMessage: async (
-    sessionId: string,
-    messages: Array<{ role: "user" | "assistant"; content: string }>,
-    targetRole: string,
-    sessionType: string,
-    onChunk: (chunk: string) => void
-  ) => {
-    const res = await fetch(`${BASE}/interviews/mock`, {
+  end: (sessionId: string) =>
+    request<{ success: true }>(`/api/interviews/${sessionId}/end`, {
       method: "POST",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        sessionId,
-        messages,
-        target_role: targetRole,
-        session_type: sessionType,
-      }),
-    });
+    }),
 
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error((err as { error?: string }).error || `HTTP ${res.status}`);
-    }
-
-    const reader = res.body?.getReader();
-    if (!reader) throw new Error("No response body");
-
-    const decoder = new TextDecoder();
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      onChunk(decoder.decode(value, { stream: true }));
-    }
-  },
+  feedback: (sessionId: string) =>
+    request<InterviewFeedbackResponse>(`/api/interviews/${sessionId}/feedback`),
 };
