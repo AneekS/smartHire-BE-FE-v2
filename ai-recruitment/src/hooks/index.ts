@@ -15,13 +15,15 @@ export { useTTS } from "./useTTS";
 export { useAvatarUpload } from "./useAvatarUpload";
 export { useConnectedAccounts } from "./useConnectedAccounts";
 export { useJobRecommendations } from "./useJobRecommendations";
+export { usePreferredRoles } from "./usePreferredRoles";
+export { useSalaryProfile } from "./useSalaryProfile";
+export { useProfilePreferences } from "./useProfilePreferences";
+export type { PreferredRoleItem, SalaryProfileItem } from "./useProfilePreferences";
 export {
   useExperiences,
   useProjects,
   useCertifications,
-  useCareerPreferences,
   usePrivacy,
-  useAIInsights,
 } from "./useProfileSections";
 export {
   useApplications,

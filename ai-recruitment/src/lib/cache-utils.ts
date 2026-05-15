@@ -1,174 +1,94 @@
 /**
- * Redis Cache Utilities
- *
- * Type-safe, key-namespaced cache helpers built on the global ioredis client.
- * All operations swallow errors and log them — callers never crash due to cache
- * unavailability.
- *
- * Standard TTL: 600 seconds (10 minutes) for all public-facing API caches.
- *
- * Cache key schema
- * ─────────────────────────────────────────
- *  profile:{candidateId}
- *  recommendations:{candidateId}
- *  job:{jobId}
- *  jobs:search:{sha256-hash-16}
- *  saved-jobs:{candidateId}
- *  analytics:{candidateId}
+ * Namespaced cache helpers — all no-ops. BullMQ workers may still set REDIS_URL
+ * for queues only; this module does not open Redis connections.
  */
 
-import { createHash } from 'crypto';
-import { redis } from '@/lib/redis';
+import { createHash } from "crypto";
 
-// ─── TTL constant ────────────────────────────────────────────────────────────
-
-export const CACHE_TTL_SECONDS = 600; // 10 minutes
-
-// ─── Key builders ────────────────────────────────────────────────────────────
+export const CACHE_TTL_SECONDS = 600;
 
 export const CacheKey = {
-  profile:         (candidateId: string) => `profile:${candidateId}`,
+  profile: (candidateId: string) => `profile:${candidateId}`,
   recommendations: (candidateId: string) => `recommendations:${candidateId}`,
-  job:             (jobId: string)        => `job:${jobId}`,
-  jobSearch:       (params: Record<string, unknown>) => {
-    const hash = createHash('sha256')
+  job: (jobId: string) => `job:${jobId}`,
+  jobSearch: (params: Record<string, unknown>) => {
+    const hash = createHash("sha256")
       .update(JSON.stringify(params))
-      .digest('hex')
+      .digest("hex")
       .slice(0, 16);
     return `jobs:search:${hash}`;
   },
-  savedJobs:  (candidateId: string) => `saved-jobs:${candidateId}`,
-  analytics:  (candidateId: string) => `analytics:${candidateId}`,
+  savedJobs: (candidateId: string) => `saved-jobs:${candidateId}`,
+  analytics: (candidateId: string) => `analytics:${candidateId}`,
 } as const;
 
-// ─── Low-level primitives ────────────────────────────────────────────────────
-
-async function safeGet<T>(key: string): Promise<T | null> {
-  try {
-    const raw = await redis.get(key);
-    if (!raw) return null;
-    return JSON.parse(raw) as T;
-  } catch (err) {
-    console.error(`[CACHE][GET] key=${key}`, err);
-    return null;
-  }
-}
-
-async function safeSet<T>(key: string, value: T, ttl: number = CACHE_TTL_SECONDS): Promise<void> {
-  try {
-    await redis.set(key, JSON.stringify(value), 'EX', ttl);
-  } catch (err) {
-    console.error(`[CACHE][SET] key=${key}`, err);
-  }
-}
-
-async function safeDel(key: string): Promise<void> {
-  try {
-    await redis.del(key);
-  } catch (err) {
-    console.error(`[CACHE][DEL] key=${key}`, err);
-  }
-}
-
-async function safeMDel(keys: string[]): Promise<void> {
-  if (!keys.length) return;
-  try {
-    await redis.del(...keys);
-  } catch (err) {
-    console.error('[CACHE][MDEL]', err);
-  }
-}
-
-// ─── Public service ──────────────────────────────────────────────────────────
-
-/**
- * CacheService — typed helpers for each endpoint cache.
- *
- * Cache flow (enforced by callers):
- *  1. call get*()   → cache hit? return
- *  2. query DB
- *  3. call set*()   → store with 600 s TTL
- */
 export const CacheService = {
-  // ── Generics ──────────────────────────────────────────────────────────────
-  get:  safeGet,
-  set:  safeSet,
-  del:  safeDel,
-  mDel: safeMDel,
+  get: async <T>(_key: string): Promise<T | null> => null,
+  set: async <T>(_key: string, _value: T, _ttl: number = CACHE_TTL_SECONDS): Promise<void> => {},
+  del: async (_key: string): Promise<void> => {},
+  mDel: async (_keys: string[]): Promise<void> => {},
 
-  // ── Candidate profile ─────────────────────────────────────────────────────
-  getProfile<T>(candidateId: string) {
-    return safeGet<T>(CacheKey.profile(candidateId));
+  getProfile<T>(_candidateId: string) {
+    return Promise.resolve(null) as Promise<T | null>;
   },
-  setProfile<T>(candidateId: string, data: T, ttl = CACHE_TTL_SECONDS) {
-    return safeSet(CacheKey.profile(candidateId), data, ttl);
+  setProfile<T>(_candidateId: string, _data: T, _ttl = CACHE_TTL_SECONDS) {
+    return Promise.resolve();
   },
-  invalidateProfile(candidateId: string) {
-    return safeDel(CacheKey.profile(candidateId));
+  invalidateProfile(_candidateId: string) {
+    return Promise.resolve();
   },
 
-  // ── Job recommendations ───────────────────────────────────────────────────
-  getRecommendations<T>(candidateId: string) {
-    return safeGet<T>(CacheKey.recommendations(candidateId));
+  getRecommendations<T>(_candidateId: string) {
+    return Promise.resolve(null) as Promise<T | null>;
   },
-  setRecommendations<T>(candidateId: string, data: T, ttl = CACHE_TTL_SECONDS) {
-    return safeSet(CacheKey.recommendations(candidateId), data, ttl);
+  setRecommendations<T>(_candidateId: string, _data: T, _ttl = CACHE_TTL_SECONDS) {
+    return Promise.resolve();
   },
-  invalidateRecommendations(candidateId: string) {
-    return safeDel(CacheKey.recommendations(candidateId));
-  },
-
-  // ── Individual job ────────────────────────────────────────────────────────
-  getJob<T>(jobId: string) {
-    return safeGet<T>(CacheKey.job(jobId));
-  },
-  setJob<T>(jobId: string, data: T, ttl = CACHE_TTL_SECONDS) {
-    return safeSet(CacheKey.job(jobId), data, ttl);
-  },
-  invalidateJob(jobId: string) {
-    return safeDel(CacheKey.job(jobId));
+  invalidateRecommendations(_candidateId: string) {
+    return Promise.resolve();
   },
 
-  // ── Job search results ────────────────────────────────────────────────────
-  getJobSearch<T>(params: Record<string, unknown>) {
-    return safeGet<T>(CacheKey.jobSearch(params));
+  getJob<T>(_jobId: string) {
+    return Promise.resolve(null) as Promise<T | null>;
   },
-  setJobSearch<T>(params: Record<string, unknown>, data: T, ttl = CACHE_TTL_SECONDS) {
-    return safeSet(CacheKey.jobSearch(params), data, ttl);
+  setJob<T>(_jobId: string, _data: T, _ttl = CACHE_TTL_SECONDS) {
+    return Promise.resolve();
   },
-  invalidateJobSearch(params: Record<string, unknown>) {
-    return safeDel(CacheKey.jobSearch(params));
-  },
-
-  // ── Saved jobs ────────────────────────────────────────────────────────────
-  getSavedJobs<T>(candidateId: string) {
-    return safeGet<T>(CacheKey.savedJobs(candidateId));
-  },
-  setSavedJobs<T>(candidateId: string, data: T, ttl = CACHE_TTL_SECONDS) {
-    return safeSet(CacheKey.savedJobs(candidateId), data, ttl);
-  },
-  invalidateSavedJobs(candidateId: string) {
-    return safeDel(CacheKey.savedJobs(candidateId));
+  invalidateJob(_jobId: string) {
+    return Promise.resolve();
   },
 
-  // ── Candidate analytics ───────────────────────────────────────────────────
-  getAnalytics<T>(candidateId: string) {
-    return safeGet<T>(CacheKey.analytics(candidateId));
+  getJobSearch<T>(_params: Record<string, unknown>) {
+    return Promise.resolve(null) as Promise<T | null>;
   },
-  setAnalytics<T>(candidateId: string, data: T, ttl = CACHE_TTL_SECONDS) {
-    return safeSet(CacheKey.analytics(candidateId), data, ttl);
+  setJobSearch<T>(_params: Record<string, unknown>, _data: T, _ttl = CACHE_TTL_SECONDS) {
+    return Promise.resolve();
   },
-  invalidateAnalytics(candidateId: string) {
-    return safeDel(CacheKey.analytics(candidateId));
+  invalidateJobSearch(_params: Record<string, unknown>) {
+    return Promise.resolve();
   },
 
-  // ── Bulk invalidation (e.g. on profile update) ────────────────────────────
-  invalidateCandidate(candidateId: string) {
-    return safeMDel([
-      CacheKey.profile(candidateId),
-      CacheKey.recommendations(candidateId),
-      CacheKey.savedJobs(candidateId),
-      CacheKey.analytics(candidateId),
-    ]);
+  getSavedJobs<T>(_candidateId: string) {
+    return Promise.resolve(null) as Promise<T | null>;
+  },
+  setSavedJobs<T>(_candidateId: string, _data: T, _ttl = CACHE_TTL_SECONDS) {
+    return Promise.resolve();
+  },
+  invalidateSavedJobs(_candidateId: string) {
+    return Promise.resolve();
+  },
+
+  getAnalytics<T>(_candidateId: string) {
+    return Promise.resolve(null) as Promise<T | null>;
+  },
+  setAnalytics<T>(_candidateId: string, _data: T, _ttl = CACHE_TTL_SECONDS) {
+    return Promise.resolve();
+  },
+  invalidateAnalytics(_candidateId: string) {
+    return Promise.resolve();
+  },
+
+  invalidateCandidate(_candidateId: string) {
+    return Promise.resolve();
   },
 };

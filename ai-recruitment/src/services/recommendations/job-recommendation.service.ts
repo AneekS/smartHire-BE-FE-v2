@@ -1,4 +1,3 @@
-import { cacheGet, cacheSet } from "@/lib/cache";
 import { enqueueEmbeddingJob, enqueueEmbeddingResumeJob } from "@/services/queue-producers";
 import { RecommendationRepository } from "../../repositories/recommendations/recommendation.repository";
 import { buildRecommendationReasons } from "@/utils/recommendations/explain";
@@ -9,6 +8,7 @@ import {
   calculateLocationMatch,
   calculateMatchScore,
   calculateRolePreferenceBoost,
+  calculatePreferredRoleScoreBoost,
   calculateSalaryFit,
   calculateSkillMatch,
   detectSkillGap,
@@ -21,7 +21,6 @@ import {
   generateEmbedding,
 } from "@/utils/recommendations/embedding";
 
-const CACHE_TTL_SECONDS = 90;
 const LOOKBACK_DAYS = 45;
 
 type Cursor = {
@@ -95,10 +94,6 @@ export class JobRecommendationService {
     limit: number;
     cursor?: string;
   }): Promise<RecommendationResponse> {
-    const cacheKey = `job-recommendations:${input.candidateId ?? input.email ?? "anon"}:${input.limit}:${input.cursor ?? "first"}`;
-    const cached = await cacheGet<RecommendationResponse>(cacheKey);
-    if (cached) return cached;
-
     const candidate = await this.repository.getCandidateContext(input.candidateId, input.email);
     if (!candidate) {
       return {
@@ -219,6 +214,10 @@ export class JobRecommendationService {
         stage,
         title: job.title,
       });
+      const preferredRoleBoost = calculatePreferredRoleScoreBoost({
+        title: job.title,
+        preferredRoles: candidate.preferredRoleSignals,
+      });
 
       const jobEmbedding = mergedEmbeddings.get(job.id) ?? [];
       const semanticScore = Math.round(cosineSimilarity(resumeEmbedding, jobEmbedding) * 100);
@@ -231,7 +230,7 @@ export class JobRecommendationService {
         behavioralScore,
         semanticScore,
         rolePreferenceBoost,
-        careerPathBoost,
+        careerPathBoost: careerPathBoost + preferredRoleBoost,
       });
 
       const reasons = buildRecommendationReasons({
@@ -242,6 +241,8 @@ export class JobRecommendationService {
         behavioralScore,
         semanticScore,
         roleBoost: rolePreferenceBoost,
+        preferredRoleBoost,
+        preferredRole: candidate.preferredRoleSignals[0]?.role,
         careerBoost: careerPathBoost,
       });
 
@@ -296,7 +297,6 @@ export class JobRecommendationService {
         : null,
     };
 
-    await cacheSet(cacheKey, response, CACHE_TTL_SECONDS);
     return response;
   }
 
@@ -376,10 +376,6 @@ export class JobRecommendationService {
     email?: string;
     limit: number;
   }): Promise<RecommendationResponse | null> {
-    const cacheKey = `job-recs-fast:${input.candidateId ?? input.email ?? "anon"}:${input.limit}`;
-    const cached = await cacheGet<RecommendationResponse>(cacheKey);
-    if (cached) return cached;
-
     const candidate = await this.repository.getCandidateContext(input.candidateId, input.email);
     if (!candidate?.profileId) return null;
 
@@ -412,7 +408,6 @@ export class JobRecommendationService {
       nextCursor: null,
     };
 
-    await cacheSet(cacheKey, response, CACHE_TTL_SECONDS);
     return response;
   }
 }

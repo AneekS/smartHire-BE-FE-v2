@@ -1,9 +1,8 @@
 import { createClient } from "@insforge/sdk";
 import { auth } from "@insforge/nextjs/server";
+import { getServerEnv } from "@/config/env";
 
-const baseUrl =
-  process.env.NEXT_PUBLIC_INSFORGE_BASE_URL ||
-  "https://2674danq.ap-southeast.insforge.app";
+const baseUrl = getServerEnv().NEXT_PUBLIC_INSFORGE_BASE_URL;
 
 export async function getAuthenticatedClient() {
   const { token } = await auth();

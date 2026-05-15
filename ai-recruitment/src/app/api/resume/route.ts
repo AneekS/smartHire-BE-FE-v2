@@ -31,7 +31,7 @@ export async function GET() {
     if (parsed && !Array.isArray(parsed.projects)) {
       parsed.projects = [];
     }
-    console.log("[GET /api/resume] Returning parsed — projects count:", parsed?.projects?.length ?? 0);
+    console.log("[GET /api/resume] Returning parsed — projects count:", (Array.isArray(parsed?.projects) ? parsed.projects.length : 0));
 
     return NextResponse.json({
       data: {

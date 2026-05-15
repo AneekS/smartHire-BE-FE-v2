@@ -118,20 +118,7 @@ export const CertificationUpdateSchema = CertificationSchema.partial().extend({
   id: z.string().cuid(),
 });
 
-// ─── 7. Career Preferences ───────────────────────────────────────────────────
-
-export const CareerPreferenceSchema = z.object({
-  preferredRoles:       z.array(z.string().max(100)).optional().default([]),
-  preferredIndustries:  z.array(z.string().max(100)).optional().default([]),
-  preferredLocations:   z.array(z.string().max(100)).optional().default([]),
-  workMode:             z.enum(["REMOTE", "HYBRID", "ONSITE"]).optional(),
-  salaryMin:            z.number().int().min(0).optional(),
-  salaryMax:            z.number().int().min(0).optional(),
-  currency:             z.string().max(10).optional().default("USD"),
-  openToRelocation:     z.boolean().optional().default(false),
-});
-
-// ─── 8. Privacy ──────────────────────────────────────────────────────────────
+// ─── 7. Privacy ──────────────────────────────────────────────────────────────
 
 export const PrivacySchema = z.object({
   isPublic:            z.boolean().optional(),
@@ -140,7 +127,7 @@ export const PrivacySchema = z.object({
   hideContactInfo:     z.boolean().optional(),
 });
 
-// ─── 9. Delete ───────────────────────────────────────────────────────────────
+// ─── 8. Delete ───────────────────────────────────────────────────────────────
 
 export const DeleteByIdSchema = z.object({
   id: z.string().cuid("Invalid record ID"),
@@ -158,5 +145,4 @@ export type ProjectInput           = z.infer<typeof ProjectSchema>;
 export type ProjectUpdateInput     = z.infer<typeof ProjectUpdateSchema>;
 export type CertificationInput     = z.infer<typeof CertificationSchema>;
 export type CertificationUpdateInput = z.infer<typeof CertificationUpdateSchema>;
-export type CareerPreferenceInput  = z.infer<typeof CareerPreferenceSchema>;
 export type PrivacyInput           = z.infer<typeof PrivacySchema>;

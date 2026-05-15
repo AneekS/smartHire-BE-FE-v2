@@ -44,6 +44,8 @@ model User {
   careerMilestones CareerMilestone[]
   skillGoals       SkillGoal[]
   notifications    Notification[]
+  behaviorSignals  UserBehaviorSignal[]
+  salaryProfile    UserSalaryProfile?
   createdAt        DateTime               @default(now())
   updatedAt        DateTime               @updatedAt
 }
@@ -154,6 +156,7 @@ model Job {
   jobSkills          JobSkill[]
   embeddings         JobEmbedding[]
   recommendationScores JobRecommendationScore[]
+  salaryData          JobSalaryData?
 
   @@index([title])
   @@index([location])
@@ -203,9 +206,7 @@ model Candidate {
   experiences         Experience[]
   projects            Project[]
   certifications      Certification[]
-  careerPreference    CareerPreference?
   privacy             ProfilePrivacy?
-  aiInsights          AIProfileInsights?
   reputation          ReputationMetrics?
   profileVersions     ProfileVersion[]
   connectedAccounts   ConnectedAccount[]
@@ -214,6 +215,7 @@ model Candidate {
   resumeEmbeddings       ResumeEmbedding[]
   analytics              CandidateAnalytics?
   jobRecommendationScores JobRecommendationScore[]
+  preferredRoles         PreferredRole[]
   createdAt              DateTime          @default(now())
   updatedAt              DateTime          @updatedAt
 
@@ -280,22 +282,6 @@ model Certification {
   @@index([candidateId])
 }
 
-model CareerPreference {
-  id                 String    @id @default(cuid())
-  candidateId        String    @unique
-  candidate          Candidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
-  preferredRoles     String[]  @default([])
-  preferredIndustries String[] @default([])
-  preferredLocations String[]  @default([])
-  workMode           String?   // REMOTE, HYBRID, ONSITE
-  salaryMin          Int?
-  salaryMax          Int?
-  currency           String?   @default("USD")
-  openToRelocation   Boolean   @default(false)
-  createdAt          DateTime  @default(now())
-  updatedAt          DateTime  @updatedAt
-}
-
 model ProfilePrivacy {
   id              String    @id @default(cuid())
   candidateId     String    @unique
@@ -316,20 +302,6 @@ model ProfileVersion {
   createdAt   DateTime  @default(now())
 
   @@index([candidateId])
-}
-
-model AIProfileInsights {
-  id                     String    @id @default(cuid())
-  candidateId            String    @unique
-  candidate              Candidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
-  extractedSkills        String[]  @default([])
-  experienceSummary      String?   @db.Text
-  careerLevel            String?   // JUNIOR, MID, SENIOR, LEAD, EXECUTIVE
-  roleReadinessScore     Float?
-  skillStrengthDistribution Json?  // { "Frontend": 80, "Backend": 60, ... }
-  suggestedImprovements  String[]  @default([])
-  lastAnalyzedAt         DateTime?
-  updatedAt              DateTime  @updatedAt
 }
 
 model ReputationMetrics {
@@ -754,6 +726,17 @@ enum OfferStatus {
   WITHDRAWN
 }
 
+enum PreferredRoleSource {
+  MANUAL
+  INFERRED
+  BEHAVIORAL
+}
+
+enum SalaryType {
+  MONTHLY
+  YEARLY
+}
+
 enum NotificationType {
   APPLICATION_STATUS_CHANGED
   INTERVIEW_SCHEDULED
@@ -993,6 +976,112 @@ model JobRecommendationScore {
   @@index([candidateId])
   @@index([jobId])
   @@index([candidateId, totalScore(sort: Desc)])
+}
+
+model RoleTaxonomy {
+  id             String              @id @default(cuid())
+  roleName       String              @unique
+  category       String
+  skillsRequired Json?
+  synonyms       String[]            @default([])
+  preferredRoles PreferredRole[]
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+
+  @@index([category])
+  @@index([roleName])
+  @@index([synonyms], type: Gin)
+}
+
+/// Ranked preferred roles stored on the candidate (intelligence layer + UI).
+model PreferredRole {
+  id              String              @id @default(cuid())
+  candidateId     String
+  candidate       Candidate           @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  role            String
+  priority        Int                 @default(5)
+  confidenceScore Float               @default(0.5)
+  source          PreferredRoleSource @default(MANUAL)
+  roleTaxonomyId  String?
+  roleTaxonomy    RoleTaxonomy?       @relation(fields: [roleTaxonomyId], references: [id], onDelete: SetNull)
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  @@unique([candidateId, role])
+  @@index([candidateId])
+  @@index([candidateId, priority])
+  @@index([candidateId, confidenceScore(sort: Desc)])
+}
+
+model UserBehaviorSignal {
+  id               String   @id @default(cuid())
+  userId           String
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role             String
+  viewedJobs       Int      @default(0)
+  appliedJobs      Int      @default(0)
+  clickedRoles     Int      @default(0)
+  timeSpentPerRole Int      @default(0) // total seconds
+  searchQueries    Int      @default(0)
+  metadata         Json?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@unique([userId, role])
+  @@index([userId, updatedAt])
+}
+
+model UserSalaryProfile {
+  id                 String     @id @default(cuid())
+  userId             String     @unique
+  user               User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  minSalary          Int
+  maxSalary          Int
+  currency           String     @default("INR")
+  salaryType         SalaryType @default(YEARLY)
+  isNegotiable       Boolean    @default(true)
+  preferredLocations Json?
+  confidenceScore    Float      @default(0.5)
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
+
+  @@index([userId])
+  @@index([currency, salaryType])
+}
+
+model JobSalaryData {
+  id               String     @id @default(cuid())
+  jobId            String     @unique
+  job              Job        @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  minOfferedSalary Int?
+  maxOfferedSalary Int?
+  currency         String     @default("INR")
+  salaryType       SalaryType @default(YEARLY)
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+
+  @@index([jobId])
+  @@index([currency, salaryType])
+}
+
+model SalaryInsights {
+  id           String     @id @default(cuid())
+  role         String
+  location     String
+  currency     String     @default("INR")
+  salaryType   SalaryType @default(YEARLY)
+  avgSalary    Int
+  medianSalary Int
+  percentile25 Int
+  percentile75 Int
+  source       String?    @default("INTERNAL_AGGREGATE")
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  @@index([role])
+  @@index([location])
+  @@index([role, location, currency, salaryType])
+  @@unique([role, location, currency, salaryType])
 }
 
 model ReputationScore {

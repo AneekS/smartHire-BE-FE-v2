@@ -6,6 +6,8 @@ export function buildRecommendationReasons(input: {
   behavioralScore: number;
   semanticScore: number;
   roleBoost: number;
+  preferredRoleBoost?: number;
+  preferredRole?: string;
   careerBoost: number;
 }): string[] {
   const reasons: string[] = [];
@@ -17,6 +19,9 @@ export function buildRecommendationReasons(input: {
   if (input.behavioralScore >= 70) reasons.push("Matches your recent job activity");
   if (input.semanticScore >= 70) reasons.push("Resume semantics closely match job description");
   if (input.roleBoost > 0) reasons.push("Role and industry preference matched");
+  if ((input.preferredRoleBoost ?? 0) > 0 && input.preferredRole) {
+    reasons.push(`Recommended because you prefer ${input.preferredRole} roles`);
+  }
   if (input.careerBoost > 0) reasons.push("Aligned with your next career stage");
 
   return reasons.slice(0, 4);

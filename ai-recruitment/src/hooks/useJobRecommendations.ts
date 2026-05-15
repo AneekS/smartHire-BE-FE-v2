@@ -4,7 +4,7 @@ import useSWR from "swr";
 import { jobsApi } from "@/lib/api-client";
 
 export function useJobRecommendations(limit = 20) {
-  const { data, error, isLoading, mutate } = useSWR(
+  const { data, error, isLoading, isValidating, mutate } = useSWR(
     ["/api/jobs/recommendations", limit],
     async ([, requestedLimit]) => jobsApi.recommendations({ limit: requestedLimit as number })
   );
@@ -12,6 +12,7 @@ export function useJobRecommendations(limit = 20) {
   return {
     recommendations: data,
     isLoading,
+    isValidating,
     error,
     mutate,
   };

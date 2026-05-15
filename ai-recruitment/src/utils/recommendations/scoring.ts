@@ -127,6 +127,23 @@ export function calculateRolePreferenceBoost(input: {
   return boost;
 }
 
+export function calculatePreferredRoleScoreBoost(input: {
+  title: string;
+  preferredRoles: Array<{ role: string; priority: number; confidenceScore: number }>;
+}): number {
+  const title = normalizeText(input.title);
+  let bestBoost = 0;
+  for (const preferred of input.preferredRoles) {
+    const role = normalizeText(preferred.role);
+    if (!title.includes(role) && !role.includes(title)) continue;
+    const priorityWeight = clamp((6 - preferred.priority) / 5, 0, 1);
+    const confidenceWeight = clamp(preferred.confidenceScore, 0, 1);
+    const boost = Math.round((priorityWeight * 6 + confidenceWeight * 8) * 10) / 10;
+    if (boost > bestBoost) bestBoost = boost;
+  }
+  return bestBoost;
+}
+
 export function detectSkillGap(candidateSkills: string[], requiredSkills: string[]): SkillGapResult {
   const candidateSet = new Set(candidateSkills.map(normalizeText));
   const missingSkills = requiredSkills.filter((skill) => !candidateSet.has(normalizeText(skill)));

@@ -83,16 +83,17 @@ export interface CertificationRecord {
   credentialUrl?: string | null;
 }
 
-export interface CareerPreference {
-  id?: string;
-  preferredRoles?: string[];
-  preferredIndustries?: string[];
-  preferredLocations?: string[];
-  workMode?: string | null;
-  salaryMin?: number | null;
-  salaryMax?: number | null;
-  currency?: string;
-  openToRelocation?: boolean;
+export interface PreferredRoleSignal {
+  id: string;
+  role: string;
+  priority: number;
+  confidenceScore: number;
+  source: "MANUAL" | "INFERRED" | "BEHAVIORAL";
+  updatedAt: string;
+}
+
+export interface PreferredRolesResponse {
+  roles: PreferredRoleSignal[];
 }
 
 export interface ProfilePrivacy {
@@ -103,22 +104,29 @@ export interface ProfilePrivacy {
   hideContactInfo?: boolean;
 }
 
-export interface AIInsights {
-  extractedSkills?: string[];
-  experienceSummary?: string | null;
-  careerLevel?: string | null;
-  roleReadinessScore?: number | null;
-  skillStrengthDistribution?: Record<string, number>;
-  suggestedImprovements?: string[];
-  lastAnalyzedAt?: string | null;
-}
-
 export interface ReputationData {
   interviewPerformance?: number;
   recruiterFeedback?: number;
   assessmentCompletionRate?: number;
   responseRate?: number;
   overallScore?: number;
+}
+
+/** Mirrors `UserSalaryProfile` on the API (flattened onto profile). */
+export interface UserSalaryProfileView {
+  minSalary: number;
+  maxSalary: number;
+  currency: string;
+  salaryType?: string;
+  isNegotiable?: boolean;
+  confidenceScore?: number;
+}
+
+export interface PreferredRoleItem {
+  role: string;
+  priority: number;
+  confidenceScore: number;
+  source?: string;
 }
 
 export interface CandidateProfile {
@@ -147,7 +155,10 @@ export interface CandidateProfile {
   internshipInterest?: boolean;
   languagesSpoken?: string[];
   // Preferences
+  preferredRole?: string | null;
   preferredRoles?: string[];
+  preferredRoleItems?: PreferredRoleItem[];
+  salaryProfile?: UserSalaryProfileView | null;
   salaryExpectationMin?: number | null;
   salaryExpectationMax?: number | null;
   visibility?: string;
@@ -171,9 +182,7 @@ export interface CandidateProfile {
   experiences?: ExperienceRecord[];
   projects?: ProjectRecord[];
   certifications?: CertificationRecord[];
-  careerPreference?: CareerPreference | null;
   privacy?: ProfilePrivacy | null;
-  aiInsights?: AIInsights | null;
   reputation?: ReputationData | null;
 }
 
@@ -231,6 +240,9 @@ export interface Job {
   matchScore: number;
   readiness: number;
   missingSkills: string[];
+  salaryMatchScore?: number | null;
+  salaryMatchExplanation?: string | null;
+  salaryFitLabel?: string | null;
   saved?: boolean;
   company: {
     name: string;
@@ -244,6 +256,19 @@ export interface Job {
 export interface JobSearchResponse {
   jobs: Job[];
   nextCursor: string | null;
+}
+
+export interface UserSalaryProfile {
+  id: string;
+  minSalary: number;
+  maxSalary: number;
+  currency: string;
+  salaryType: "MONTHLY" | "YEARLY";
+  isNegotiable: boolean;
+  preferredLocations: string[] | null;
+  confidenceScore: number;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface RecommendedJob {
@@ -263,17 +288,18 @@ export interface RecommendedJob {
   postedAt: string;
 }
 
+/** API may return partial payloads; consumers must use optional chaining / defaults. */
 export interface JobRecommendationsResponse {
-  recommendedJobs: RecommendedJob[];
-  trendingJobs: RecommendedJob[];
-  highMatchJobs: RecommendedJob[];
-  newJobs: RecommendedJob[];
-  marketIntelligence: {
-    trendingSkills: Array<{ skill: string; demandCount: number }>;
-    highDemandRoles: Array<{ role: string; demandCount: number }>;
-    topHiringCompanies: Array<{ companyName: string; activeJobs: number }>;
+  recommendedJobs?: RecommendedJob[];
+  trendingJobs?: RecommendedJob[];
+  highMatchJobs?: RecommendedJob[];
+  newJobs?: RecommendedJob[];
+  marketIntelligence?: {
+    trendingSkills?: Array<{ skill: string; demandCount: number }>;
+    highDemandRoles?: Array<{ role: string; demandCount: number }>;
+    topHiringCompanies?: Array<{ companyName: string; activeJobs: number }>;
   };
-  nextCursor: string | null;
+  nextCursor?: string | null;
 }
 
 export interface JobAlert {
@@ -583,6 +609,19 @@ export const jobsApi = {
     }),
 };
 
+export const preferredRolesApi = {
+  list: () => request<PreferredRolesResponse>("/api/preferred-roles"),
+  add: (role: string, priority: number) =>
+    request<PreferredRolesResponse>("/api/preferred-roles", {
+      method: "POST",
+      body: JSON.stringify({ role, priority }),
+    }),
+  remove: (id: string) =>
+    request<PreferredRolesResponse>(`/api/preferred-roles/${id}`, {
+      method: "DELETE",
+    }),
+};
+
 export const recruiterApi = {
   recommendedCandidates: (params: { jobId: string; limit?: number }) =>
     request<{
@@ -605,6 +644,27 @@ export const recruiterApi = {
         }, {} as Record<string, string>)
       )}`
     ),
+};
+
+export const salaryApi = {
+  get: () => request<{ profile: UserSalaryProfile | null }>("/salary"),
+  upsert: (payload: {
+    minSalary: number;
+    maxSalary: number;
+    currency?: string;
+    salaryType?: "MONTHLY" | "YEARLY";
+    isNegotiable?: boolean;
+    preferredLocations?: string[];
+    confidenceScore?: number;
+  }) =>
+    request<{ profile: UserSalaryProfile }>("/salary", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  remove: () =>
+    request<{ profile: null }>("/salary", {
+      method: "DELETE",
+    }),
 };
 
 // ─── Application Tracker ─────────────────────────────────────────────────────

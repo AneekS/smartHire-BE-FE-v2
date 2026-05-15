@@ -5,11 +5,11 @@ import {
 } from "@/lib/auth-middleware";
 import { CandidateProfileSchema } from "@/lib/validators/candidate.schema";
 import { prisma } from "@/lib/db";
-import { enqueueRecommendationUpdate, enqueueAnalyticsUpdate } from "@/services/queue-producers";
 import {
   FULL_PROFILE_SELECT,
   getCachedCandidateProfile,
   invalidateCandidateProfileCache,
+  mergePreferredRolesForResponse,
 } from "@/services/profile/profile.service";
 import { calculateCompleteness } from "@/services/profile/completeness.service";
 
@@ -51,7 +51,12 @@ export async function GET(req: AuthenticatedRequest) {
   return withAuth(req, async (authedReq) => {
     const userEmail = authedReq.user!.email;
     const profile = await getCachedCandidateProfile(userEmail);
-    return NextResponse.json(profile);
+    const preferredRoles = mergePreferredRolesForResponse(profile);
+    return NextResponse.json({
+      ...profile,
+      preferredRoles,
+      preferredRole: preferredRoles[0]?.role ?? null,
+    });
   });
 }
 
@@ -164,7 +169,7 @@ export async function PATCH(req: AuthenticatedRequest) {
           skillRecords:    fresh?.skillRecords,
           experiences:     fresh?.experiences,
           projects:        fresh?.projects,
-          careerPreference:fresh?.careerPreference,
+          preferredRoles:  fresh?.preferredRoles,
         });
 
         const updated = await tx.candidate.update({
@@ -179,12 +184,13 @@ export async function PATCH(req: AuthenticatedRequest) {
       // ── Invalidate profile cache ─────────────────────────────────────────
       await invalidateCandidateProfileCache(userEmail);
 
-      // ── Trigger background jobs (fire-and-forget) ────────────────────────
-      void enqueueRecommendationUpdate(result.id);
-      void enqueueAnalyticsUpdate(result.id);
-
       const response = { ...result.user, ...result };
-      return NextResponse.json(response);
+      const preferredRoles = mergePreferredRolesForResponse(response);
+      return NextResponse.json({
+        ...response,
+        preferredRoles,
+        preferredRole: preferredRoles[0]?.role ?? null,
+      });
     } catch (error: unknown) {
       console.error("[PATCH /api/v1/candidates/profile]", error);
       const msg = error instanceof Error ? error.message : "Server error";

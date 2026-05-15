@@ -1,11 +1,11 @@
 import { createClient } from "@insforge/sdk";
+import { getClientEnv } from "@/config/env";
 
-const baseUrl = process.env.NEXT_PUBLIC_INSFORGE_BASE_URL!;
-const anonKey = process.env.NEXT_PUBLIC_INSFORGE_ANON_KEY!;
+const { NEXT_PUBLIC_INSFORGE_BASE_URL, NEXT_PUBLIC_INSFORGE_ANON_KEY } = getClientEnv();
 
 export const insforge = createClient({
-  baseUrl: baseUrl || "https://2674danq.ap-southeast.insforge.app",
-  anonKey: anonKey || "",
+  baseUrl: NEXT_PUBLIC_INSFORGE_BASE_URL,
+  anonKey: NEXT_PUBLIC_INSFORGE_ANON_KEY,
 });
 
 export const RESUMES_BUCKET = "resumes";

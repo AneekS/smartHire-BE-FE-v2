@@ -11,7 +11,7 @@ const contactInfoSchema = z.object({
     linkedin: z.string().optional().default(""),
     github: z.string().optional().default(""),
     website: z.string().optional().default(""),
-}).default({});
+}).default({ name: "", email: "", phone: "", location: "", linkedin: "", github: "", website: "" });
 
 const bulletSchema = z.object({
     id: z.string().default(""),
@@ -110,7 +110,7 @@ export class ParserService {
             const completion = await insforge.ai.chat.completions.create({
                 model: "openai/gpt-4o-mini",
                 temperature: 0,
-                max_tokens: 4096,
+                maxTokens: 4096,
                 messages: [
                     { role: "system", content: SYSTEM_PROMPT },
                     { role: "user", content: `Extract ALL sections from this resume:\n\n${textToSend}` },

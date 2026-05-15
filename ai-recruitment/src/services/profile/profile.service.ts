@@ -8,7 +8,6 @@ import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { refreshCompleteness } from "./completeness.service";
 import { safeQuery } from "@/lib/errors";
-import { CacheService, CACHE_TTL_SECONDS } from "@/lib/cache-utils";
 import type {
   BasicIdentityInput,
   EducationInput,
@@ -16,7 +15,6 @@ import type {
   SkillInput,
   ProjectInput,
   CertificationInput,
-  CareerPreferenceInput,
   PrivacyInput,
 } from "@/lib/validators/profile.schemas";
 
@@ -56,6 +54,7 @@ export const FULL_PROFILE_SELECT = {
       reputationScore: true,
       technicalScore: true,
       softScore: true,
+      salaryProfile: true,
     },
   },
   educations: { orderBy: { order: "asc" as const } },
@@ -63,9 +62,21 @@ export const FULL_PROFILE_SELECT = {
   experiences: { orderBy: { order: "asc" as const } },
   projects: { orderBy: { order: "asc" as const } },
   certifications: { orderBy: { createdAt: "asc" as const } },
-  careerPreference: true,
+  preferredRoles: {
+    orderBy: [
+      { priority: "asc" },
+      { confidenceScore: "desc" },
+    ] as Prisma.PreferredRoleOrderByWithRelationInput[],
+    select: {
+      id: true,
+      role: true,
+      priority: true,
+      confidenceScore: true,
+      source: true,
+      updatedAt: true,
+    },
+  },
   privacy: true,
-  aiInsights: true,
   reputation: true,
 } as const;
 
@@ -292,18 +303,6 @@ export async function deleteCertification(id: string, candidateId: string) {
   await prisma.certification.delete({ where: { id, candidateId } });
 }
 
-// ─── Career Preferences ───────────────────────────────────────────────────────
-
-export async function upsertCareerPreference(candidateId: string, data: CareerPreferenceInput) {
-  const pref = await prisma.careerPreference.upsert({
-    where: { candidateId },
-    create: { candidateId, ...data },
-    update: data,
-  });
-  await refreshCompleteness(candidateId);
-  return pref;
-}
-
 // ─── Privacy ──────────────────────────────────────────────────────────────────
 
 export async function upsertPrivacy(candidateId: string, data: PrivacyInput) {
@@ -349,60 +348,51 @@ export type CandidateProfileResponse = Omit<FullCandidateProfile, "user"> &
     user: FullCandidateProfile["user"];
   };
 
+/** API payload from `PreferredRole` rows only (single source of truth). */
+export type PreferredRoleApiItem = {
+  role: string;
+  priority: number;
+  confidenceScore: number;
+  source?: string;
+};
+
+export function mergePreferredRolesForResponse(profile: {
+  preferredRoles?: Array<{
+    role: string;
+    priority: number;
+    confidenceScore: number;
+    source?: unknown;
+  }>;
+}): PreferredRoleApiItem[] {
+  const rows = profile.preferredRoles ?? [];
+  return rows
+    .filter((r) => typeof r.role === "string" && r.role.trim().length > 0)
+    .map((r) => {
+      const src = r.source;
+      return {
+        role: r.role.trim(),
+        priority: r.priority,
+        confidenceScore: r.confidenceScore,
+        source: typeof src === "string" ? src : src != null ? String(src) : undefined,
+      };
+    })
+    .sort((a, b) => a.priority - b.priority || b.confidenceScore - a.confidenceScore);
+}
+
 // ─── Cache-first profile fetch ────────────────────────────────────────────────
 
-const PROFILE_CACHE_KEY = (email: string): string =>
-  `candidate-profile:${email}`;
-
-/**
- * Cache-first candidate profile fetch.
- *
- * Flow:
- *   1. [CACHE HIT]      Return serialized profile from Redis immediately.
- *   2. [CACHE MISS]     Proceed to database.
- *   3. [DATABASE FETCH] Single round-trip via FULL_PROFILE_SELECT (10 relations).
- *   4.                  Populate Redis with TTL = 600 s.
- *
- * Redis errors are swallowed by CacheService — the API always returns data.
- */
+/** Full candidate profile (database is the only source of truth; no app cache). */
 export async function getCachedCandidateProfile(
   userEmail: string
 ): Promise<CandidateProfileResponse> {
-  const cacheKey = PROFILE_CACHE_KEY(userEmail);
-
-  // ── 1. Cache-first ────────────────────────────────────────────────────────
-  const cached = await CacheService.get<CandidateProfileResponse>(cacheKey);
-  if (cached) {
-    console.log(`[CACHE HIT]       key=${cacheKey}`);
-    return cached;
-  }
-
-  console.log(`[CACHE MISS]      key=${cacheKey}`);
-
-  // ── 2. Single database round-trip (all 10 relations in one query) ─────────
-  console.log(`[DATABASE FETCH]  candidate email=${userEmail}`);
   const candidate = await getOrCreateCandidate(userEmail);
-
-  // Flatten user fields onto root; Candidate fields take precedence on conflict
-  const response = {
+  return {
     ...candidate.user,
     ...candidate,
   } as CandidateProfileResponse;
-
-  // ── 3. Populate Redis (fire-and-forget; errors logged by CacheService) ────
-  void CacheService.set(cacheKey, response, CACHE_TTL_SECONDS);
-
-  return response;
 }
 
-/**
- * Invalidate the Redis cache entry for a candidate profile.
- * Call after any write operation that mutates profile data.
- */
+/** Kept for call-site compatibility after cache removal. */
 export async function invalidateCandidateProfileCache(
-  userEmail: string
-): Promise<void> {
-  const cacheKey = PROFILE_CACHE_KEY(userEmail);
-  console.log(`[CACHE INVALIDATE] key=${cacheKey}`);
-  await CacheService.del(cacheKey);
-}
+  _userEmail: string
+): Promise<void> {}

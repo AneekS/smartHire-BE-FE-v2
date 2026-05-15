@@ -3,26 +3,27 @@
  * Wraps the existing parser and saves results to the candidate profile DB models.
  */
 
-import { prisma }  from "@/lib/db";
+import { prisma } from "@/lib/db";
 import { refreshCompleteness } from "../profile/completeness.service";
 
-export interface AIProfileInsightsData {
-  extractedSkills:           string[];
-  experienceSummary:         string;
-  careerLevel:               string;
-  roleReadinessScore:        number;
+/** Parsed resume summary used when persisting resume text to the profile. */
+export interface ResumeExtractionPayload {
+  extractedSkills: string[];
+  experienceSummary: string;
+  careerLevel: string;
+  roleReadinessScore: number;
   skillStrengthDistribution: Record<string, number>;
 }
 
 /** Simple category-based skill distribution estimator */
 export function buildSkillDistribution(skills: string[]): Record<string, number> {
   const categories: Record<string, string[]> = {
-    "Frontend":    ["react", "vue", "angular", "html", "css", "typescript", "javascript", "next", "svelte"],
-    "Backend":     ["node", "python", "java", "go", "rust", "express", "fastapi", "spring", "django"],
-    "DevOps":      ["docker", "kubernetes", "aws", "azure", "gcp", "terraform", "github actions"],
-    "Data":        ["sql", "postgresql", "mongodb", "redis", "elasticsearch", "pandas", "spark", "bigquery"],
-    "Mobile":      ["react native", "flutter", "swift", "kotlin", "android", "ios"],
-    "AI/ML":       ["machine learning", "tensorflow", "pytorch", "nlp", "openai", "langchain", "llm"],
+    Frontend: ["react", "vue", "angular", "html", "css", "typescript", "javascript", "next", "svelte"],
+    Backend: ["node", "python", "java", "go", "rust", "express", "fastapi", "spring", "django"],
+    DevOps: ["docker", "kubernetes", "aws", "azure", "gcp", "terraform", "github actions"],
+    Data: ["sql", "postgresql", "mongodb", "redis", "elasticsearch", "pandas", "spark", "bigquery"],
+    Mobile: ["react native", "flutter", "swift", "kotlin", "android", "ios"],
+    "AI/ML": ["machine learning", "tensorflow", "pytorch", "nlp", "openai", "langchain", "llm"],
     "Soft Skills": ["leadership", "communication", "teamwork", "agile", "scrum", "problem solving"],
   };
 
@@ -30,9 +31,7 @@ export function buildSkillDistribution(skills: string[]): Record<string, number>
   const lowerSkills = skills.map((s) => s.toLowerCase());
 
   for (const [cat, keywords] of Object.entries(categories)) {
-    const hits = lowerSkills.filter((s) =>
-      keywords.some((kw) => s.includes(kw))
-    ).length;
+    const hits = lowerSkills.filter((s) => keywords.some((kw) => s.includes(kw))).length;
     if (hits > 0) {
       counts[cat] = Math.min(100, Math.round(hits * 25));
     }
@@ -53,60 +52,33 @@ export function estimateCareerLevel(
 }
 
 /**
- * Persist AI-derived insights into the database after a resume is parsed.
- * Called from resume upload routes.
+ * Persist parsed resume text and summary on the candidate profile after upload.
  */
-export async function persistAIInsights(
+export async function persistResumeExtraction(
   candidateId: string,
-  insights:    AIProfileInsightsData,
-  fileUrl:     string,
-  rawText:     string,
+  extraction: ResumeExtractionPayload,
+  fileUrl: string,
+  rawText: string
 ): Promise<void> {
   await prisma.$transaction(async (tx) => {
-    // Update resume URL on candidate
     await tx.candidate.update({
       where: { id: candidateId },
-      data:  { resumeUrl: fileUrl, summary: insights.experienceSummary || undefined },
+      data: { resumeUrl: fileUrl, summary: extraction.experienceSummary || undefined },
     });
 
-    // Ensure CandidateProfile row exists (AI pipeline hub)
     const profile = await tx.candidateProfile.upsert({
-      where:  { candidateId },
+      where: { candidateId },
       create: { candidateId },
       update: {},
       select: { id: true },
     });
 
-    // Raw resume text
     await tx.resumeRaw.upsert({
-      where:  { profileId: profile.id },
+      where: { profileId: profile.id },
       create: { profileId: profile.id, fileUrl, extractedText: rawText },
       update: { fileUrl, extractedText: rawText, uploadedAt: new Date() },
     });
-
-    // AI insights
-    await tx.aIProfileInsights.upsert({
-      where:  { candidateId },
-      create: {
-        candidateId,
-        extractedSkills:           insights.extractedSkills,
-        experienceSummary:         insights.experienceSummary,
-        careerLevel:               insights.careerLevel,
-        roleReadinessScore:        insights.roleReadinessScore,
-        skillStrengthDistribution: insights.skillStrengthDistribution,
-        lastAnalyzedAt:            new Date(),
-      },
-      update: {
-        extractedSkills:           insights.extractedSkills,
-        experienceSummary:         insights.experienceSummary,
-        careerLevel:               insights.careerLevel,
-        roleReadinessScore:        insights.roleReadinessScore,
-        skillStrengthDistribution: insights.skillStrengthDistribution,
-        lastAnalyzedAt:            new Date(),
-      },
-    });
   });
 
-  // Refresh completeness (resume = 20%)
   await refreshCompleteness(candidateId);
 }
