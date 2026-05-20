@@ -13,6 +13,7 @@ import {
   Plug2,
   ClipboardList,
   Target as TargetIcon,
+  Bell,
 } from "lucide-react";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -23,6 +24,7 @@ const navItems = [
   { href: "/dashboard", label: "Intelligence Hub", icon: LayoutDashboard },
   { href: "/jobs", label: "Job Search", icon: Search },
   { href: "/applications", label: "Application Tracker", icon: ClipboardList },
+  { href: "/notifications", label: "Notifications", icon: Bell },
   { href: "/resume", label: "Resume Optimizer", icon: FileText },
   { href: "/job-ats", label: "Job ATS Scorer", icon: TargetIcon },
   { href: "/interviews", label: "Mock Interviews", icon: Brain },

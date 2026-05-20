@@ -160,3 +160,31 @@
 .roadmap-orb {
   animation: roadmap-orb-float 9s ease-in-out infinite;
 }
+
+/* Notifications page */
+[data-radix-scroll-area-viewport] {
+  scroll-behavior: smooth;
+}
+
+@keyframes bell-pulse {
+  0%,
+  100% {
+    transform: rotate(0deg);
+  }
+  25% {
+    transform: rotate(-8deg);
+  }
+  75% {
+    transform: rotate(8deg);
+  }
+}
+
+.bell-pulse {
+  animation: bell-pulse 2.5s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bell-pulse {
+    animation: none;
+  }
+}
