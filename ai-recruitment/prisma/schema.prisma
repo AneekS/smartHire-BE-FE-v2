@@ -10,6 +10,7 @@ datasource db {
 
 model User {
   id               String                 @id @default(cuid())
+  clerkId          String?                @unique
   name             String?
   email            String                 @unique
   candidate        Candidate?
@@ -216,6 +217,9 @@ model Candidate {
   analytics              CandidateAnalytics?
   jobRecommendationScores JobRecommendationScore[]
   preferredRoles         PreferredRole[]
+  jobAtsScores           JobAtsScore[]
+  listingSkillGaps       JobListingSkillGap[]
+  interviewSessions      InterviewSession[]
   createdAt              DateTime          @default(now())
   updatedAt              DateTime          @updatedAt
 
@@ -761,12 +765,20 @@ model ResumeVersion {
   title       String
   roleTarget  String?
   fileUrl     String?
+  filePath    String?
   atsScore        Int?
   status          ResumeVersionStatus @default(DRAFT)
+  pipelineStatus  PipelineStatus      @default(QUEUED)
+  pipelineError   String?             @db.Text
+  pipelineRawText String?             @db.Text
+  piiMaskEncrypted String?            @db.Text
+  tenantId        String?
+  embeddedAt      DateTime?
   parsedContent   String?        @db.Text
   scoreBreakdown  String?        @db.Text
   improvements    String?        @db.Text
   suggestions     ResumeSuggestion[]
+  parsedResume    ParsedResume?
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
 }
@@ -836,6 +848,18 @@ model SkillGoal {
 enum ResumeVersionStatus {
   DRAFT
   ACTIVE
+}
+
+enum PipelineStatus {
+  QUEUED
+  PREPROCESSING
+  PARSING
+  PARSED
+  EMBEDDING
+  EMBEDDED
+  SCORED
+  COMPLETE
+  FAILED
 }
 
 enum SuggestionType {
@@ -1118,4 +1142,285 @@ model Notification {
 
   @@index([userId, isRead])
   @@index([userId, createdAt])
+}
+
+// ---- InsForge-migrated tables (snake_case via @@map) ----
+
+model JobListing {
+  id               String               @id @default(cuid())
+  title            String               @map("job_title")
+  companyName      String               @map("company_name")
+  location         String?
+  jobType          String?              @map("job_type")
+  experienceLevel  String?              @map("experience_level")
+  salaryRange      String?              @map("salary_range")
+  techStack        String[]             @default([]) @map("tech_stack")
+  category         String?
+  isFeatured       Boolean              @default(false) @map("is_featured")
+  description      String?              @db.Text @map("job_description")
+  requirements     String?              @db.Text
+  responsibilities String?              @db.Text
+  niceToHave       String?              @db.Text @map("nice_to_have")
+  isActive         Boolean              @default(true) @map("is_active")
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
+  atsScores        JobAtsScore[]
+  skillGaps        JobListingSkillGap[]
+
+  @@map("job_listings")
+}
+
+model JobAtsScore {
+  id          String     @id @default(cuid())
+  candidateId String
+  listingId   String
+  score       Float
+  details     Json?
+  createdAt   DateTime   @default(now())
+  candidate   Candidate  @relation(fields: [candidateId], references: [id])
+  listing     JobListing @relation(fields: [listingId], references: [id])
+
+  @@unique([candidateId, listingId])
+  @@map("job_ats_scores")
+}
+
+model JobListingSkillGap {
+  id          String     @id @default(cuid())
+  candidateId String
+  listingId   String
+  gaps        Json
+  createdAt   DateTime   @default(now())
+  candidate   Candidate  @relation(fields: [candidateId], references: [id])
+  listing     JobListing @relation(fields: [listingId], references: [id])
+
+  @@map("skill_gaps")
+}
+
+model SkillAlias {
+  id        String   @id @default(cuid())
+  alias     String   @unique
+  canonical String
+  source    String   @default("SEED")
+  createdAt DateTime @default(now())
+
+  @@map("skill_aliases")
+}
+
+enum RecruiterDecisionType {
+  SHORTLISTED
+  REJECTED
+  HIRED
+  PASSED_TO_INTERVIEW
+}
+
+enum DecisionSignalType {
+  POSITIVE
+  NEGATIVE
+  NEUTRAL
+}
+
+enum JobSource {
+  LISTING
+  LEGACY_JOB
+}
+
+model RecruiterDecision {
+  id                 String                @id @default(cuid())
+  resumeId           String
+  jobId              String
+  jobSource          JobSource             @default(LEGACY_JOB)
+  tenantId           String
+  decision           RecruiterDecisionType
+  decisionReason     String?               @db.Text
+  atsScoreAtDecision Float?
+  scoreBreakdown     Json?
+  recruiterId        String
+  signalType         DecisionSignalType
+  signalStrength     Float
+  roleType           String                @default("IC")
+  decidedAt          DateTime              @default(now())
+
+  @@index([tenantId, decidedAt])
+  @@index([jobId])
+  @@index([resumeId, jobId])
+  @@map("recruiter_decisions")
+}
+
+model PromptVariant {
+  variantId      String             @id @default(cuid())
+  promptText     String             @db.Text
+  active         Boolean            @default(true)
+  trafficPercent Int                @default(50)
+  metrics        Json?
+  createdAt      DateTime           @default(now())
+  assignments    PromptAssignment[]
+
+  @@map("prompt_variants")
+}
+
+model PromptAssignment {
+  id         String        @id @default(cuid())
+  resumeId   String        @unique
+  variantId  String
+  variant    PromptVariant @relation(fields: [variantId], references: [variantId], onDelete: Cascade)
+  assignedAt DateTime      @default(now())
+
+  @@map("prompt_assignments")
+}
+
+model RecruiterCorrection {
+  id             String   @id @default(cuid())
+  resumeId       String
+  field          String
+  originalValue  String
+  correctedValue String
+  recruiterId    String
+  createdAt      DateTime @default(now())
+
+  @@index([field, originalValue, correctedValue])
+  @@map("recruiter_corrections")
+}
+
+model TenantWeightProfile {
+  id        String   @id @default(cuid())
+  tenantId  String
+  roleType  String
+  weights   Json
+  updatedAt DateTime @updatedAt
+
+  @@unique([tenantId, roleType])
+  @@map("tenant_weight_profiles")
+}
+
+model EmbeddingDriftRun {
+  id               String   @id @default(cuid())
+  driftScore       Float
+  sampleSize       Int
+  triggeredReindex Boolean  @default(false)
+  details          Json?
+  ranAt            DateTime @default(now())
+
+  @@map("embedding_drift_runs")
+}
+
+model WeightRecalibrationRun {
+  id              String   @id @default(cuid())
+  tenantId        String
+  roleType        String
+  componentDeltas Json
+  correlations    Json
+  ranAt           DateTime @default(now())
+
+  @@map("weight_recalibration_runs")
+}
+
+model InterviewSession {
+  id          String                @id @default(cuid())
+  candidateId String
+  listingId   String?
+  status      String                @default("active")
+  createdAt   DateTime              @default(now())
+  messages    InterviewMessage[]
+  feedback    InterviewFeedback?
+  evaluations InterviewEvaluation[]
+  candidate   Candidate             @relation(fields: [candidateId], references: [id])
+
+  @@map("interview_sessions")
+}
+
+model InterviewMessage {
+  id        String           @id @default(cuid())
+  sessionId String
+  role      String
+  content   String
+  createdAt DateTime         @default(now())
+  session   InterviewSession @relation(fields: [sessionId], references: [id])
+
+  @@map("interview_messages")
+}
+
+model InterviewFeedback {
+  id        String           @id @default(cuid())
+  sessionId String           @unique
+  summary   String
+  score     Float?
+  createdAt DateTime         @default(now())
+  session   InterviewSession @relation(fields: [sessionId], references: [id])
+
+  @@map("interview_feedback")
+}
+
+model InterviewEvaluation {
+  id         String           @id @default(cuid())
+  sessionId  String
+  questionId String?
+  answer     String?
+  score      Float?
+  feedback   String?
+  session    InterviewSession @relation(fields: [sessionId], references: [id])
+
+  @@map("interview_evaluations")
+}
+
+model QuestionBank {
+  id         String   @id @default(cuid())
+  question   String
+  category   String?
+  difficulty String?
+  tags       String[]
+
+  @@map("question_bank")
+}
+
+model ParsedResume {
+  id                String        @id @default(cuid())
+  resumeVersionId   String        @unique
+  parsedData        Json
+  extractionSchema  Json?
+  parseConfidence   Float?
+  passesRun         Int[]         @default([])
+  pass3Changed      Boolean       @default(false)
+  createdAt         DateTime      @default(now())
+  resumeVersion     ResumeVersion @relation(fields: [resumeVersionId], references: [id])
+
+  @@map("parsed_resumes")
+}
+
+model ExtractionEvent {
+  id         String   @id @default(cuid())
+  resumeId   String
+  tenantId   String?
+  event      String
+  passNumber Int?
+  durationMs Int?
+  confidence Float?
+  fieldCount Int?
+  error      String?  @db.Text
+  metadata   Json?
+  createdAt  DateTime @default(now())
+
+  @@index([event, createdAt])
+  @@index([resumeId])
+  @@map("extraction_events")
+}
+
+model DailyMetric {
+  id         String   @id @default(cuid())
+  date       DateTime @db.Date
+  metricKey  String
+  value      Float
+  domain     String?
+  dimensions Json?
+  createdAt  DateTime @default(now())
+
+  @@unique([date, metricKey, domain])
+  @@index([metricKey, date])
+  @@map("daily_metrics")
+}
+
+model AlertCooldown {
+  metricKey   String   @id
+  lastFiredAt DateTime
+
+  @@map("alert_cooldowns")
 }
