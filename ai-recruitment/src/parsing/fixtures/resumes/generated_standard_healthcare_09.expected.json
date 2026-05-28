@@ -1,0 +1,73 @@
+{
+  "personalInfo": {
+    "name": "undefined undefined",
+    "email": "undefined.undefined@email.com",
+    "phone": null,
+    "location": "San Francisco, CA",
+    "linkedIn": null,
+    "github": null,
+    "portfolio": null
+  },
+  "summary": "Registered Nurse with 2 years of experience in healthcare roles.",
+  "industryDomain": "HEALTHCARE",
+  "seniorityBand": "L3",
+  "yearsOfExperience": 2,
+  "skills": [
+    {
+      "name": "Patient Care",
+      "domain": "BACKEND",
+      "proficiencyLevel": 4
+    },
+    {
+      "name": "Epic EMR",
+      "domain": "BACKEND",
+      "proficiencyLevel": 4
+    },
+    {
+      "name": "Clinical Protocols",
+      "domain": "BACKEND",
+      "proficiencyLevel": 4
+    }
+  ],
+  "experience": [
+    {
+      "company": "Cleveland Clinic",
+      "title": "Registered Nurse",
+      "startDate": "2022-03",
+      "endDate": null,
+      "isCurrent": true,
+      "durationMonths": 24,
+      "responsibilities": [
+        "Led key initiatives",
+        "Collaborated cross-functionally"
+      ],
+      "achievements": [
+        "Improved systems serving 200k users"
+      ],
+      "techStack": [
+        "Patient Care",
+        "Epic EMR",
+        "Clinical Protocols"
+      ]
+    }
+  ],
+  "education": [
+    {
+      "institution": "ETH Zurich",
+      "degree": "BS",
+      "field": "Nursing",
+      "startYear": 2014,
+      "endYear": 2018,
+      "gpa": 3.7
+    }
+  ],
+  "projects": [],
+  "certifications": [
+    {
+      "name": "RN License",
+      "issuer": "State Board",
+      "year": 2020
+    }
+  ],
+  "achievements": []
+}

@@ -1,45 +1,14 @@
-/**
- * /api/profile/avatar
- *
- * POST  – Upload / replace profile avatar (multipart/form-data, field "file")
- * DELETE – Remove avatar (sets avatarUrl to null)
- *
- * Images are saved to /public/uploads/avatars/<candidateId>_<timestamp>.<ext>
- * and the public URL is stored in Candidate.avatarUrl.
- *
- * To swap for cloud storage (S3, Cloudinary, UploadThing), replace only the
- * `saveFile()` helper below – the rest of the handler is storage-agnostic.
- */
-
 import { NextResponse } from "next/server";
-import { writeFile, mkdir } from "fs/promises";
-import path from "path";
 import { withAuth, AuthenticatedRequest } from "@/lib/auth-middleware";
 import {
   getOrCreateCandidate,
   invalidateCandidateProfileCache,
 } from "@/services/profile/profile.service";
 import { prisma } from "@/lib/db";
-
-// ─── Config ──────────────────────────────────────────────────────────────────
+import { uploadAvatar, getAvatarSasUrl } from "@/lib/azure-storage";
 
 const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
 const MAX_BYTES = 5 * 1024 * 1024; // 5 MB
-const UPLOAD_DIR = path.join(process.cwd(), "public", "uploads", "avatars");
-
-// ─── Storage adapter (swap this for S3/Cloudinary/UploadThing) ───────────────
-
-async function saveFile(
-  buffer: Buffer,
-  filename: string
-): Promise<string> {
-  await mkdir(UPLOAD_DIR, { recursive: true });
-  const dest = path.join(UPLOAD_DIR, filename);
-  await writeFile(dest, buffer);
-  return `/uploads/avatars/${filename}`;
-}
-
-// ─── Handlers ────────────────────────────────────────────────────────────────
 
 export async function POST(req: AuthenticatedRequest) {
   return withAuth(req, async (r) => {
@@ -51,7 +20,6 @@ export async function POST(req: AuthenticatedRequest) {
         return NextResponse.json({ error: "No file provided" }, { status: 400 });
       }
 
-      // Validate MIME type
       if (!ALLOWED_TYPES.includes(file.type)) {
         return NextResponse.json(
           { error: "Only JPG, PNG, and WEBP images are accepted" },
@@ -59,7 +27,6 @@ export async function POST(req: AuthenticatedRequest) {
         );
       }
 
-      // Validate size
       const arrayBuffer = await file.arrayBuffer();
       const buffer = Buffer.from(arrayBuffer);
       if (buffer.byteLength > MAX_BYTES) {
@@ -71,18 +38,17 @@ export async function POST(req: AuthenticatedRequest) {
 
       const candidate = await getOrCreateCandidate(r.user!.email);
       const ext = file.type.split("/")[1].replace("jpeg", "jpg");
-      const filename = `${candidate.id}_${Date.now()}.${ext}`;
 
-      const avatarUrl = await saveFile(buffer, filename);
+      const blobPath = await uploadAvatar(candidate.id, buffer, ext, file.type);
 
       await prisma.candidate.update({
         where: { id: candidate.id },
-        data: { avatarUrl },
+        data: { avatarUrl: blobPath },
       });
 
       await invalidateCandidateProfileCache(r.user!.email);
-      console.log(`[PROFILE UPDATE] avatar uploaded candidate=${candidate.id}`);
 
+      const avatarUrl = await getAvatarSasUrl(blobPath);
       return NextResponse.json({ avatarUrl });
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Upload failed";
@@ -101,8 +67,6 @@ export async function DELETE(req: AuthenticatedRequest) {
       });
 
       await invalidateCandidateProfileCache(r.user!.email);
-      console.log(`[PROFILE UPDATE] avatar removed candidate=${candidate.id}`);
-
       return NextResponse.json({ ok: true });
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Delete failed";

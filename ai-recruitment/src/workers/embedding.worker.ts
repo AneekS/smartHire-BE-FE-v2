@@ -2,7 +2,7 @@ import { Worker } from "bullmq";
 import { getBullConnectionOptions } from "@/lib/redis-options";
 import { RecommendationRepository } from "@/repositories/recommendations/recommendation.repository";
 import { JobRecommendationService } from "@/services/recommendations/job-recommendation.service";
-import { embeddingChecksum, embeddingDimensions, generateEmbedding } from "@/utils/recommendations/embedding";
+import { embeddingChecksum, generateEmbedding, getEmbeddingDimensions } from "@/utils/recommendations/embedding";
 
 const redisUrl = process.env.REDIS_URL;
 if (!redisUrl) {
@@ -30,7 +30,7 @@ async function processResume(payload: EmbedResumePayload) {
     candidateId: payload.candidateId,
     checksum,
     embedding,
-    dimensions: embeddingDimensions,
+    dimensions: getEmbeddingDimensions(),
   });
 }
 
@@ -43,7 +43,7 @@ async function processJob(payload: EmbedJobPayload) {
       jobId: payload.jobId,
       checksum,
       embedding,
-      dimensions: embeddingDimensions,
+      dimensions: getEmbeddingDimensions(),
     },
   ]);
 }

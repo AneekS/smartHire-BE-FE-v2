@@ -17,7 +17,7 @@ function arr(a) {
   return `ARRAY[${a.map((x) => `'${esc(x)}'`).join(",")}]::text[]`;
 }
 
-const jobs = [
+export const jobs = [
   {
     job_title: "Senior Frontend Engineer",
     company_name: "Vercel",
@@ -846,9 +846,10 @@ const jobs = [
 ];
 
 const header = `INSERT INTO job_listings
-  (job_title, company_name, location, job_type, experience_level,
+  (id, job_title, company_name, location, job_type, experience_level,
    salary_range, tech_stack, category, is_featured,
-   job_description, requirements, responsibilities, nice_to_have)
+   job_description, requirements, responsibilities, nice_to_have,
+   is_active, "createdAt", "updatedAt")
 VALUES
 `;
 
@@ -860,6 +861,7 @@ function valuesFor(js) {
   return js
     .map(
       (j) => `(
+  gen_random_uuid()::text,
   '${esc(j.job_title)}',
   '${esc(j.company_name)}',
   '${esc(j.location)}',
@@ -872,7 +874,10 @@ function valuesFor(js) {
   '${esc(j.job_description)}',
   '${esc(j.requirements)}',
   '${esc(j.responsibilities)}',
-  ${j.nice_to_have ? `'${esc(j.nice_to_have)}'` : "NULL"}
+  ${j.nice_to_have ? `'${esc(j.nice_to_have)}'` : "NULL"},
+  true,
+  NOW(),
+  NOW()
 )`
     )
     .join(",\n");
@@ -881,13 +886,19 @@ function valuesFor(js) {
 const truncateSql = "TRUNCATE TABLE job_listings CASCADE;";
 const sqlFull = `${truncateSql}\n\n${header}${valuesFor(jobs)};\n`;
 
-const out = join(__dirname, "job-listings-seed-generated.sql");
-writeFileSync(out, sqlFull, "utf8");
+const isMain =
+  process.argv[1] &&
+  fileURLToPath(import.meta.url) === process.argv[1];
 
-const outA = join(__dirname, "job-listings-seed-part1.sql");
-const outB = join(__dirname, "job-listings-seed-part2.sql");
-writeFileSync(outA, `${truncateSql}\n\n${header}${valuesFor(partA)};\n`, "utf8");
-writeFileSync(outB, `${header}${valuesFor(partB)};\n`, "utf8");
+if (isMain) {
+  const out = join(__dirname, "job-listings-seed-generated.sql");
+  writeFileSync(out, sqlFull, "utf8");
 
-console.log("Wrote", out, "bytes:", Buffer.byteLength(sqlFull, "utf8"));
-console.log("Parts:", outA, outB);
+  const outA = join(__dirname, "job-listings-seed-part1.sql");
+  const outB = join(__dirname, "job-listings-seed-part2.sql");
+  writeFileSync(outA, `${truncateSql}\n\n${header}${valuesFor(partA)};\n`, "utf8");
+  writeFileSync(outB, `${header}${valuesFor(partB)};\n`, "utf8");
+
+  console.log("Wrote", out, "bytes:", Buffer.byteLength(sqlFull, "utf8"));
+  console.log("Parts:", outA, outB);
+}

@@ -1,0 +1,61 @@
+{
+  "personalInfo": {
+    "name": "Skyler Robinson",
+    "email": "skyler.robinson@email.com",
+    "phone": null,
+    "location": "London, UK",
+    "linkedIn": null,
+    "github": null,
+    "portfolio": null
+  },
+  "summary": "Platform Engineer with 6 years of experience in international roles.",
+  "industryDomain": "TECH",
+  "seniorityBand": "L4",
+  "yearsOfExperience": 6,
+  "skills": [
+    {
+      "name": "Go",
+      "domain": "BACKEND",
+      "proficiencyLevel": 4
+    },
+    {
+      "name": "Kubernetes",
+      "domain": "BACKEND",
+      "proficiencyLevel": 4
+    }
+  ],
+  "experience": [
+    {
+      "company": "Databricks",
+      "title": "Platform Engineer",
+      "startDate": "2018-03",
+      "endDate": null,
+      "isCurrent": true,
+      "durationMonths": 72,
+      "responsibilities": [
+        "Led key initiatives",
+        "Collaborated cross-functionally"
+      ],
+      "achievements": [
+        "Improved systems serving 400k users"
+      ],
+      "techStack": [
+        "Go",
+        "Kubernetes"
+      ]
+    }
+  ],
+  "education": [
+    {
+      "institution": "Stanford",
+      "degree": "BS",
+      "field": "Computer Science",
+      "startYear": 2014,
+      "endYear": 2018,
+      "gpa": 3.7
+    }
+  ],
+  "projects": [],
+  "certifications": [],
+  "achievements": []
+}

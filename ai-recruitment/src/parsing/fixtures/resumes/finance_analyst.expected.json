@@ -1,0 +1,43 @@
+{
+  "personalInfo": {
+    "name": "David Kim",
+    "email": "david.kim@finance.com",
+    "phone": null,
+    "location": null,
+    "linkedIn": null,
+    "github": null,
+    "portfolio": null
+  },
+  "summary": "Financial Analyst",
+  "industryDomain": "FINANCE",
+  "seniorityBand": "L4",
+  "yearsOfExperience": 5,
+  "skills": [
+    { "name": "Python", "domain": "BACKEND", "proficiencyLevel": 4 },
+    { "name": "SQL", "domain": "DATABASES", "proficiencyLevel": 5 },
+    { "name": "Bloomberg Terminal", "domain": "OTHER", "proficiencyLevel": 4 }
+  ],
+  "experience": [
+    {
+      "company": "Goldman Sachs",
+      "title": "Analyst",
+      "startDate": "2018-06",
+      "endDate": "2023-12",
+      "isCurrent": false,
+      "durationMonths": 66,
+      "responsibilities": [],
+      "achievements": [
+        "Managed $450M equity portfolio with 14.2% annualized return",
+        "Built risk model reducing VaR breach frequency by 35%"
+      ],
+      "techStack": []
+    }
+  ],
+  "education": [],
+  "projects": [],
+  "certifications": [
+    { "name": "CFA Level 2", "issuer": "CFA Institute", "year": 2021 }
+  ],
+  "achievements": [],
+  "languages": []
+}

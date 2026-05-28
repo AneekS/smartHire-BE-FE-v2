@@ -1,0 +1,17 @@
+{
+  "name": "smarthire-weekly-retrain",
+  "version": "1.0.0",
+  "private": true,
+  "main": "dist/src/functions/weeklyRetrain.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "func start",
+    "prestart": "npm run build"
+  },
+  "dependencies": {
+    "@azure/functions": "^4.5.0"
+  },
+  "devDependencies": {
+    "typescript": "^5"
+  }
+}

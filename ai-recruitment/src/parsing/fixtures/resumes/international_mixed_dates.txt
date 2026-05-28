@@ -1,0 +1,9 @@
+Priya Sharma
+Software Engineer
+priya@example.in
+
+Experience
+Infosys — Engineer — Jan 2019 – Mar 2022
+TCS — Senior Engineer — 04/2022 – present
+
+Skills: Java, Spring, SQL

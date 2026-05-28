@@ -1,6 +1,69 @@
 import { create } from "zustand";
 import { ParsedResume } from "@/lib/services/ParserService";
 
+type UploadStage = "idle" | "uploading" | "extracting" | "parsing" | "scoring" | "suggesting" | "done";
+
+function mapPipelineStatusToStage(status: string): UploadStage {
+  switch (status) {
+    case "QUEUED":
+      return "uploading";
+    case "PREPROCESSING":
+      return "extracting";
+    case "PARSING":
+      return "parsing";
+    case "PARSED":
+    case "SCORED":
+      return "scoring";
+    case "EMBEDDING":
+    case "EMBEDDED":
+      return "suggesting";
+    case "COMPLETE":
+      return "done";
+    default:
+      return "parsing";
+  }
+}
+
+/** Statuses where resume is usable in the UI (parse + score done; embed may still run). */
+const READY_FOR_UI = new Set(["PARSED", "SCORED", "EMBEDDING", "EMBEDDED", "COMPLETE"]);
+
+async function waitForResumePipeline(
+  resumeId: string,
+  onStage: (stage: UploadStage) => void
+): Promise<void> {
+  const maxWaitMs = 600_000;
+  const started = Date.now();
+
+  while (Date.now() - started < maxWaitMs) {
+    const res = await fetch(`/api/v1/resumes/${resumeId}/status`, {
+      credentials: "include",
+    });
+    if (!res.ok) {
+      throw new Error(`Status check failed (${res.status})`);
+    }
+
+    const data = (await res.json()) as {
+      status: string;
+      pipelineError?: string | null;
+    };
+
+    onStage(mapPipelineStatusToStage(data.status));
+
+    if (data.status === "FAILED") {
+      throw new Error(data.pipelineError || "Resume processing failed");
+    }
+
+    // Don't block the UI on Azure embed indexing — that runs in the background.
+    if (READY_FOR_UI.has(data.status)) return;
+
+    await new Promise((r) => setTimeout(r, 2000));
+  }
+
+  throw new Error(
+    "Resume processing timed out. Ensure Ollama is running (ollama serve), workers are up (npm run worker:parse), and check pipelineError in the database."
+  );
+}
+
 export interface ScoreBreakdown {
     keywordMatch: number;
     formatting: number;
@@ -58,8 +121,6 @@ interface ResumeStore {
     isUploading: boolean;
     error: string | null;
     uploadStage: "idle" | "uploading" | "extracting" | "parsing" | "scoring" | "suggesting" | "done";
-
-    // Actions
     loadResumeFromAPI: () => Promise<void>;
     uploadResume: (file: File) => Promise<void>;
     replaceResume: (file: File) => Promise<void>;
@@ -92,7 +153,20 @@ export const useResumeStore = create<ResumeStore>((set, get) => ({
         set({ isLoading: true, error: null });
         try {
             const res = await fetch("/api/resume", { credentials: "include" });
-            if (!res.ok) throw new Error("API call failed");
+
+            if (res.status === 401) {
+                set({ isLoading: false, originalContent: null, updatedContent: null, error: null });
+                return;
+            }
+
+            if (!res.ok) {
+                const errBody = await res.json().catch(() => ({}));
+                const message =
+                    (errBody as { error?: string }).error ?? `Failed to load resume (${res.status})`;
+                set({ error: message, isLoading: false });
+                return;
+            }
+
             const json = await res.json();
 
             if (!json.data || !json.data.resumeId) {
@@ -116,23 +190,20 @@ export const useResumeStore = create<ResumeStore>((set, get) => ({
                 isLoading: false,
             });
         } catch (e) {
-            console.error(e);
-            set({ error: "Failed to load resume", isLoading: false });
+            const message = e instanceof Error ? e.message : "Failed to load resume";
+            set({ error: message, isLoading: false });
         }
     },
 
     uploadResume: async (file: File) => {
         set({ isUploading: true, error: null, uploadStage: "uploading" });
         try {
-            setTimeout(() => set({ uploadStage: "extracting" }), 500);
-            setTimeout(() => set({ uploadStage: "parsing" }), 1500);
-            setTimeout(() => set({ uploadStage: "scoring" }), 4000);
-            setTimeout(() => set({ uploadStage: "suggesting" }), 6000);
-
             const formData = new FormData();
             formData.append("resume", file);
 
-            const res = await fetch("/api/resume", {
+            set({ uploadStage: "parsing" });
+
+            const res = await fetch("/api/v1/resumes/upload", {
                 method: "POST",
                 credentials: "include",
                 body: formData,
@@ -142,7 +213,10 @@ export const useResumeStore = create<ResumeStore>((set, get) => ({
                 let errorMessage = "Upload failed";
                 try {
                     const errData = await res.json();
-                    errorMessage = (errData.error as string) || (errData.message as string) || `HTTP ${res.status}`;
+                    errorMessage =
+                        (errData.error as string) ||
+                        (errData.message as string) ||
+                        `HTTP ${res.status}`;
                 } catch {
                     errorMessage = `HTTP ${res.status}: ${res.statusText}`;
                 }
@@ -150,34 +224,48 @@ export const useResumeStore = create<ResumeStore>((set, get) => ({
                 return;
             }
 
+            // Async pipeline — poll status until workers finish
+            if (res.status === 202) {
+                const queued = (await res.json()) as { resumeId: string };
+                await waitForResumePipeline(queued.resumeId, (stage) =>
+                    set({ uploadStage: stage })
+                );
+                await get().loadResumeFromAPI();
+                set({ isUploading: false, uploadStage: "idle", error: null });
+                return;
+            }
+
+            // Sync pipeline (ASYNC_RESUME_PIPELINE=false) — 201 with full parse payload
             const json = await res.json();
-            if (!json.data) {
+            const data = json.resume ?? json.data ?? json;
+            const resumeId = data?.resumeId ?? data?.id ?? json.resumeId;
+
+            if (!resumeId) {
                 set({ error: "Invalid response from server", isUploading: false, uploadStage: "idle" });
                 return;
             }
 
-            const { data } = json;
-            const parsed = data.parsed;
-            if (typeof window !== "undefined" && parsed) {
-                console.log("[useResumeStore] uploadResume — data.parsed.projects:", (parsed as { projects?: unknown[] }).projects?.length ?? 0, (parsed as { projects?: unknown[] }).projects);
+            const parsed = data.parsed ?? data.parsedContent;
+            if (parsed) {
+                set({
+                    uploadStage: "done",
+                    resumeId,
+                    fileName: data.fileName ?? data.file_name ?? file.name,
+                    uploadedAt: data.uploadedAt ?? data.created_at ?? new Date().toISOString(),
+                    originalContent: parsed,
+                    updatedContent: parsed,
+                    atsScore: data.atsScore ?? null,
+                    scoreBreakdown: data.scoreBreakdown ?? null,
+                    improvements: data.improvements || [],
+                    appliedFixes: [],
+                    changeLog: [],
+                    isUploading: false,
+                    error: null,
+                });
+            } else {
+                await get().loadResumeFromAPI();
+                set({ isUploading: false, uploadStage: "idle", error: null });
             }
-            set({
-                uploadStage: "done",
-                resumeId: data.resumeId,
-                fileName: data.fileName,
-                uploadedAt: data.uploadedAt ?? new Date().toISOString(),
-                originalContent: parsed,
-                updatedContent: parsed,
-                atsScore: data.atsScore,
-                scoreBreakdown: data.scoreBreakdown,
-                improvements: data.improvements || [],
-                appliedFixes: [],
-                changeLog: [],
-                isUploading: false,
-                error: null,
-            });
-
-            setTimeout(() => set({ uploadStage: "idle" }), 1000);
         } catch (error) {
             const message = error instanceof Error ? error.message : "Network error";
             set({ error: message, isUploading: false, uploadStage: "idle" });

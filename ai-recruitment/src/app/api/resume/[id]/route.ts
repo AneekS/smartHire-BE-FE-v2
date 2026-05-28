@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/lib/insforge-server";
+import { withAuth, UnauthorizedError } from "@/lib/auth-helpers";
+import { prisma } from "@/lib/db";
 import { z } from "zod";
 
 const updateSchema = z.object({
@@ -10,30 +11,49 @@ const updateSchema = z.object({
   status: z.enum(["DRAFT", "ACTIVE"]).optional(),
 });
 
-function mapVersion(v: Record<string, unknown>) {
+function mapVersion(v: {
+  id: string;
+  userId: string;
+  title: string;
+  roleTarget: string | null;
+  fileUrl: string | null;
+  filePath: string | null;
+  atsScore: number | null;
+  status: string;
+  createdAt: Date;
+  updatedAt: Date;
+  suggestions: {
+    id: string;
+    resumeVersionId: string;
+    type: string;
+    section: string;
+    title: string;
+    description: string;
+    applied: boolean;
+    createdAt: Date;
+  }[];
+}) {
   return {
     id: v.id,
-    userId: v.user_id,
+    userId: v.userId,
     title: v.title,
-    roleTarget: v.role_target,
-    fileUrl: v.file_url,
-    fileKey: v.file_key,
-    atsScore: v.ats_score,
+    roleTarget: v.roleTarget,
+    fileUrl: v.fileUrl,
+    fileKey: v.filePath,
+    atsScore: v.atsScore,
     status: v.status,
-    createdAt: v.created_at,
-    updatedAt: v.updated_at,
-    suggestions: (v.resume_suggestions as Record<string, unknown>[] ?? []).map(
-      (s) => ({
-        id: s.id,
-        resumeVersionId: s.resume_version_id,
-        type: s.type,
-        section: s.section,
-        title: s.title,
-        description: s.description,
-        applied: s.applied,
-        createdAt: s.created_at,
-      })
-    ),
+    createdAt: v.createdAt.toISOString(),
+    updatedAt: v.updatedAt.toISOString(),
+    suggestions: v.suggestions.map((s) => ({
+      id: s.id,
+      resumeVersionId: s.resumeVersionId,
+      type: s.type,
+      section: s.section,
+      title: s.title,
+      description: s.description,
+      applied: s.applied,
+      createdAt: s.createdAt.toISOString(),
+    })),
   };
 }
 
@@ -42,22 +62,23 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { client, user } = await requireAuth();
+    const { dbUser } = await withAuth();
     const { id } = await params;
 
-    const { data: version, error } = await client.database
-      .from("resume_versions")
-      .select("*, resume_suggestions(*)")
-      .eq("id", id)
-      .eq("user_id", user.id)
-      .maybeSingle();
+    const version = await prisma.resumeVersion.findFirst({
+      where: { id, userId: dbUser.id },
+      include: { suggestions: true },
+    });
 
-    if (error || !version) {
+    if (!version) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
 
     return NextResponse.json(mapVersion(version));
-  } catch {
+  } catch (e) {
+    if (e instanceof UnauthorizedError) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 }
@@ -67,15 +88,13 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { client, user } = await requireAuth();
+    const { dbUser } = await withAuth();
     const { id } = await params;
 
-    const { data: existing } = await client.database
-      .from("resume_versions")
-      .select("id")
-      .eq("id", id)
-      .eq("user_id", user.id)
-      .maybeSingle();
+    const existing = await prisma.resumeVersion.findFirst({
+      where: { id, userId: dbUser.id },
+      select: { id: true },
+    });
 
     if (!existing) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -83,25 +102,20 @@ export async function PATCH(
 
     const body = await req.json();
     const data = updateSchema.parse(body);
-    const update: Record<string, unknown> = {};
-    if (data.title !== undefined) update.title = data.title;
-    if (data.roleTarget !== undefined) update.role_target = data.roleTarget;
+
+    const updateData: Record<string, unknown> = {};
+    if (data.title !== undefined) updateData.title = data.title;
+    if (data.roleTarget !== undefined) updateData.roleTarget = data.roleTarget;
     if (data.fileUrl !== undefined)
-      update.file_url = data.fileUrl === "" ? null : data.fileUrl;
-    if (data.atsScore !== undefined) update.ats_score = data.atsScore;
-    if (data.status !== undefined) update.status = data.status;
-    update.updated_at = new Date().toISOString();
+      updateData.fileUrl = data.fileUrl === "" ? null : data.fileUrl;
+    if (data.atsScore !== undefined) updateData.atsScore = data.atsScore;
+    if (data.status !== undefined) updateData.status = data.status;
 
-    const { data: version, error } = await client.database
-      .from("resume_versions")
-      .update(update)
-      .eq("id", id)
-      .select("*, resume_suggestions(*)")
-      .single();
-
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
-    }
+    const version = await prisma.resumeVersion.update({
+      where: { id },
+      data: updateData,
+      include: { suggestions: true },
+    });
 
     return NextResponse.json(mapVersion(version));
   } catch (e) {
@@ -110,6 +124,9 @@ export async function PATCH(
         { error: e.issues.map((x) => x.message).join(", ") },
         { status: 400 }
       );
+    }
+    if (e instanceof UnauthorizedError) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -120,21 +137,25 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { client, user } = await requireAuth();
+    const { dbUser } = await withAuth();
     const { id } = await params;
 
-    const { error } = await client.database
-      .from("resume_versions")
-      .delete()
-      .eq("id", id)
-      .eq("user_id", user.id);
+    const existing = await prisma.resumeVersion.findFirst({
+      where: { id, userId: dbUser.id },
+      select: { id: true },
+    });
 
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+    if (!existing) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
 
+    await prisma.resumeVersion.delete({ where: { id } });
+
     return NextResponse.json({ ok: true });
-  } catch {
+  } catch (e) {
+    if (e instanceof UnauthorizedError) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 }

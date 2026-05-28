@@ -17,8 +17,8 @@ import {
 import {
   cosineSimilarity,
   embeddingChecksum,
-  embeddingDimensions,
   generateEmbedding,
+  getEmbeddingDimensions,
 } from "@/utils/recommendations/embedding";
 
 const LOOKBACK_DAYS = 45;
@@ -137,7 +137,7 @@ export class JobRecommendationService {
         candidateId: candidate.id,
         checksum: resumeChecksum,
         embedding: resumeEmbedding,
-        dimensions: embeddingDimensions,
+        dimensions: getEmbeddingDimensions(),
       });
     }
 
@@ -161,7 +161,7 @@ export class JobRecommendationService {
           jobId: job.id,
           checksum: embeddingChecksum(text),
           embedding: await generateEmbedding(text),
-          dimensions: embeddingDimensions,
+          dimensions: getEmbeddingDimensions(),
         };
       })
     );

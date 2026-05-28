@@ -1,18 +1,26 @@
-import { InsforgeMiddleware } from "@insforge/nextjs/middleware";
+import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 
-export default InsforgeMiddleware({
-  baseUrl:
-    process.env.NEXT_PUBLIC_INSFORGE_BASE_URL ||
-    "https://2674danq.ap-southeast.insforge.app",
-  publicRoutes: ["/", "/login", "/register", "/api"],
-  signInUrl: "/login",
-  signUpUrl: "/register",
-  afterSignInUrl: "/dashboard",
-  useBuiltInAuth: false,
+const isPublicRoute = createRouteMatcher([
+  "/",
+  "/login(.*)",
+  "/register(.*)",
+  "/sign-in(.*)",
+  "/sign-up(.*)",
+  "/api/auth/sync",
+  "/api/health(.*)",
+  "/api/internal/dashboard",
+]);
+
+export default clerkMiddleware(async (auth, req) => {
+  if (!isPublicRoute(req)) {
+    await auth.protect();
+  }
 });
 
 export const config = {
   matcher: [
-    "/((?!api|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+    "/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)",
+    "/(api|trpc)(.*)",
+    "/__clerk/(.*)",
   ],
 };

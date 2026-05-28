@@ -1,0 +1,51 @@
+{
+  "personalInfo": {
+    "name": "Alex Chen",
+    "email": "alex.chen@email.com",
+    "phone": null,
+    "location": "San Francisco, CA",
+    "linkedIn": null,
+    "github": null,
+    "portfolio": null
+  },
+  "summary": "Backend engineer with 6 years building scalable APIs and microservices.",
+  "industryDomain": "TECH",
+  "seniorityBand": "L4",
+  "yearsOfExperience": 6,
+  "skills": [
+    { "name": "Node.js", "domain": "BACKEND", "proficiencyLevel": 5 },
+    { "name": "PostgreSQL", "domain": "DATABASES", "proficiencyLevel": 4 },
+    { "name": "Docker", "domain": "DEVOPS", "proficiencyLevel": 4 },
+    { "name": "AWS", "domain": "CLOUD", "proficiencyLevel": 3 }
+  ],
+  "experience": [
+    {
+      "company": "Stripe",
+      "title": "Senior Backend Engineer",
+      "startDate": "2019-03",
+      "endDate": null,
+      "isCurrent": true,
+      "durationMonths": 72,
+      "responsibilities": [],
+      "achievements": [
+        "Reduced API response time by 40% via query optimization",
+        "Led migration to microservices serving 2M+ daily users"
+      ],
+      "techStack": ["Node.js", "PostgreSQL", "Docker", "AWS"]
+    }
+  ],
+  "education": [
+    {
+      "institution": "UC Berkeley",
+      "degree": "BS",
+      "field": "Computer Science",
+      "startYear": null,
+      "endYear": 2018,
+      "gpa": null
+    }
+  ],
+  "projects": [],
+  "certifications": [],
+  "achievements": [],
+  "languages": []
+}

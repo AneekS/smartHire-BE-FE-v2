@@ -1,31 +1,29 @@
-import { insforge } from "@/lib/insforge";
-import { requireAuth } from "@/lib/insforge-server";
+import { prisma } from "@/lib/db";
+import OpenAI from "openai";
+
+const openai = new OpenAI();
 
 export class OptimizerService {
   async generateSuggestions(
-    resumeId: string,
-    candidateId: string,
+    resumeVersionId: string,
+    _candidateId: string,
     jobId?: string
   ): Promise<Record<string, unknown>[]> {
-    const { client } = await requireAuth();
+    const parsedResume = await prisma.parsedResume.findUnique({
+      where: { resumeVersionId },
+    });
 
-    const { data: parsed } = await client.database
-      .from("parsed_resumes")
-      .select("*")
-      .eq("resume_id", resumeId)
-      .maybeSingle();
+    if (!parsedResume) throw new Error("Parsed resume not found");
 
-    if (!parsed) throw new Error("Parsed resume not found");
+    const parsed = parsedResume.parsedData as Record<string, unknown>;
 
     let jobContext = "";
     if (jobId) {
-      const { data: job } = await client.database
-        .from("jobs")
-        .select("*")
-        .eq("id", jobId)
-        .maybeSingle();
+      const job = await prisma.job.findUnique({
+        where: { id: jobId },
+      });
       if (job) {
-        jobContext = `TARGET JOB: ${job.title} at ${job.company_name}\nRequired: ${(job.required_skills ?? []).join(", ")}`;
+        jobContext = `TARGET JOB: ${job.title}\nRequired: ${(job.requiredSkills ?? []).join(", ")}`;
       }
     }
 
@@ -54,8 +52,8 @@ Focus on:
 
 Return ONLY the JSON array.`;
 
-    const completion = await insforge.ai.chat.completions.create({
-      model: "openai/gpt-4o-mini",
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
       messages: [{ role: "user", content: prompt }],
     });
 
@@ -64,19 +62,10 @@ Return ONLY the JSON array.`;
     const result = jsonMatch ? JSON.parse(jsonMatch[0]) : [];
     const suggestions = Array.isArray(result) ? result : [];
 
-    for (const s of suggestions) {
-      await client.database.from("resume_improvements").insert({
-        resume_id: resumeId,
-        candidate_id: candidateId,
-        job_id: jobId ?? null,
-        type: s.type ?? "BULLET_REWRITE",
-        severity: s.severity ?? "MEDIUM",
-        section: s.section ?? null,
-        original_text: s.original_text ?? null,
-        suggested_text: s.suggested_text ?? null,
-        explanation: s.explanation ?? null,
-      });
-    }
+    await prisma.resumeVersion.update({
+      where: { id: resumeVersionId },
+      data: { improvements: JSON.stringify(suggestions) },
+    });
 
     return suggestions;
   }

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { Bolt } from "lucide-react";
+import { SignInButton, SignUpButton, Show, UserButton } from "@clerk/nextjs";
 import { Button } from "@/components/ui/button";
 
 const navLinks = [
@@ -33,17 +34,31 @@ export function Navbar() {
             </Link>
           ))}
         </div>
-        <div className="flex items-center gap-6">
-          <Link href="/login">
-            <Button variant="ghost" className="text-sm font-bold text-[#1F2937]">
-              Log in
-            </Button>
-          </Link>
-          <Link href="/register">
-            <Button className="bg-[#3B82F6] hover:bg-[#2563EB] text-white px-8 py-3 text-sm font-bold rounded-[100px] shadow-lg shadow-blue-500/20">
-              Get Started
-            </Button>
-          </Link>
+        <div className="flex items-center gap-4">
+          <Show when="signed-out">
+            <SignInButton mode="redirect" forceRedirectUrl="/dashboard">
+              <Button variant="ghost" className="text-sm font-bold text-[#1F2937]">
+                Log in
+              </Button>
+            </SignInButton>
+            <SignUpButton mode="redirect" forceRedirectUrl="/dashboard">
+              <Button className="bg-[#3B82F6] hover:bg-[#2563EB] text-white px-8 py-3 text-sm font-bold rounded-[100px] shadow-lg shadow-blue-500/20">
+                Get Started
+              </Button>
+            </SignUpButton>
+          </Show>
+          <Show when="signed-in">
+            <Link href="/dashboard">
+              <Button variant="ghost" className="text-sm font-bold text-[#1F2937]">
+                Dashboard
+              </Button>
+            </Link>
+            <UserButton
+              appearance={{
+                elements: { avatarBox: "w-10 h-10" },
+              }}
+            />
+          </Show>
         </div>
       </div>
     </nav>

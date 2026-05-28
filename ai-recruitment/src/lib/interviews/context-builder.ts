@@ -1,83 +1,74 @@
-import type { InsForgeClient } from "@insforge/sdk";
+import { prisma } from "@/lib/db";
 import type {
   ChatTurn,
   InterviewContext,
-  InterviewMessageRow,
-  InterviewSessionRow,
+  InterviewDifficulty,
+  InterviewType,
 } from "./types";
-import { totalQuestionsFor } from "./types";
 
 interface BuildInput {
-  client: InsForgeClient;
-  userId: string;
-  session: InterviewSessionRow;
-  history: Pick<InterviewMessageRow, "role" | "content">[];
+  candidateId: string;
+  history: { role: string; content: string }[];
   questionNumber: number;
+  role: string;
+  interviewType: string;
+  difficulty: string;
+  totalQuestions: number;
 }
 
 export async function loadCandidateProfile(
-  client: InsForgeClient,
-  userId: string,
+  candidateId: string,
 ): Promise<{ name: string; skills: string[]; resumeHighlights?: string }> {
-  const userRes = await client.database
-    .from("User")
-    .select("name, email, headline")
-    .eq("id", userId)
-    .maybeSingle();
+  const candidate = await prisma.candidate.findUnique({
+    where: { id: candidateId },
+    select: {
+      name: true,
+      email: true,
+      headline: true,
+      candidateSkills: { select: { name: true }, take: 20 },
+    },
+  });
 
-  const authUser = userRes.data as
-    | { name?: string; email?: string; headline?: string }
-    | null;
+  const skills = (candidate?.candidateSkills ?? [])
+    .map((s) => s.name)
+    .filter(Boolean);
 
-  let skills: string[] = [];
-  try {
-    const skillsRes = await client.database
-      .from("CandidateSkill")
-      .select("name")
-      .eq("candidateId", userId)
-      .limit(20);
-    const rows = (skillsRes.data ?? []) as { name?: string }[];
-    skills = rows
-      .map((row) => (typeof row.name === "string" ? row.name : null))
-      .filter((n): n is string => Boolean(n));
-  } catch {
-    skills = [];
-  }
-
-  const fallbackName = (authUser?.email ?? "Candidate").split("@")[0];
+  const fallbackName = (candidate?.email ?? "Candidate").split("@")[0];
   return {
-    name: authUser?.name ?? fallbackName,
+    name: candidate?.name ?? fallbackName,
     skills,
-    resumeHighlights: authUser?.headline ?? undefined,
+    resumeHighlights: candidate?.headline ?? undefined,
   };
 }
 
 export function messagesToChatTurns(
-  history: Pick<InterviewMessageRow, "role" | "content">[],
+  history: { role: string; content: string }[],
 ): ChatTurn[] {
   return history.map((m) => ({
-    role: m.role === "interviewer" ? "assistant" : "user",
+    role: m.role === "interviewer" ? ("assistant" as const) : ("user" as const),
     content: m.content,
   }));
 }
 
 export async function buildInterviewContext({
-  client,
-  userId,
-  session,
+  candidateId,
   history,
   questionNumber,
+  role,
+  interviewType,
+  difficulty,
+  totalQuestions,
 }: BuildInput): Promise<InterviewContext> {
-  const profile = await loadCandidateProfile(client, userId);
+  const profile = await loadCandidateProfile(candidateId);
   return {
-    role: session.role,
-    interviewType: session.interview_type,
-    difficulty: session.difficulty,
+    role,
+    interviewType: interviewType as InterviewType,
+    difficulty: difficulty as InterviewDifficulty,
     candidateName: profile.name,
     candidateSkills: profile.skills,
     resumeHighlights: profile.resumeHighlights,
     questionNumber,
-    totalQuestions: totalQuestionsFor(session.duration_minutes),
+    totalQuestions,
     conversationHistory: messagesToChatTurns(history),
   };
 }

@@ -1,0 +1,17 @@
+{
+  "name": "smarthire-drift-checker",
+  "version": "1.0.0",
+  "private": true,
+  "main": "dist/src/functions/driftChecker.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "func start",
+    "prestart": "npm run build"
+  },
+  "dependencies": {
+    "@azure/functions": "^4.5.0"
+  },
+  "devDependencies": {
+    "typescript": "^5"
+  }
+}

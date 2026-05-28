@@ -1,0 +1,12 @@
+David Kim
+Financial Analyst
+david.kim@finance.com
+
+EXPERIENCE
+Goldman Sachs — Analyst — 2018-06 to 2023-12
+- Managed $450M equity portfolio with 14.2% annualized return
+- Built risk model reducing VaR breach frequency by 35%
+
+SKILLS
+Python, SQL, Bloomberg Terminal
+CFA Level 2 — 2021

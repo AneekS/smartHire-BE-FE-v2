@@ -1,0 +1,73 @@
+{
+  "personalInfo": {
+    "name": "Rowan Martin",
+    "email": "rowan.martin@email.com",
+    "phone": null,
+    "location": "San Francisco, CA",
+    "linkedIn": null,
+    "github": null,
+    "portfolio": null
+  },
+  "summary": "Registered Nurse with 6 years of experience in healthcare roles.",
+  "industryDomain": "HEALTHCARE",
+  "seniorityBand": "L4",
+  "yearsOfExperience": 6,
+  "skills": [
+    {
+      "name": "Patient Care",
+      "domain": "BACKEND",
+      "proficiencyLevel": 4
+    },
+    {
+      "name": "Epic EMR",
+      "domain": "BACKEND",
+      "proficiencyLevel": 4
+    },
+    {
+      "name": "Clinical Protocols",
+      "domain": "BACKEND",
+      "proficiencyLevel": 4
+    }
+  ],
+  "experience": [
+    {
+      "company": "Mass General",
+      "title": "Registered Nurse",
+      "startDate": "2018-03",
+      "endDate": null,
+      "isCurrent": true,
+      "durationMonths": 72,
+      "responsibilities": [
+        "Led key initiatives",
+        "Collaborated cross-functionally"
+      ],
+      "achievements": [
+        "Improved systems serving 400k users"
+      ],
+      "techStack": [
+        "Patient Care",
+        "Epic EMR",
+        "Clinical Protocols"
+      ]
+    }
+  ],
+  "education": [
+    {
+      "institution": "Harvard",
+      "degree": "BS",
+      "field": "Nursing",
+      "startYear": 2014,
+      "endYear": 2018,
+      "gpa": 3.7
+    }
+  ],
+  "projects": [],
+  "certifications": [
+    {
+      "name": "RN License",
+      "issuer": "State Board",
+      "year": 2020
+    }
+  ],
+  "achievements": []
+}

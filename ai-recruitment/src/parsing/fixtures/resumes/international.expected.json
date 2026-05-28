@@ -1,0 +1,49 @@
+{
+  "personalInfo": {
+    "name": "Priya Sharma",
+    "email": "priya@example.in",
+    "phone": null,
+    "location": null,
+    "linkedIn": null,
+    "github": null,
+    "portfolio": null
+  },
+  "summary": "Software Engineer",
+  "industryDomain": "TECH",
+  "seniorityBand": "L3",
+  "yearsOfExperience": 5,
+  "skills": [
+    { "name": "Java", "domain": "BACKEND", "proficiencyLevel": 4 },
+    { "name": "Spring", "domain": "BACKEND", "proficiencyLevel": 4 },
+    { "name": "SQL", "domain": "DATABASES", "proficiencyLevel": 4 }
+  ],
+  "experience": [
+    {
+      "company": "Infosys",
+      "title": "Engineer",
+      "startDate": "2019-01",
+      "endDate": "2022-03",
+      "isCurrent": false,
+      "durationMonths": 38,
+      "responsibilities": [],
+      "achievements": [],
+      "techStack": []
+    },
+    {
+      "company": "TCS",
+      "title": "Senior Engineer",
+      "startDate": "2022-04",
+      "endDate": null,
+      "isCurrent": true,
+      "durationMonths": 36,
+      "responsibilities": [],
+      "achievements": [],
+      "techStack": []
+    }
+  ],
+  "education": [],
+  "projects": [],
+  "certifications": [],
+  "achievements": [],
+  "languages": []
+}

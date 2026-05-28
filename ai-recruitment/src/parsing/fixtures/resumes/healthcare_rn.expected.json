@@ -1,0 +1,43 @@
+{
+  "personalInfo": {
+    "name": "Sarah Johnson",
+    "email": "sarah.j@hospital.org",
+    "phone": null,
+    "location": null,
+    "linkedIn": null,
+    "github": null,
+    "portfolio": null
+  },
+  "summary": "Registered Nurse",
+  "industryDomain": "HEALTHCARE",
+  "seniorityBand": "L3",
+  "yearsOfExperience": 4,
+  "skills": [
+    { "name": "Epic EHR", "domain": "OTHER", "proficiencyLevel": 4 },
+    { "name": "Patient Assessment", "domain": "SOFT_SKILLS", "proficiencyLevel": 5 }
+  ],
+  "experience": [
+    {
+      "company": "Metro Hospital",
+      "title": "Staff Nurse",
+      "startDate": "2020-01",
+      "endDate": null,
+      "isCurrent": true,
+      "durationMonths": 48,
+      "responsibilities": [],
+      "achievements": [
+        "Maintained 97% patient satisfaction score over 24-month period",
+        "Reduced medication error rate by 22% via new double-check protocol"
+      ],
+      "techStack": []
+    }
+  ],
+  "education": [],
+  "projects": [],
+  "certifications": [
+    { "name": "RN", "issuer": "NCLEX", "year": 2020 },
+    { "name": "BLS", "issuer": "AHA", "year": 2023 }
+  ],
+  "achievements": [],
+  "languages": []
+}

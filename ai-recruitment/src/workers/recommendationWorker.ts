@@ -39,8 +39,8 @@ import {
 import {
   cosineSimilarity,
   embeddingChecksum,
-  embeddingDimensions,
   generateEmbedding,
+  getEmbeddingDimensions,
 } from '@/utils/recommendations/embedding';
 
 // ─── Bootstrap guard ─────────────────────────────────────────────────────────
@@ -110,7 +110,7 @@ async function processRecommendationScores(candidateId: string): Promise<void> {
       candidateId,
       checksum,
       embedding:  resumeEmbedding,
-      dimensions: embeddingDimensions,
+      dimensions: getEmbeddingDimensions(),
     });
   }
 

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/lib/insforge-server";
+import { withAuth, UnauthorizedError } from "@/lib/auth-helpers";
+import { prisma } from "@/lib/db";
 import { z } from "zod";
 
 const updateSchema = z.object({
@@ -14,15 +15,13 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { client, user } = await requireAuth();
+    const { dbUser } = await withAuth();
     const { id } = await params;
 
-    const { data: existing } = await client.database
-      .from("skill_goals")
-      .select("id")
-      .eq("id", id)
-      .eq("user_id", user.id)
-      .maybeSingle();
+    const existing = await prisma.skillGoal.findFirst({
+      where: { id, userId: dbUser.id },
+      select: { id: true },
+    });
 
     if (!existing) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -30,34 +29,29 @@ export async function PATCH(
 
     const body = await req.json();
     const data = updateSchema.parse(body);
-    const update: Record<string, unknown> = {};
-    if (data.name !== undefined) update.name = data.name;
-    if (data.category !== undefined) update.category = data.category;
+
+    const updateData: Record<string, unknown> = {};
+    if (data.name !== undefined) updateData.name = data.name;
+    if (data.category !== undefined) updateData.category = data.category;
     if (data.currentLevel !== undefined)
-      update.current_level = data.currentLevel;
-    if (data.targetLevel !== undefined) update.target_level = data.targetLevel;
-    update.updated_at = new Date().toISOString();
+      updateData.currentLevel = data.currentLevel;
+    if (data.targetLevel !== undefined)
+      updateData.targetLevel = data.targetLevel;
 
-    const { data: skill, error } = await client.database
-      .from("skill_goals")
-      .update(update)
-      .eq("id", id)
-      .select()
-      .single();
-
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
-    }
+    const skill = await prisma.skillGoal.update({
+      where: { id },
+      data: updateData,
+    });
 
     return NextResponse.json({
       id: skill.id,
-      userId: skill.user_id,
+      userId: skill.userId,
       name: skill.name,
       category: skill.category,
-      currentLevel: skill.current_level,
-      targetLevel: skill.target_level,
-      createdAt: skill.created_at,
-      updatedAt: skill.updated_at,
+      currentLevel: skill.currentLevel,
+      targetLevel: skill.targetLevel,
+      createdAt: skill.createdAt.toISOString(),
+      updatedAt: skill.updatedAt.toISOString(),
     });
   } catch (e) {
     if (e instanceof z.ZodError) {
@@ -65,6 +59,9 @@ export async function PATCH(
         { error: e.issues.map((x) => x.message).join(", ") },
         { status: 400 }
       );
+    }
+    if (e instanceof UnauthorizedError) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -75,21 +72,25 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { client, user } = await requireAuth();
+    const { dbUser } = await withAuth();
     const { id } = await params;
 
-    const { error } = await client.database
-      .from("skill_goals")
-      .delete()
-      .eq("id", id)
-      .eq("user_id", user.id);
+    const existing = await prisma.skillGoal.findFirst({
+      where: { id, userId: dbUser.id },
+      select: { id: true },
+    });
 
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+    if (!existing) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
 
+    await prisma.skillGoal.delete({ where: { id } });
+
     return NextResponse.json({ ok: true });
-  } catch {
+  } catch (e) {
+    if (e instanceof UnauthorizedError) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 }

@@ -1,0 +1,11 @@
+JORDAN PATEL
+Software Engineer at Meta
+TypeScript | Node.js | PostgreSQL | AWS
+
+EXPERIENCE
+Meta — Software Engineer | Mar 2019 - Present
+- Built scalable systems and APIs
+- TypeScript and Node.js expertise
+
+EDUCATION
+MIT | BS Computer Science | 2014-2018

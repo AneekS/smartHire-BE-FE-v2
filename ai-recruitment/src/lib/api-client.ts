@@ -422,22 +422,7 @@ export interface ConnectedAccount {
   updatedAt: string;
 }
 
-// ─── Auth ─────────────────────────────────────────────────────────────────
-
-export const authApi = {
-  signin: (data: { email: string; password: string }) =>
-    request<{ user?: Record<string, unknown>; requireEmailVerification?: boolean }>(
-      "/auth/signin",
-      { method: "POST", body: JSON.stringify({ action: "sign-in", ...data }) }
-    ),
-
-  signup: (data: { email: string; password: string; name: string; phone?: string }) =>
-    request<{
-      user?: Record<string, unknown>;
-      candidate?: Record<string, unknown> | null;
-      requireEmailVerification?: boolean;
-    }>("/auth/signup", { method: "POST", body: JSON.stringify(data) }),
-};
+// ─── Auth (handled by Clerk — no custom API calls needed) ─────────────────
 
 // ─── Candidates ─────────────────────────────────────────────────────────────
 

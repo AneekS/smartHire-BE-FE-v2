@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { ok, err } from "@/lib/api-response";
 import { UnauthorizedError, withAuth } from "@/lib/auth-helpers";
-import { insforge } from "@/lib/insforge";
+import { prisma } from "@/lib/db";
 
 export async function GET(
   req: NextRequest,
@@ -11,31 +11,36 @@ export async function GET(
     const { dbUser } = await withAuth(req);
     const { id } = await params;
 
-    const { data, error } = await insforge.database
-      .from("job_ats_scores")
-      .select("*")
-      .eq("id", id)
-      .eq("candidate_id", dbUser.id)
-      .single();
+    const candidate = await prisma.candidate.findUnique({
+      where: { userId: dbUser.id },
+      select: { id: true },
+    });
+    if (!candidate) return err("Candidate profile not found", 404);
 
-    if (error || !data) return err("Score not found", 404);
+    const score = await prisma.jobAtsScore.findFirst({
+      where: { id, candidateId: candidate.id },
+    });
+
+    if (!score) return err("Score not found", 404);
+
+    const d = (score.details ?? {}) as Record<string, unknown>;
 
     return ok({
-      id: data.id,
-      jobTitle: data.job_title,
-      companyName: data.company_name,
-      jobListingId: data.job_listing_id ?? null,
-      overallScore: data.overall_score,
-      scoreLabel: data.score_label ?? "Match",
-      matchSummary: data.match_summary,
-      breakdown: data.breakdown,
-      keywordAnalysis: data.keyword_analysis,
-      sectionScores: data.section_scores,
-      recommendations: data.recommendations,
-      competitiveAnalysis: data.competitive_analysis,
-      tailoredSummary: data.tailored_summary,
-      topMissingKeywordsToAdd: data.top_missing_keywords ?? [],
-      createdAt: data.created_at,
+      id: score.id,
+      jobTitle: d.jobTitle ?? null,
+      companyName: d.companyName ?? null,
+      jobListingId: score.listingId,
+      overallScore: score.score,
+      scoreLabel: d.scoreLabel ?? "Match",
+      matchSummary: d.matchSummary ?? null,
+      breakdown: d.breakdown ?? null,
+      keywordAnalysis: d.keywordAnalysis ?? null,
+      sectionScores: d.sectionScores ?? null,
+      recommendations: d.recommendations ?? null,
+      competitiveAnalysis: d.competitiveAnalysis ?? null,
+      tailoredSummary: d.tailoredSummary ?? null,
+      topMissingKeywordsToAdd: d.topMissingKeywordsToAdd ?? [],
+      createdAt: score.createdAt,
     });
   } catch (error: unknown) {
     if (error instanceof UnauthorizedError) {

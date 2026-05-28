@@ -1,37 +1,29 @@
 import { NextResponse, NextRequest } from "next/server";
-import { requireAuth } from "@/lib/insforge-server";
-import { ExtractorService } from "@/lib/services/ExtractorService";
-import { ParserService } from "@/lib/services/ParserService";
+import { withAuth, UnauthorizedError } from "@/lib/auth-helpers";
 import { prisma } from "@/lib/db";
-
-const parser = new ParserService();
+import {
+  runResumePipeline,
+  deleteUserResume,
+} from "@/pipeline/resume-pipeline";
+import { getOrCreateCandidate } from "@/services/profile/profile.service";
 
 export async function GET() {
   try {
-    const { user } = await requireAuth();
-
-    if (!user?.email) return NextResponse.json({ error: "No user email found" }, { status: 401 });
-
-    const dbUser = await prisma.user.findUnique({
-      where: { email: user.email }
-    });
-
-    if (!dbUser) {
-      return NextResponse.json({ data: null });
-    }
+    const { dbUser } = await withAuth();
 
     const resume = await prisma.resumeVersion.findFirst({
       where: { userId: dbUser.id },
-      orderBy: { createdAt: "desc" }
+      orderBy: { createdAt: "desc" },
     });
 
     if (!resume) return NextResponse.json({ data: null });
 
-    const parsed = resume.parsedContent ? (JSON.parse(resume.parsedContent) as Record<string, unknown>) : null;
+    const parsed = resume.parsedContent
+      ? (JSON.parse(resume.parsedContent) as Record<string, unknown>)
+      : null;
     if (parsed && !Array.isArray(parsed.projects)) {
       parsed.projects = [];
     }
-    console.log("[GET /api/resume] Returning parsed — projects count:", (Array.isArray(parsed?.projects) ? parsed.projects.length : 0));
 
     return NextResponse.json({
       data: {
@@ -40,103 +32,75 @@ export async function GET() {
         uploadedAt: resume.createdAt.toISOString(),
         parsed,
         atsScore: resume.atsScore,
-        scoreBreakdown: resume.scoreBreakdown ? JSON.parse(resume.scoreBreakdown) : null,
-        improvements: resume.improvements ? JSON.parse(resume.improvements) : []
-      }
+        scoreBreakdown: resume.scoreBreakdown
+          ? JSON.parse(resume.scoreBreakdown)
+          : null,
+        improvements: resume.improvements
+          ? JSON.parse(resume.improvements)
+          : [],
+      },
     });
-
   } catch (e) {
+    if (e instanceof UnauthorizedError) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     console.error("GET /api/resume error:", e);
-    return NextResponse.json({ error: "Unauthorized or server error" }, { status: 500 });
+    const message = e instanceof Error ? e.message : "Server error";
+    const isTimeout =
+      message.includes("timeout") || message.includes("P1008");
+    return NextResponse.json(
+      { error: isTimeout ? "Database connection timed out" : message },
+      { status: isTimeout ? 503 : 500 }
+    );
   }
 }
 
 export async function POST(req: NextRequest) {
   try {
-    const { user } = await requireAuth();
+    const { dbUser } = await withAuth();
 
-    if (!user?.email) return NextResponse.json({ error: "No user email found in session" }, { status: 401 });
-
-    const dbUser = await prisma.user.findUnique({
-      where: { email: user.email }
-    });
-
-    if (!dbUser) {
-      return NextResponse.json({ error: "User profile not fully synced in DB. Please sign in again or set up profile." }, { status: 400 });
-    }
-
-    // Check if formData
     if (!req.headers.get("content-type")?.includes("multipart/form-data")) {
-      return NextResponse.json({ error: "Must be multipart/form-data" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Must be multipart/form-data" },
+        { status: 400 }
+      );
     }
 
     const formData = await req.formData();
     const file = formData.get("resume") as File;
     if (!file) {
-      return NextResponse.json({ error: "Missing resume file" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Missing resume file" },
+        { status: 400 }
+      );
     }
 
-    // 1. Extract text
+    const candidate = await getOrCreateCandidate(dbUser.email);
     const buffer = Buffer.from(await file.arrayBuffer());
-    console.log("[POST /api/resume] Processing file:", file.name, "size:", buffer.length, "type:", file.type);
-    const rawText = await ExtractorService.extract(buffer, file.type);
-    console.log("[POST /api/resume] After ExtractorService.extract — rawText.length:", rawText.length);
 
-    // 2. Parse with AI
-    const parsed = await parser.parse(rawText);
-    console.log("[POST /api/resume] After parser.parse — projects count:", parsed.projects?.length ?? 0, "projects:", parsed.projects);
-
-    // 3. Generate Improvements
-    const improvements = await parser.generateImprovements(parsed);
-
-    // 4. Generate Mock Score
-    const atsScore = Math.floor(Math.random() * 20) + 70; // 70-90
-    const scoreBreakdown = {
-      keywordMatch: atsScore + 5,
-      formatting: atsScore - 10,
-      experienceMatch: atsScore + 10,
-      skillsAlignment: atsScore - 5
-    };
-
-    // 5. Deactivate old
-    await prisma.resumeVersion.updateMany({
-      where: { userId: dbUser.id, status: "ACTIVE" },
-      data: { status: "DRAFT" }
+    const result = await runResumePipeline({
+      userId: dbUser.id,
+      candidateId: candidate.id,
+      fileName: file.name,
+      buffer,
+      mimeType: file.type || "application/pdf",
     });
-
-    console.log("INSERTING RESUME FOR DB_USER:", dbUser.id, " EMAIL:", dbUser.email);
-    const usersCount = await prisma.user.count({ where: { id: dbUser.id } });
-    console.log("DOES USER ACTUALLY EXIST IN PRISMA? Count:", usersCount);
-
-    // 6. Save new (full parsed object including projects)
-    const parsedContentStr = JSON.stringify(parsed);
-    const newVersion = await prisma.resumeVersion.create({
-      data: {
-        userId: dbUser.id,
-        title: file.name,
-        fileUrl: "/uploads/" + file.name,
-        status: "ACTIVE",
-        atsScore: atsScore,
-        parsedContent: parsedContentStr,
-        scoreBreakdown: JSON.stringify(scoreBreakdown),
-        improvements: JSON.stringify(improvements)
-      }
-    });
-    console.log("[POST /api/resume] DB insert — parsedContent length:", parsedContentStr.length, "hasProjects:", (parsed as { projects?: unknown[] }).projects?.length ?? 0);
 
     return NextResponse.json({
       data: {
-        resumeId: newVersion.id,
-        fileName: file.name,
-        uploadedAt: newVersion.createdAt.toISOString(),
-        parsed,
-        atsScore,
-        scoreBreakdown,
-        improvements
-      }
+        resumeId: result.resumeId,
+        fileName: result.fileName,
+        uploadedAt: result.uploadedAt,
+        parsed: result.parsed,
+        atsScore: result.atsScore,
+        scoreBreakdown: result.scoreBreakdown,
+        improvements: result.improvements,
+      },
     });
-
   } catch (e: unknown) {
+    if (e instanceof UnauthorizedError) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     console.error("Upload error:", e);
     return NextResponse.json(
       { error: e instanceof Error ? e.message : "Upload failed" },
@@ -147,33 +111,13 @@ export async function POST(req: NextRequest) {
 
 export async function DELETE() {
   try {
-    const { user } = await requireAuth();
-    if (!user?.email) {
-      return NextResponse.json({ error: "No user email found" }, { status: 401 });
-    }
-
-    const dbUser = await prisma.user.findUnique({
-      where: { email: user.email },
-    });
-    if (!dbUser) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
-    }
-
-    const resume = await prisma.resumeVersion.findFirst({
-      where: { userId: dbUser.id },
-      orderBy: { createdAt: "desc" },
-    });
-
-    if (!resume) {
-      return NextResponse.json({ error: "No resume found" }, { status: 404 });
-    }
-
-    await prisma.resumeVersion.delete({
-      where: { id: resume.id },
-    });
-
+    const { dbUser } = await withAuth();
+    await deleteUserResume(dbUser.id);
     return NextResponse.json({ message: "Resume deleted successfully" });
   } catch (e) {
+    if (e instanceof UnauthorizedError) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     console.error("DELETE /api/resume error:", e);
     return NextResponse.json(
       { error: e instanceof Error ? e.message : "Delete failed" },

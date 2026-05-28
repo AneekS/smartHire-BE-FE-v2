@@ -18,7 +18,8 @@ export async function POST(req: AuthenticatedRequest) {
       const activity = await trackRecruiterActivity(
         application_id,
         activity_type,
-        metadata
+        metadata,
+        authedReq.user!.id
       );
 
       return NextResponse.json({ activity }, { status: 201 });

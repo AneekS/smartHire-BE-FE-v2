@@ -1,11 +1,13 @@
 TRUNCATE TABLE job_listings CASCADE;
 
 INSERT INTO job_listings
-  (job_title, company_name, location, job_type, experience_level,
+  (id, job_title, company_name, location, job_type, experience_level,
    salary_range, tech_stack, category, is_featured,
-   job_description, requirements, responsibilities, nice_to_have)
+   job_description, requirements, responsibilities, nice_to_have,
+   is_active, "createdAt", "updatedAt")
 VALUES
 (
+  gen_random_uuid()::text,
   'Senior Frontend Engineer',
   'Vercel',
   'Remote (Global)',
@@ -36,9 +38,13 @@ VALUES
   'Nice to have:
 - Experience with Rust or WebAssembly
 - Open source contributions
-- Experience with edge computing and CDN architecture'
+- Experience with edge computing and CDN architecture',
+  true,
+  NOW(),
+  NOW()
 ),
 (
+  gen_random_uuid()::text,
   'React Native Engineer',
   'Airbnb',
   'San Francisco, CA (Hybrid)',
@@ -69,9 +75,13 @@ VALUES
   'Nice to have:
 - Native iOS (Swift) or Android (Kotlin) experience
 - Experience with Expo
-- Animation expertise (Reanimated, Skia)'
+- Animation expertise (Reanimated, Skia)',
+  true,
+  NOW(),
+  NOW()
 ),
 (
+  gen_random_uuid()::text,
   'Senior Backend Engineer (Node.js)',
   'Stripe',
   'Remote (US)',
@@ -102,9 +112,13 @@ VALUES
   'Nice to have:
 - Experience with Go or Rust
 - Financial industry background
-- Experience with PCI-DSS compliance'
+- Experience with PCI-DSS compliance',
+  true,
+  NOW(),
+  NOW()
 ),
 (
+  gen_random_uuid()::text,
   'Python Backend Engineer',
   'OpenAI',
   'San Francisco, CA (On-site)',
@@ -134,9 +148,13 @@ VALUES
   'Nice to have:
 - ML/AI infrastructure experience
 - PyTorch or TensorFlow knowledge
-- Experience with vector databases'
+- Experience with vector databases',
+  true,
+  NOW(),
+  NOW()
 ),
 (
+  gen_random_uuid()::text,
   'Full Stack Engineer',
   'Linear',
   'Remote (Global)',
@@ -167,9 +185,13 @@ VALUES
   'Nice to have:
 - Experience with Electron or desktop app development
 - Real-time collaboration features experience
-- Design sensibility and Figma proficiency'
+- Design sensibility and Figma proficiency',
+  true,
+  NOW(),
+  NOW()
 ),
 (
+  gen_random_uuid()::text,
   'Full Stack Engineer (Next.js + Hono)',
   'Cloudflare',
   'Remote (US/EU)',
@@ -199,9 +221,13 @@ VALUES
   'Nice to have:
 - Experience with Wrangler CLI
 - WebSockets and Durable Objects experience
-- Open source contributions'
+- Open source contributions',
+  true,
+  NOW(),
+  NOW()
 ),
 (
+  gen_random_uuid()::text,
   'Senior DevOps Engineer',
   'Datadog',
   'New York, NY (Hybrid)',
@@ -233,9 +259,13 @@ VALUES
   'Nice to have:
 - Service mesh experience (Istio, Linkerd)
 - eBPF and kernel-level networking
-- Rust systems programming'
+- Rust systems programming',
+  true,
+  NOW(),
+  NOW()
 ),
 (
+  gen_random_uuid()::text,
   'Cloud Infrastructure Engineer',
   'AWS',
   'Seattle, WA (Hybrid)',
@@ -266,9 +296,13 @@ VALUES
   'Nice to have:
 - AWS certifications (Solutions Architect Professional)
 - Experience with networking hardware
-- Background in bare-metal infrastructure'
+- Background in bare-metal infrastructure',
+  true,
+  NOW(),
+  NOW()
 ),
 (
+  gen_random_uuid()::text,
   'Machine Learning Engineer',
   'Google DeepMind',
   'London, UK / Remote',
@@ -300,9 +334,13 @@ VALUES
   'Nice to have:
 - Research publications in top ML conferences
 - RLHF and alignment techniques experience
-- Experience with TPUs'
+- Experience with TPUs',
+  true,
+  NOW(),
+  NOW()
 ),
 (
+  gen_random_uuid()::text,
   'Data Engineer',
   'Databricks',
   'Amsterdam, NL (Hybrid)',
@@ -334,9 +372,13 @@ VALUES
   'Nice to have:
 - Scala or Java for Spark development
 - Experience with Databricks platform specifically
-- Real-time streaming architecture experience'
+- Real-time streaming architecture experience',
+  true,
+  NOW(),
+  NOW()
 ),
 (
+  gen_random_uuid()::text,
   'Data Scientist',
   'Netflix',
   'Los Gatos, CA (Hybrid)',
@@ -368,9 +410,13 @@ VALUES
   'Nice to have:
 - Causal inference and observational study experience
 - Reinforcement learning for recommendation systems
-- Experience with streaming data at scale'
+- Experience with streaming data at scale',
+  true,
+  NOW(),
+  NOW()
 ),
 (
+  gen_random_uuid()::text,
   'Security Engineer',
   'Cloudflare',
   'Remote (Global)',
@@ -402,9 +448,13 @@ VALUES
   'Nice to have:
 - Bug bounty experience
 - Rust systems programming
-- Research publications in security conferences'
+- Research publications in security conferences',
+  true,
+  NOW(),
+  NOW()
 ),
 (
+  gen_random_uuid()::text,
   'iOS Engineer (Swift)',
   'Spotify',
   'Stockholm, Sweden (Hybrid)',
@@ -436,9 +486,13 @@ VALUES
   'Nice to have:
 - Audio processing and DSP knowledge
 - CarPlay development experience
-- Apple Watch app development'
+- Apple Watch app development',
+  true,
+  NOW(),
+  NOW()
 ),
 (
+  gen_random_uuid()::text,
   'AI Engineer (LLM Applications)',
   'Anthropic',
   'San Francisco, CA',
@@ -470,9 +524,13 @@ VALUES
   'Nice to have:
 - Published AI safety research
 - Experience with fine-tuning LLMs
-- RLHF implementation experience'
+- RLHF implementation experience',
+  true,
+  NOW(),
+  NOW()
 ),
 (
+  gen_random_uuid()::text,
   'MLOps Engineer',
   'Hugging Face',
   'Remote (Global)',
@@ -504,9 +562,13 @@ VALUES
   'Nice to have:
 - Experience with Hugging Face Transformers
 - Custom CUDA kernel development
-- Open source contributions to ML projects'
+- Open source contributions to ML projects',
+  true,
+  NOW(),
+  NOW()
 ),
 (
+  gen_random_uuid()::text,
   'Blockchain Engineer (Solidity)',
   'Coinbase',
   'Remote (US)',
@@ -538,9 +600,13 @@ VALUES
   'Nice to have:
 - Layer 2 development experience (Optimism, Arbitrum)
 - Formal verification tools (Certora, Slither)
-- ZK-proof systems knowledge'
+- ZK-proof systems knowledge',
+  true,
+  NOW(),
+  NOW()
 ),
 (
+  gen_random_uuid()::text,
   'Senior QA / SDET Engineer',
   'Microsoft',
   'Redmond, WA (Hybrid)',
@@ -572,9 +638,13 @@ VALUES
   'Nice to have:
 - Azure certifications
 - Experience with chaos engineering
-- Security testing knowledge'
+- Security testing knowledge',
+  true,
+  NOW(),
+  NOW()
 ),
 (
+  gen_random_uuid()::text,
   'Staff Engineer (Platform)',
   'Figma',
   'San Francisco, CA (Hybrid)',
@@ -606,9 +676,13 @@ VALUES
   'Nice to have:
 - Experience with real-time collaborative editing (CRDTs, OT)
 - WebGL or GPU programming
-- Open source leadership'
+- Open source leadership',
+  true,
+  NOW(),
+  NOW()
 ),
 (
+  gen_random_uuid()::text,
   'Backend Engineer (Go)',
   'GitHub',
   'Remote (Global)',
@@ -640,9 +714,13 @@ VALUES
   'Nice to have:
 - Ruby on Rails experience (existing codebase)
 - Experience building developer tools
-- Open source project maintainer experience'
+- Open source project maintainer experience',
+  true,
+  NOW(),
+  NOW()
 ),
 (
+  gen_random_uuid()::text,
   'Site Reliability Engineer',
   'PagerDuty',
   'Remote (US/CA)',
@@ -674,9 +752,13 @@ VALUES
   'Nice to have:
 - Chaos engineering experience (Chaos Monkey, Litmus)
 - eBPF performance tooling
-- Incident command system (ICS) training'
+- Incident command system (ICS) training',
+  true,
+  NOW(),
+  NOW()
 ),
 (
+  gen_random_uuid()::text,
   'Developer Advocate / Technical Writer',
   'HashiCorp',
   'Remote (Global)',
@@ -708,9 +790,13 @@ VALUES
   'Nice to have:
 - Existing developer community following
 - HashiCorp certifications
-- Experience with Vault, Consul, or Nomad'
+- Experience with Vault, Consul, or Nomad',
+  true,
+  NOW(),
+  NOW()
 ),
 (
+  gen_random_uuid()::text,
   'Software Engineer II (Java)',
   'Amazon',
   'Austin, TX (Hybrid)',
@@ -732,9 +818,13 @@ VALUES
 - Improve reliability, latency, and cost efficiency
 - Participate in operational reviews and on-call',
   'Nice to have:
-- Experience with high-traffic e-commerce or logistics systems'
+- Experience with high-traffic e-commerce or logistics systems',
+  true,
+  NOW(),
+  NOW()
 ),
 (
+  gen_random_uuid()::text,
   'Android Engineer (Kotlin)',
   'Uber',
   'Sunnyvale, CA (Hybrid)',
@@ -756,9 +846,13 @@ VALUES
 - Improve app performance and crash rates
 - Collaborate with iOS and backend teams',
   'Nice to have:
-- Experience with maps and location-heavy apps'
+- Experience with maps and location-heavy apps',
+  true,
+  NOW(),
+  NOW()
 ),
 (
+  gen_random_uuid()::text,
   'Product Engineer',
   'Notion',
   'San Francisco, CA (Hybrid)',
@@ -779,9 +873,13 @@ VALUES
 - Instrument and iterate based on usage data
 - Maintain high code quality through reviews and tests',
   'Nice to have:
-- Electron or desktop app experience'
+- Electron or desktop app experience',
+  true,
+  NOW(),
+  NOW()
 ),
 (
+  gen_random_uuid()::text,
   'Engineering Manager (Infrastructure)',
   'Atlassian',
   'Remote (US)',
@@ -802,5 +900,8 @@ VALUES
 - Partner with product on roadmap and technical strategy
 - Drive SLOs, incident response, and platform investments',
   'Nice to have:
-- Experience with multi-tenant SaaS at scale'
+- Experience with multi-tenant SaaS at scale',
+  true,
+  NOW(),
+  NOW()
 );

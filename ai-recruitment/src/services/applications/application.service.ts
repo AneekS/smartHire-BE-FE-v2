@@ -17,6 +17,54 @@ import {
 } from "@/repositories/applications/application.repository";
 import { prisma } from "@/lib/db";
 
+// ─── Recruiter decision capture ───────────────────────────────────────────
+
+async function captureDecisionFromApplication(
+  applicationId: string,
+  decision: "SHORTLISTED" | "REJECTED" | "HIRED" | "PASSED_TO_INTERVIEW",
+  recruiterId: string,
+  metadata?: Record<string, unknown>
+) {
+  try {
+    const { RecruiterDecisionService } = await import("@/feedback/decisions");
+    const application = await findApplicationById(applicationId);
+    if (!application) return;
+
+    const resumeId =
+      (metadata?.resume_id as string | undefined) ??
+      (await RecruiterDecisionService.findCandidateResumeId(application.candidateId));
+    if (!resumeId) return;
+
+    const companyId = await RecruiterDecisionService.getRecruiterCompanyId(recruiterId);
+    const tenantId = RecruiterDecisionService.resolveTenantId(companyId);
+
+    await RecruiterDecisionService.recordDecision({
+      resumeId,
+      jobId: application.jobId,
+      jobSource: "LEGACY_JOB",
+      tenantId,
+      decision,
+      recruiterId,
+      candidateId: application.candidateId,
+      atsScoreAtDecision: application.aiScore ?? undefined,
+      roleType: (metadata?.role_type as string | undefined) ?? "IC",
+      decisionReason: metadata?.reason as string | undefined,
+      scoreBreakdown: metadata?.score_breakdown,
+    });
+  } catch (e) {
+    console.warn("[application] decision capture failed:", e);
+  }
+}
+
+const STATUS_TO_DECISION: Partial<
+  Record<ApplicationStatus, "SHORTLISTED" | "REJECTED" | "HIRED" | "PASSED_TO_INTERVIEW">
+> = {
+  SHORTLISTED: "SHORTLISTED",
+  REJECTED: "REJECTED",
+  HIRED: "HIRED",
+  INTERVIEW_SCHEDULED: "PASSED_TO_INTERVIEW",
+};
+
 // ─── Constants ───────────────────────────────────────────────────────────
 
 const STATUS_ORDER: ApplicationStatus[] = [
@@ -160,6 +208,16 @@ export async function changeApplicationStatus(
     metadata
   );
 
+  const mappedDecision = STATUS_TO_DECISION[newStatus];
+  if (mappedDecision && updatedBy !== "SYSTEM") {
+    await captureDecisionFromApplication(
+      applicationId,
+      mappedDecision,
+      updatedBy,
+      metadata
+    );
+  }
+
   // Update analytics counters based on status
   await updateAnalyticsForStatusChange(application.candidateId, newStatus);
 
@@ -218,7 +276,8 @@ export async function addNote(
 export async function trackRecruiterActivity(
   applicationId: string,
   activityType: RecruiterActivityType,
-  metadata?: Record<string, unknown>
+  metadata?: Record<string, unknown>,
+  recruiterUserId?: string
 ) {
   const activity = await createRecruiterActivity(applicationId, activityType, metadata);
 
@@ -238,6 +297,23 @@ export async function trackRecruiterActivity(
       if (allowed.includes(targetStatus)) {
         await updateApplicationStatus(applicationId, targetStatus, "SYSTEM");
       }
+    }
+
+    const activityDecisionMap: Partial<
+      Record<RecruiterActivityType, "SHORTLISTED" | "REJECTED" | "PASSED_TO_INTERVIEW">
+    > = {
+      SHORTLISTED: "SHORTLISTED",
+      REJECTED: "REJECTED",
+      INTERVIEW_SCHEDULED: "PASSED_TO_INTERVIEW",
+    };
+    const activityDecision = activityDecisionMap[activityType];
+    if (activityDecision && recruiterUserId) {
+      await captureDecisionFromApplication(
+        applicationId,
+        activityDecision,
+        recruiterUserId,
+        metadata
+      );
     }
 
     // Update analytics for recruiter views

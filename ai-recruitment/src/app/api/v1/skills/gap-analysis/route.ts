@@ -1,9 +1,11 @@
 import { NextRequest } from "next/server";
-import { insforge } from "@/lib/insforge";
+import OpenAI from "openai";
 import { prisma } from "@/lib/db";
 import { ok, err } from "@/lib/api-response";
 import { UnauthorizedError, withAuth } from "@/lib/auth-helpers";
 import { buildSkillGapPrompt } from "@/lib/prompts/skillGapPrompt";
+
+const openai = new OpenAI();
 
 type ExperienceLevel = "entry" | "mid" | "senior" | "staff";
 
@@ -14,10 +16,6 @@ function inferRoleFromParsed(parsed: Record<string, unknown>): string {
   const first = exp[0];
   const title = first?.title ?? first?.role;
   if (typeof title === "string" && title.trim()) return title.trim();
-  const summary = parsed.summary;
-  if (typeof summary === "string" && summary.trim().length > 10) {
-    return "Software Engineer";
-  }
   return "Software Engineer";
 }
 
@@ -144,10 +142,7 @@ export async function POST(req: NextRequest) {
 
     if (source === "resume") {
       if (!latestResume?.parsedContent) {
-        return err(
-          "Please upload and parse a resume first",
-          400
-        );
+        return err("Please upload and parse a resume first", 400);
       }
     }
 
@@ -159,39 +154,17 @@ export async function POST(req: NextRequest) {
     let experienceForPrompt: string = experienceLevel;
 
     if (jobListingId) {
-      const { data: listing, error: listingErr } = await insforge.database
-        .from("job_listings")
-        .select(
-          "id, job_title, company_name, experience_level, job_description, requirements, responsibilities, tech_stack"
-        )
-        .eq("id", jobListingId)
-        .eq("is_active", true)
-        .maybeSingle();
+      const listing = await prisma.jobListing.findFirst({
+        where: { id: jobListingId, isActive: true },
+      });
 
-      if (listingErr) return err(listingErr.message, 500);
       if (!listing) return err("Job listing not found", 404);
 
-      const L = listing as {
-        job_title: string;
-        company_name: string;
-        experience_level: string | null;
-        job_description: string;
-        requirements: string;
-        responsibilities: string;
-        tech_stack: string[] | null;
-      };
-
-      jobTitle = L.job_title;
-      companyName = L.company_name ?? "";
-      jobDescription = L.job_description;
-      requirements = L.requirements;
-      responsibilities = L.responsibilities;
-      if (L.experience_level?.trim()) {
-        experienceForPrompt = L.experience_level.trim();
-      }
-      if (Array.isArray(L.tech_stack) && L.tech_stack.length > 0) {
-        jobDescription += `\n\nTECH STACK (from posting): ${L.tech_stack.join(", ")}`;
-      }
+      jobTitle = listing.title;
+      companyName = "";
+      jobDescription = listing.description ?? "";
+      requirements = "";
+      responsibilities = "";
       if (source !== "resume") {
         source = "job_listing";
       }
@@ -211,49 +184,45 @@ Describe realistic day-to-day scope and context for this title at this level.`;
       responsibilities = `List concrete responsibilities typical for a ${jobTitle} at ${experienceLevel} level.`;
     }
 
-    const cacheWindow = new Date(
-      Date.now() - 12 * 60 * 60 * 1000
-    ).toISOString();
+    const candidate = await prisma.candidate.findUnique({
+      where: { userId: dbUser.id },
+      select: { id: true },
+    });
 
-    let cacheQuery = insforge.database
-      .from("skill_gaps")
-      .select("id, analysis, created_at, job_title")
-      .eq("candidate_id", dbUser.id)
-      .gte("created_at", cacheWindow)
-      .order("created_at", { ascending: false })
-      .limit(1);
+    // Cache: check for recent analysis within 12h window
+    if (jobListingId && candidate) {
+      const cacheWindow = new Date(Date.now() - 12 * 60 * 60 * 1000);
 
-    if (jobListingId) {
-      cacheQuery = cacheQuery.eq("job_listing_id", jobListingId);
-    } else {
-      cacheQuery = cacheQuery
-        .eq("target_role", jobTitle)
-        .eq("experience_level", experienceLevel);
-      cacheQuery = cacheQuery.is("job_listing_id", null);
-    }
-
-    const { data: cachedRow } = await cacheQuery.maybeSingle();
-
-    const cachedAnalysis = cachedRow?.analysis as
-      | Record<string, unknown>
-      | null
-      | undefined;
-    if (
-      cachedRow &&
-      cachedAnalysis &&
-      typeof cachedAnalysis === "object" &&
-      typeof cachedAnalysis.roleMatchScore === "number"
-    ) {
-      console.log("[skill-gap] Cache hit");
-      return ok({
-        ...cachedAnalysis,
-        cached: true,
-        cachedAt: cachedRow.created_at,
-        analysisId: cachedRow.id,
-        resumeFileName: latestResume?.title ?? null,
-        jobTitle,
-        companyName,
+      const cachedRow = await prisma.jobListingSkillGap.findFirst({
+        where: {
+          candidateId: candidate.id,
+          listingId: jobListingId,
+          createdAt: { gte: cacheWindow },
+        },
+        orderBy: { createdAt: "desc" },
       });
+
+      const cachedAnalysis = cachedRow?.gaps as
+        | Record<string, unknown>
+        | null
+        | undefined;
+      if (
+        cachedRow &&
+        cachedAnalysis &&
+        typeof cachedAnalysis === "object" &&
+        typeof cachedAnalysis.roleMatchScore === "number"
+      ) {
+        console.log("[skill-gap] Cache hit");
+        return ok({
+          ...cachedAnalysis,
+          cached: true,
+          cachedAt: cachedRow.createdAt,
+          analysisId: cachedRow.id,
+          resumeFileName: latestResume?.title ?? null,
+          jobTitle,
+          companyName,
+        });
+      }
     }
 
     const prompt = buildSkillGapPrompt(
@@ -267,12 +236,12 @@ Describe realistic day-to-day scope and context for this title at this level.`;
       experienceForPrompt
     );
 
-    console.log("[skill-gap] Calling openai/gpt-4o-mini via InsForge...");
+    console.log("[skill-gap] Calling gpt-4o-mini via OpenAI...");
 
-    const completion = await insforge.ai.chat.completions.create({
-      model: "openai/gpt-4o-mini",
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
       temperature: 0.15,
-      maxTokens: 4500,
+      max_tokens: 4500,
       messages: [
         {
           role: "system",
@@ -370,38 +339,27 @@ Zero markdown. Zero code fences.`,
       learningRoadmap: safeRoadmap,
     };
 
-    const insertPayload: Record<string, unknown> = {
-      candidate_id: dbUser.id,
-      job_listing_id: jobListingId,
-      job_title: jobTitle,
-      company_name: companyName || null,
-      target_role: jobTitle,
-      experience_level: experienceLevel,
-      source,
-      analysis: normalized,
-      resume_snapshot: {
-        resumeId: latestResume?.id,
-        fileName: latestResume?.title,
-        skillCount,
-      },
-      readiness_score: Number(analysis.roleMatchScore),
-      missing_skills: normalized.criticalGaps ?? [],
-    };
-
-    const { data: saved, error: saveErr } = await insforge.database
-      .from("skill_gaps")
-      .insert(insertPayload)
-      .select("id")
-      .single();
-
-    if (saveErr) {
-      console.error("[skill-gap] Save error (non-blocking):", saveErr);
+    let savedId: string | undefined;
+    if (candidate && jobListingId) {
+      try {
+        const saved = await prisma.jobListingSkillGap.create({
+          data: {
+            candidateId: candidate.id,
+            listingId: jobListingId,
+            gaps: JSON.parse(JSON.stringify(normalized)),
+          },
+          select: { id: true },
+        });
+        savedId = saved.id;
+      } catch (saveErr) {
+        console.error("[skill-gap] Save error (non-blocking):", saveErr);
+      }
     }
 
     return ok({
       ...normalized,
       cached: false,
-      analysisId: saved?.id,
+      analysisId: savedId,
       resumeFileName: latestResume?.title ?? null,
       jobTitle,
       companyName,
@@ -422,22 +380,34 @@ export async function GET(req: NextRequest) {
     const { dbUser } = await withAuth(req);
     const jobListingId = new URL(req.url).searchParams.get("job_listing_id");
 
-    let query = insforge.database
-      .from("skill_gaps")
-      .select(
-        "id, job_title, company_name, target_role, experience_level, created_at, job_listing_id"
-      )
-      .eq("candidate_id", dbUser.id)
-      .order("created_at", { ascending: false })
-      .limit(20);
+    const candidate = await prisma.candidate.findUnique({
+      where: { userId: dbUser.id },
+      select: { id: true },
+    });
+    if (!candidate) return err("Candidate profile not found", 404);
 
+    const where: { candidateId: string; listingId?: string } = {
+      candidateId: candidate.id,
+    };
     if (jobListingId?.trim()) {
-      query = query.eq("job_listing_id", jobListingId.trim());
+      where.listingId = jobListingId.trim();
     }
 
-    const { data, error } = await query;
-    if (error) return err(error.message, 500);
-    return ok(data ?? []);
+    const rows = await prisma.jobListingSkillGap.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+      take: 20,
+      include: { listing: { select: { title: true } } },
+    });
+
+    const mapped = rows.map((row) => ({
+      id: row.id,
+      jobTitle: row.listing.title,
+      jobListingId: row.listingId,
+      createdAt: row.createdAt,
+    }));
+
+    return ok(mapped);
   } catch (error: unknown) {
     if (error instanceof UnauthorizedError) {
       return err(error.message, 401);

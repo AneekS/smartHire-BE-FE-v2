@@ -1,0 +1,73 @@
+{
+  "personalInfo": {
+    "name": "Finley Robinson",
+    "email": "finley.robinson@email.com",
+    "phone": null,
+    "location": "San Francisco, CA",
+    "linkedIn": null,
+    "github": null,
+    "portfolio": null
+  },
+  "summary": "Registered Nurse with 8 years of experience in healthcare roles.",
+  "industryDomain": "HEALTHCARE",
+  "seniorityBand": "L5",
+  "yearsOfExperience": 8,
+  "skills": [
+    {
+      "name": "Patient Care",
+      "domain": "BACKEND",
+      "proficiencyLevel": 4
+    },
+    {
+      "name": "Epic EMR",
+      "domain": "BACKEND",
+      "proficiencyLevel": 4
+    },
+    {
+      "name": "Clinical Protocols",
+      "domain": "BACKEND",
+      "proficiencyLevel": 4
+    }
+  ],
+  "experience": [
+    {
+      "company": "Kaiser",
+      "title": "Registered Nurse",
+      "startDate": "2016-03",
+      "endDate": null,
+      "isCurrent": true,
+      "durationMonths": 96,
+      "responsibilities": [
+        "Led key initiatives",
+        "Collaborated cross-functionally"
+      ],
+      "achievements": [
+        "Improved systems serving 500k users"
+      ],
+      "techStack": [
+        "Patient Care",
+        "Epic EMR",
+        "Clinical Protocols"
+      ]
+    }
+  ],
+  "education": [
+    {
+      "institution": "MIT",
+      "degree": "BS",
+      "field": "Nursing",
+      "startYear": 2014,
+      "endYear": 2018,
+      "gpa": 3.7
+    }
+  ],
+  "projects": [],
+  "certifications": [
+    {
+      "name": "RN License",
+      "issuer": "State Board",
+      "year": 2020
+    }
+  ],
+  "achievements": []
+}

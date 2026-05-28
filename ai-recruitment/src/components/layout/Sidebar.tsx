@@ -15,6 +15,7 @@ import {
   Target as TargetIcon,
   Bell,
 } from "lucide-react";
+import { UserButton } from "@clerk/nextjs";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -65,6 +66,7 @@ export function Sidebar() {
           <Link
             key={item.href}
             href={item.href}
+            prefetch={false}
             className={cn(
               "flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium transition-all",
               pathname === item.href || pathname.startsWith(item.href + "/")
@@ -92,14 +94,17 @@ export function Sidebar() {
               </p>
             </div>
           </div>
-          <Link href="/profile">
-            <Button
-              variant="outline"
-              className="w-full py-2 text-xs font-semibold rounded-lg"
-            >
-              View Profile
-            </Button>
-          </Link>
+          <div className="flex items-center gap-2">
+            <Link href="/profile" className="flex-1">
+              <Button
+                variant="outline"
+                className="w-full py-2 text-xs font-semibold rounded-lg"
+              >
+                View Profile
+              </Button>
+            </Link>
+            <UserButton />
+          </div>
         </div>
       </div>
     </aside>

@@ -1,0 +1,72 @@
+{
+  "personalInfo": {
+    "name": "Taylor Nguyen",
+    "email": "taylor.nguyen@email.com",
+    "phone": null,
+    "location": "San Francisco, CA",
+    "linkedIn": null,
+    "github": null,
+    "portfolio": null
+  },
+  "summary": "Software Engineer with 6 years of experience in tech roles.",
+  "industryDomain": "TECH",
+  "seniorityBand": "L4",
+  "yearsOfExperience": 6,
+  "skills": [
+    {
+      "name": "TypeScript",
+      "domain": "BACKEND",
+      "proficiencyLevel": 4
+    },
+    {
+      "name": "Node.js",
+      "domain": "BACKEND",
+      "proficiencyLevel": 4
+    },
+    {
+      "name": "PostgreSQL",
+      "domain": "BACKEND",
+      "proficiencyLevel": 4
+    },
+    {
+      "name": "AWS",
+      "domain": "BACKEND",
+      "proficiencyLevel": 4
+    }
+  ],
+  "experience": [
+    {
+      "company": "Amazon",
+      "title": "Software Engineer",
+      "startDate": "2018-03",
+      "endDate": null,
+      "isCurrent": true,
+      "durationMonths": 72,
+      "responsibilities": [
+        "Led key initiatives",
+        "Collaborated cross-functionally"
+      ],
+      "achievements": [
+        "Improved systems serving 400k users"
+      ],
+      "techStack": [
+        "TypeScript",
+        "Node.js",
+        "PostgreSQL"
+      ]
+    }
+  ],
+  "education": [
+    {
+      "institution": "UC Berkeley",
+      "degree": "BS",
+      "field": "Computer Science",
+      "startYear": 2014,
+      "endYear": 2018,
+      "gpa": 3.7
+    }
+  ],
+  "projects": [],
+  "certifications": [],
+  "achievements": []
+}

@@ -1,7 +1,9 @@
-import { insforge } from "@/lib/insforge";
+import OpenAI from "openai";
 import type { InterviewContext } from "./types";
 
-export const INTERVIEWER_MODEL = "anthropic/claude-sonnet-4.5";
+const openai = new OpenAI();
+
+export const INTERVIEWER_MODEL = "gpt-4o-mini";
 
 const TYPE_GUIDANCE: Record<InterviewContext["interviewType"], (role: string) => string> = {
   technical: (role) =>
@@ -66,13 +68,16 @@ RESPONSE FORMAT:
 export async function getInterviewerResponse(ctx: InterviewContext): Promise<string> {
   const system = buildInterviewerSystemPrompt(ctx);
 
-  const completion = await insforge.ai.chat.completions.create({
+  const completion = await openai.chat.completions.create({
     model: INTERVIEWER_MODEL,
     temperature: 0.7,
-    maxTokens: 500,
+    max_tokens: 500,
     messages: [
       { role: "system", content: system },
-      ...ctx.conversationHistory,
+      ...ctx.conversationHistory.map((m) => ({
+        role: m.role as "user" | "assistant",
+        content: m.content,
+      })),
     ],
   });
 

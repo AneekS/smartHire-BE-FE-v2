@@ -1,7 +1,11 @@
 import { z } from "zod";
 
 export const CandidateProfileSchema = z.object({
-  name: z.string().min(2).optional(),
+  name: z
+    .string()
+    .trim()
+    .min(2, "Name must be at least 2 characters")
+    .optional(),
   headline: z.string().optional(),
   phone: z.string().optional(),
   location: z.string().optional(),

@@ -1,10 +1,11 @@
 import { z } from "zod";
-import type { InsForgeClient } from "@insforge/sdk";
-import { insforge } from "@/lib/insforge";
+import OpenAI from "openai";
+import { prisma } from "@/lib/db";
 import { extractFirstJsonObject } from "./json";
-import type { InterviewMessageRow, InterviewSessionRow } from "./types";
 
-const FEEDBACK_MODEL = "anthropic/claude-sonnet-4.5";
+const openai = new OpenAI();
+
+const FEEDBACK_MODEL = "gpt-4o-mini";
 
 const FeedbackSchema = z.object({
   overall_score: z.number().int().min(0).max(100),
@@ -20,41 +21,29 @@ const FeedbackSchema = z.object({
 export type FeedbackReport = z.infer<typeof FeedbackSchema>;
 
 export async function generateFeedbackReport(
-  client: InsForgeClient,
   sessionId: string,
 ): Promise<FeedbackReport | null> {
-  const sessionRes = await client.database
-    .from("interview_sessions")
-    .select("*")
-    .eq("id", sessionId)
-    .maybeSingle();
+  const session = await prisma.interviewSession.findUnique({
+    where: { id: sessionId },
+  });
 
-  const session = sessionRes.data as InterviewSessionRow | null;
   if (!session) return null;
 
-  const messagesRes = await client.database
-    .from("interview_messages")
-    .select("role, content, question_number, created_at")
-    .eq("session_id", sessionId)
-    .order("created_at", { ascending: true });
-
-  const messages = (messagesRes.data ?? []) as Pick<
-    InterviewMessageRow,
-    "role" | "content" | "question_number" | "created_at"
-  >[];
+  const messages = await prisma.interviewMessage.findMany({
+    where: { sessionId },
+    orderBy: { createdAt: "asc" },
+  });
 
   if (messages.length === 0) return null;
 
   const transcript = messages
-    .map((m) =>
-      `${m.role === "interviewer" ? "Interviewer" : "Candidate"}: ${m.content}`,
+    .map(
+      (m) =>
+        `${m.role === "interviewer" ? "Interviewer" : "Candidate"}: ${m.content}`,
     )
     .join("\n\n");
 
-  const prompt = `You are an expert interview evaluator. Analyze this ${session.interview_type.replace(
-    "_",
-    " ",
-  )} interview transcript for the role of ${session.role} at ${session.difficulty} difficulty.
+  const prompt = `You are an expert interview evaluator. Analyze this interview transcript.
 
 TRANSCRIPT:
 ${transcript}
@@ -73,10 +62,10 @@ Provide a JSON evaluation with this exact structure and keys (no prose, no code 
 
   let raw: string;
   try {
-    const completion = await insforge.ai.chat.completions.create({
+    const completion = await openai.chat.completions.create({
       model: FEEDBACK_MODEL,
       temperature: 0.2,
-      maxTokens: 1500,
+      max_tokens: 1500,
       messages: [{ role: "user", content: prompt }],
     });
     raw = completion.choices[0]?.message?.content ?? "";
@@ -88,33 +77,43 @@ Provide a JSON evaluation with this exact structure and keys (no prose, no code 
   const json = extractFirstJsonObject(raw);
   const parsed = FeedbackSchema.safeParse(json);
   if (!parsed.success) {
-    console.warn("generateFeedbackReport: schema mismatch", parsed.error.issues);
+    console.warn(
+      "generateFeedbackReport: schema mismatch",
+      parsed.error.issues,
+    );
     return null;
   }
 
   const feedback = parsed.data;
 
-  await client.database
-    .from("interview_feedback")
-    .upsert(
-      {
-        session_id: sessionId,
-        overall_score: feedback.overall_score,
-        technical_score: feedback.technical_score,
-        communication_score: feedback.communication_score,
-        depth_score: feedback.depth_score,
+  await prisma.interviewFeedback.upsert({
+    where: { sessionId },
+    create: {
+      sessionId,
+      summary: JSON.stringify({
+        technicalScore: feedback.technical_score,
+        communicationScore: feedback.communication_score,
+        depthScore: feedback.depth_score,
         strengths: feedback.strengths,
         improvements: feedback.improvements,
-        recommended_resources: feedback.recommended_resources,
+        recommendedResources: feedback.recommended_resources,
         summary: feedback.summary,
-      },
-      { onConflict: "session_id" },
-    );
-
-  await client.database
-    .from("interview_sessions")
-    .update({ overall_score: feedback.overall_score })
-    .eq("id", sessionId);
+      }),
+      score: feedback.overall_score,
+    },
+    update: {
+      summary: JSON.stringify({
+        technicalScore: feedback.technical_score,
+        communicationScore: feedback.communication_score,
+        depthScore: feedback.depth_score,
+        strengths: feedback.strengths,
+        improvements: feedback.improvements,
+        recommendedResources: feedback.recommended_resources,
+        summary: feedback.summary,
+      }),
+      score: feedback.overall_score,
+    },
+  });
 
   return feedback;
 }

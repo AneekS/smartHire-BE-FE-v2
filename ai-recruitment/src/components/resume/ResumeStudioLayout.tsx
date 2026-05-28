@@ -37,6 +37,15 @@ export function ResumeStudioLayout() {
     uploadResume,
   } = useResumeStore();
 
+  const stageHint: Record<string, string> = {
+    uploading: "Uploading file to secure storage…",
+    extracting: "Reading text from your PDF…",
+    parsing: "Ollama is extracting skills and experience (often 2–5 min)…",
+    scoring: "Computing your ATS score…",
+    suggesting: "Generating improvement suggestions…",
+    done: "Almost ready…",
+  };
+
   useEffect(() => {
     loadResumeFromAPI();
   }, [loadResumeFromAPI]);
@@ -73,7 +82,15 @@ export function ResumeStudioLayout() {
             {uploadStage === "done" && <CheckCircle2 className="h-8 w-8 text-emerald-500" />}
           </div>
           <h3 className="text-xl font-bold text-gray-900 capitalize">{uploadStage}...</h3>
-          <p className="mt-2 text-sm text-gray-500">Please wait while AI analyzes your resume.</p>
+          <p className="mt-2 text-sm text-gray-500">
+            {stageHint[uploadStage] ?? "Please wait while AI analyzes your resume."}
+          </p>
+          {uploadStage === "parsing" && (
+            <p className="mt-3 text-xs text-gray-500 max-w-sm">
+              This step usually takes 2–5 minutes on a local GPU. If it runs longer than 10 minutes,
+              check the terminal where <span className="font-medium">worker:parse</span> is running for timeout errors.
+            </p>
+          )}
         </motion.div>
       </div>
     );
@@ -95,7 +112,13 @@ export function ResumeStudioLayout() {
               <div className="mb-6 mt-6 w-full rounded-xl border border-red-100 bg-red-50/80 p-4 text-center">
                 <p className="text-sm font-semibold text-red-600">Upload Failed</p>
                 <p className="mt-1.5 text-xs text-red-500">{error}</p>
-                <p className="mt-2 text-xs text-gray-500">Make sure your PDF is text-based (not a scanned image).</p>
+                <p className="mt-2 text-xs text-gray-500">
+                  {error.toLowerCase().includes("timeout")
+                    ? "Ollama took too long — keep ollama serve running, set OLLAMA_EXTRACTION_TIMEOUT_MS=600000, or try OLLAMA_EXTRACTION_MODEL=qwen3:4b. Restart npm run dev after .env changes."
+                    : error.toLowerCase().includes("worker")
+                      ? "Set ASYNC_RESUME_PIPELINE=false in .env.local for local dev (no workers needed), or run npm run worker:parse"
+                      : "Use a text-based PDF (not a scanned image) and run npm run local:resume-check"}
+                </p>
               </div>
             )}
 

@@ -1,4 +1,4 @@
-import { requireAuth } from "@/lib/insforge-server";
+import { prisma } from "@/lib/db";
 
 interface ScoreWeights {
   keywords: number;
@@ -18,25 +18,23 @@ const DEFAULT_WEIGHTS: ScoreWeights = {
 
 export class ScorerService {
   async computeBaseScore(
-    resumeId: string,
-    candidateId: string
+    resumeVersionId: string,
+    _candidateId: string
   ): Promise<number> {
-    const { client } = await requireAuth();
+    const parsedResume = await prisma.parsedResume.findUnique({
+      where: { resumeVersionId },
+    });
 
-    const { data: parsed } = await client.database
-      .from("parsed_resumes")
-      .select("*")
-      .eq("resume_id", resumeId)
-      .maybeSingle();
+    if (!parsedResume) throw new Error("Parsed resume not found");
 
-    if (!parsed) throw new Error("Parsed resume not found");
+    const parsed = parsedResume.parsedData as Record<string, unknown>;
 
     const scores = {
       skills: this.scoreSkills(parsed),
       experience: this.scoreExperience(parsed),
       education: this.scoreEducation(parsed),
       format: this.scoreFormat(parsed),
-      keywords: (parsed.quantification_score ?? 0) * 100,
+      keywords: ((parsed.quantification_score as number) ?? 0) * 100,
     };
 
     const overall = Math.round(
@@ -47,53 +45,43 @@ export class ScorerService {
         (scores.format * DEFAULT_WEIGHTS.format) / 100
     );
 
-    await client.database.from("ats_scores").insert({
-      resume_id: resumeId,
-      candidate_id: candidateId,
-      job_id: null,
-      overall_score: overall,
-      keyword_score: scores.keywords,
-      skills_score: scores.skills,
-      experience_score: scores.experience,
-      education_score: scores.education,
-      format_score: scores.format,
-      score_breakdown: scores,
+    await prisma.resumeVersion.update({
+      where: { id: resumeVersionId },
+      data: {
+        atsScore: overall,
+        scoreBreakdown: JSON.stringify(scores),
+      },
     });
-
-    await client.database
-      .from("parsed_resumes")
-      .update({ ats_base_score: overall })
-      .eq("resume_id", resumeId);
 
     return overall;
   }
 
   async computeJobScore(
-    resumeId: string,
-    candidateId: string,
+    resumeVersionId: string,
+    _candidateId: string,
     jobId: string
   ): Promise<{ score: number; matched: string[]; missing: string[] }> {
-    const { client } = await requireAuth();
-
-    const [{ data: parsed }, { data: job }] = await Promise.all([
-      client.database
-        .from("parsed_resumes")
-        .select("*")
-        .eq("resume_id", resumeId)
-        .maybeSingle(),
-      client.database.from("jobs").select("*").eq("id", jobId).maybeSingle(),
+    const [parsedResume, job] = await Promise.all([
+      prisma.parsedResume.findUnique({
+        where: { resumeVersionId },
+      }),
+      prisma.job.findUnique({
+        where: { id: jobId },
+      }),
     ]);
 
-    if (!parsed || !job) throw new Error("Resume or job not found");
+    if (!parsedResume || !job) throw new Error("Resume or job not found");
+
+    const parsed = parsedResume.parsedData as Record<string, unknown>;
 
     const candidateSkills = [
-      ...(parsed.languages ?? []),
-      ...(parsed.frameworks ?? []),
-      ...(parsed.databases ?? []),
-      ...(parsed.tools ?? []),
+      ...((parsed.languages as string[]) ?? []),
+      ...((parsed.frameworks as string[]) ?? []),
+      ...((parsed.databases as string[]) ?? []),
+      ...((parsed.tools as string[]) ?? []),
     ].map((s: string) => s.toLowerCase());
 
-    const requiredSkills = (job.required_skills ?? []).map((s: string) =>
+    const requiredSkills = (job.requiredSkills ?? []).map((s: string) =>
       s.toLowerCase()
     );
     const jobKeywords = this.extractKeywords(
@@ -108,9 +96,11 @@ export class ScorerService {
     );
     const matchedKeywords = jobKeywords.filter(
       (k: string) =>
-        (parsed.professional_summary ?? "").toLowerCase().includes(k) ||
-        (parsed.experience ?? []).some((e: { description?: string }) =>
-          (e.description ?? "").toLowerCase().includes(k)
+        ((parsed.professional_summary as string) ?? "")
+          .toLowerCase()
+          .includes(k) ||
+        ((parsed.experience as { description?: string }[]) ?? []).some(
+          (e) => (e.description ?? "").toLowerCase().includes(k)
         )
     );
 
@@ -124,21 +114,6 @@ export class ScorerService {
         : 50;
 
     const overall = Math.round(skillScore * 0.6 + keywordScore * 0.4);
-
-    await client.database
-      .from("ats_scores")
-      .delete()
-      .eq("resume_id", resumeId)
-      .eq("job_id", jobId);
-    await client.database.from("ats_scores").insert({
-      resume_id: resumeId,
-      candidate_id: candidateId,
-      job_id: jobId,
-      overall_score: overall,
-      matched_keywords: [...matchedSkills, ...matchedKeywords],
-      missing_keywords: missingSkills,
-      score_breakdown: { skillScore, keywordScore },
-    });
 
     return {
       score: overall,

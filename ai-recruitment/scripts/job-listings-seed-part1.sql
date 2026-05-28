@@ -1,11 +1,13 @@
 TRUNCATE TABLE job_listings CASCADE;
 
 INSERT INTO job_listings
-  (job_title, company_name, location, job_type, experience_level,
+  (id, job_title, company_name, location, job_type, experience_level,
    salary_range, tech_stack, category, is_featured,
-   job_description, requirements, responsibilities, nice_to_have)
+   job_description, requirements, responsibilities, nice_to_have,
+   is_active, "createdAt", "updatedAt")
 VALUES
 (
+  gen_random_uuid()::text,
   'Senior Frontend Engineer',
   'Vercel',
   'Remote (Global)',
@@ -36,9 +38,13 @@ VALUES
   'Nice to have:
 - Experience with Rust or WebAssembly
 - Open source contributions
-- Experience with edge computing and CDN architecture'
+- Experience with edge computing and CDN architecture',
+  true,
+  NOW(),
+  NOW()
 ),
 (
+  gen_random_uuid()::text,
   'React Native Engineer',
   'Airbnb',
   'San Francisco, CA (Hybrid)',
@@ -69,9 +75,13 @@ VALUES
   'Nice to have:
 - Native iOS (Swift) or Android (Kotlin) experience
 - Experience with Expo
-- Animation expertise (Reanimated, Skia)'
+- Animation expertise (Reanimated, Skia)',
+  true,
+  NOW(),
+  NOW()
 ),
 (
+  gen_random_uuid()::text,
   'Senior Backend Engineer (Node.js)',
   'Stripe',
   'Remote (US)',
@@ -102,9 +112,13 @@ VALUES
   'Nice to have:
 - Experience with Go or Rust
 - Financial industry background
-- Experience with PCI-DSS compliance'
+- Experience with PCI-DSS compliance',
+  true,
+  NOW(),
+  NOW()
 ),
 (
+  gen_random_uuid()::text,
   'Python Backend Engineer',
   'OpenAI',
   'San Francisco, CA (On-site)',
@@ -134,9 +148,13 @@ VALUES
   'Nice to have:
 - ML/AI infrastructure experience
 - PyTorch or TensorFlow knowledge
-- Experience with vector databases'
+- Experience with vector databases',
+  true,
+  NOW(),
+  NOW()
 ),
 (
+  gen_random_uuid()::text,
   'Full Stack Engineer',
   'Linear',
   'Remote (Global)',
@@ -167,9 +185,13 @@ VALUES
   'Nice to have:
 - Experience with Electron or desktop app development
 - Real-time collaboration features experience
-- Design sensibility and Figma proficiency'
+- Design sensibility and Figma proficiency',
+  true,
+  NOW(),
+  NOW()
 ),
 (
+  gen_random_uuid()::text,
   'Full Stack Engineer (Next.js + Hono)',
   'Cloudflare',
   'Remote (US/EU)',
@@ -199,9 +221,13 @@ VALUES
   'Nice to have:
 - Experience with Wrangler CLI
 - WebSockets and Durable Objects experience
-- Open source contributions'
+- Open source contributions',
+  true,
+  NOW(),
+  NOW()
 ),
 (
+  gen_random_uuid()::text,
   'Senior DevOps Engineer',
   'Datadog',
   'New York, NY (Hybrid)',
@@ -233,9 +259,13 @@ VALUES
   'Nice to have:
 - Service mesh experience (Istio, Linkerd)
 - eBPF and kernel-level networking
-- Rust systems programming'
+- Rust systems programming',
+  true,
+  NOW(),
+  NOW()
 ),
 (
+  gen_random_uuid()::text,
   'Cloud Infrastructure Engineer',
   'AWS',
   'Seattle, WA (Hybrid)',
@@ -266,9 +296,13 @@ VALUES
   'Nice to have:
 - AWS certifications (Solutions Architect Professional)
 - Experience with networking hardware
-- Background in bare-metal infrastructure'
+- Background in bare-metal infrastructure',
+  true,
+  NOW(),
+  NOW()
 ),
 (
+  gen_random_uuid()::text,
   'Machine Learning Engineer',
   'Google DeepMind',
   'London, UK / Remote',
@@ -300,9 +334,13 @@ VALUES
   'Nice to have:
 - Research publications in top ML conferences
 - RLHF and alignment techniques experience
-- Experience with TPUs'
+- Experience with TPUs',
+  true,
+  NOW(),
+  NOW()
 ),
 (
+  gen_random_uuid()::text,
   'Data Engineer',
   'Databricks',
   'Amsterdam, NL (Hybrid)',
@@ -334,9 +372,13 @@ VALUES
   'Nice to have:
 - Scala or Java for Spark development
 - Experience with Databricks platform specifically
-- Real-time streaming architecture experience'
+- Real-time streaming architecture experience',
+  true,
+  NOW(),
+  NOW()
 ),
 (
+  gen_random_uuid()::text,
   'Data Scientist',
   'Netflix',
   'Los Gatos, CA (Hybrid)',
@@ -368,9 +410,13 @@ VALUES
   'Nice to have:
 - Causal inference and observational study experience
 - Reinforcement learning for recommendation systems
-- Experience with streaming data at scale'
+- Experience with streaming data at scale',
+  true,
+  NOW(),
+  NOW()
 ),
 (
+  gen_random_uuid()::text,
   'Security Engineer',
   'Cloudflare',
   'Remote (Global)',
@@ -402,9 +448,13 @@ VALUES
   'Nice to have:
 - Bug bounty experience
 - Rust systems programming
-- Research publications in security conferences'
+- Research publications in security conferences',
+  true,
+  NOW(),
+  NOW()
 ),
 (
+  gen_random_uuid()::text,
   'iOS Engineer (Swift)',
   'Spotify',
   'Stockholm, Sweden (Hybrid)',
@@ -436,5 +486,8 @@ VALUES
   'Nice to have:
 - Audio processing and DSP knowledge
 - CarPlay development experience
-- Apple Watch app development'
+- Apple Watch app development',
+  true,
+  NOW(),
+  NOW()
 );

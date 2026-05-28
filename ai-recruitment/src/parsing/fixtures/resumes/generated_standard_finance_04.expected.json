@@ -1,0 +1,72 @@
+{
+  "personalInfo": {
+    "name": "Jamie Davis",
+    "email": "jamie.davis@email.com",
+    "phone": null,
+    "location": "San Francisco, CA",
+    "linkedIn": null,
+    "github": null,
+    "portfolio": null
+  },
+  "summary": "Financial Analyst with 7 years of experience in finance roles.",
+  "industryDomain": "FINANCE",
+  "seniorityBand": "L4",
+  "yearsOfExperience": 7,
+  "skills": [
+    {
+      "name": "Excel",
+      "domain": "BACKEND",
+      "proficiencyLevel": 4
+    },
+    {
+      "name": "Python",
+      "domain": "BACKEND",
+      "proficiencyLevel": 4
+    },
+    {
+      "name": "SQL",
+      "domain": "BACKEND",
+      "proficiencyLevel": 4
+    },
+    {
+      "name": "Bloomberg",
+      "domain": "BACKEND",
+      "proficiencyLevel": 4
+    }
+  ],
+  "experience": [
+    {
+      "company": "Citadel",
+      "title": "Financial Analyst",
+      "startDate": "2017-03",
+      "endDate": null,
+      "isCurrent": true,
+      "durationMonths": 84,
+      "responsibilities": [
+        "Led key initiatives",
+        "Collaborated cross-functionally"
+      ],
+      "achievements": [
+        "Improved systems serving 450k users"
+      ],
+      "techStack": [
+        "Excel",
+        "Python",
+        "SQL"
+      ]
+    }
+  ],
+  "education": [
+    {
+      "institution": "ETH Zurich",
+      "degree": "BS",
+      "field": "Finance",
+      "startYear": 2014,
+      "endYear": 2018,
+      "gpa": 3.7
+    }
+  ],
+  "projects": [],
+  "certifications": [],
+  "achievements": []
+}

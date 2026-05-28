@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
+import { ZodError } from "zod";
 
 export class AppError extends Error {
   constructor(
@@ -97,6 +98,13 @@ export async function safeQuery<T>(
 }
 
 export function handleError(error: unknown): NextResponse {
+  if (error instanceof ZodError) {
+    const message = error.issues[0]?.message ?? "Validation failed";
+    return NextResponse.json(
+      { error: message, code: "VALIDATION_ERROR" },
+      { status: 400 }
+    );
+  }
   if (error instanceof AppError) {
     return NextResponse.json(
       { error: error.message, code: error.code },

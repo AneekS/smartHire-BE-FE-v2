@@ -1,0 +1,37 @@
+{
+  "personalInfo": {
+    "name": "Jade",
+    "email": "jade@studio.io",
+    "phone": null,
+    "location": null,
+    "linkedIn": null,
+    "github": null,
+    "portfolio": null
+  },
+  "summary": "Art director / brand creative",
+  "industryDomain": "GENERAL",
+  "seniorityBand": "L3",
+  "yearsOfExperience": 4,
+  "skills": [
+    { "name": "Figma", "domain": "OTHER", "proficiencyLevel": 4 },
+    { "name": "After Effects", "domain": "OTHER", "proficiencyLevel": 4 }
+  ],
+  "experience": [
+    {
+      "company": "Neon Labs",
+      "title": "Art Director",
+      "startDate": "2021-01",
+      "endDate": null,
+      "isCurrent": true,
+      "durationMonths": 48,
+      "responsibilities": [],
+      "achievements": ["Increased engagement by 35%"],
+      "techStack": []
+    }
+  ],
+  "education": [],
+  "projects": [],
+  "certifications": [],
+  "achievements": [],
+  "languages": []
+}

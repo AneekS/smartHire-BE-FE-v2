@@ -12,6 +12,7 @@ import {
   mergePreferredRolesForResponse,
 } from "@/services/profile/profile.service";
 import { calculateCompleteness } from "@/services/profile/completeness.service";
+import { handleError } from "@/lib/errors";
 
 // ─── User fields that live on the User model (not Candidate) ─────────────────
 
@@ -193,8 +194,7 @@ export async function PATCH(req: AuthenticatedRequest) {
       });
     } catch (error: unknown) {
       console.error("[PATCH /api/v1/candidates/profile]", error);
-      const msg = error instanceof Error ? error.message : "Server error";
-      return NextResponse.json({ error: msg }, { status: 400 });
+      return handleError(error);
     }
   });
 }

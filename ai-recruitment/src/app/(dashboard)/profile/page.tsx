@@ -66,7 +66,7 @@ const TABS = [
 
 export default function ProfilePage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const { profile, isLoading, updateProfile }                = useProfile();
+  const { profile, isLoading, loadError, updateProfile, mutate } = useProfile();
   const { resumes, isLoading: resumesLoading, uploadResume } = useResumes();
   const { getAccount, isConnected }                          = useConnectedAccounts();
   const { preferredRoles: prefRoles, salaryProfile: salaryProf, isLoading: prefsLoading } = useProfilePreferences();
@@ -138,8 +138,19 @@ export default function ProfilePage() {
 
   const saveInlineName = async () => {
     setEditingName(false);
-    if (nameVal !== profile?.name) {
-      await updateProfile({ name: nameVal });
+    const trimmed = nameVal.trim();
+    if (trimmed === (profile?.name ?? "").trim()) return;
+
+    if (trimmed.length < 2) {
+      toast.error("Name must be at least 2 characters");
+      setNameVal(profile?.name ?? "");
+      return;
+    }
+
+    try {
+      await updateProfile({ name: trimmed });
+    } catch {
+      setNameVal(profile?.name ?? "");
     }
   };
 
@@ -187,6 +198,18 @@ export default function ProfilePage() {
   };
 
   // â”€â”€â”€ Loading â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  if (!isLoading && loadError && !profile) {
+    return (
+      <div className="flex flex-col items-center justify-center gap-4 p-12 text-center max-w-lg mx-auto">
+        <p className="text-lg font-semibold text-slate-800 dark:text-slate-100">
+          Could not load your profile
+        </p>
+        <p className="text-sm text-slate-500">{loadError}</p>
+        <Button onClick={() => mutate()}>Try again</Button>
+      </div>
+    );
+  }
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center p-12">

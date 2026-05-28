@@ -16,8 +16,8 @@ export function getBullConnectionOptions(redisUrl?: string): BullConnectionOptio
   return {
     host: parsed.hostname,
     port: Number(parsed.port || (isTls ? 6380 : 6379)),
-    username: parsed.username || undefined,
-    password: parsed.password || undefined,
+    username: parsed.username ? decodeURIComponent(parsed.username) : undefined,
+    password: parsed.password ? decodeURIComponent(parsed.password) : undefined,
     db: parsed.pathname && parsed.pathname !== "/" ? Number(parsed.pathname.slice(1)) : undefined,
     tls: isTls ? {} : undefined,
   };

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { insforge } from "@/lib/insforge";
+import { prisma } from "@/lib/db";
 import { JobSearchSchema } from "@/lib/validators/job.schema";
+import type { Prisma } from "@prisma/client";
 
 export async function GET(req: NextRequest) {
   try {
@@ -10,42 +11,42 @@ export async function GET(req: NextRequest) {
       JobSearchSchema.parse(params);
     const page = 1;
 
-    let query = insforge.database
-      .from("jobs")
-      .select("*")
-      .eq("status", "ACTIVE")
-      .order("created_at", { ascending: false })
-      .range((page - 1) * limit, page * limit - 1);
+    const conditions: Prisma.JobWhereInput[] = [];
 
     if (role) {
-      query = query.ilike("title", `%${role}%`);
+      conditions.push({ title: { contains: role, mode: "insensitive" } });
     }
     if (location) {
-      query = query.or(
-        `city.ilike.%${location}%,state.ilike.%${location}%,is_remote.eq.true`
-      );
+      conditions.push({
+        OR: [
+          { location: { contains: location, mode: "insensitive" } },
+          { workMode: "REMOTE" },
+        ],
+      });
     }
     if (experience) {
-      query = query.lte("experience_min", parseFloat(experience));
+      conditions.push({ experienceMin: { lte: parseFloat(experience) } });
     }
     if (skills) {
       const skillArr = skills.split(",").map((s) => s.trim());
       if (skillArr.length > 0) {
-        query = query.overlaps("required_skills", skillArr);
+        conditions.push({ requiredSkills: { hasSome: skillArr } });
       }
     }
 
-    const { data: jobs, error } = await query;
+    const where: Prisma.JobWhereInput = {
+      status: "ACTIVE",
+      ...(conditions.length > 0 ? { AND: conditions } : {}),
+    };
 
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
-    }
-
-    return NextResponse.json({
-      jobs: jobs ?? [],
-      page,
-      limit,
+    const jobs = await prisma.job.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+      skip: (page - 1) * limit,
+      take: limit,
     });
+
+    return NextResponse.json({ jobs, page, limit });
   } catch (e) {
     console.error(e);
     return NextResponse.json(

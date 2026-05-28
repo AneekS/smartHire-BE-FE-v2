@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/lib/insforge-server";
+import { withAuth, UnauthorizedError } from "@/lib/auth-helpers";
+import { prisma } from "@/lib/db";
+import OpenAI from "openai";
 import { z } from "zod";
-import { insforge } from "@/lib/insforge";
+
+const openai = new OpenAI();
 
 const bodySchema = z.object({
   resumeVersionId: z.string(),
@@ -23,7 +26,7 @@ const analysisSchema = z.object({
 
 export async function POST(req: Request) {
   try {
-    const { client, user } = await requireAuth();
+    const { dbUser } = await withAuth();
 
     let body: unknown;
     try {
@@ -42,12 +45,10 @@ export async function POST(req: Request) {
 
     const { resumeVersionId, rawText, roleTarget } = parsed.data;
 
-    const { data: version } = await client.database
-      .from("resume_versions")
-      .select("id, role_target")
-      .eq("id", resumeVersionId)
-      .eq("user_id", user.id)
-      .maybeSingle();
+    const version = await prisma.resumeVersion.findFirst({
+      where: { id: resumeVersionId, userId: dbUser.id },
+      select: { id: true, roleTarget: true },
+    });
 
     if (!version) {
       return NextResponse.json(
@@ -56,8 +57,7 @@ export async function POST(req: Request) {
       );
     }
 
-    const role =
-      roleTarget || (version.role_target as string) || "Software Engineer";
+    const role = roleTarget || version.roleTarget || "Software Engineer";
 
     const prompt = `Analyze this resume for ATS (Applicant Tracking System) and role "${role}".
 Return a valid JSON object with exactly:
@@ -75,8 +75,8 @@ Return a valid JSON object with exactly:
 Provide 3-6 specific, actionable suggestions. Focus on: quantifying impact, strong action verbs, keyword alignment with the role, and clarity.
 Resume text:\n\n${rawText.slice(0, 6000)}`;
 
-    const completion = await insforge.ai.chat.completions.create({
-      model: "openai/gpt-4o-mini",
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
       messages: [{ role: "user", content: prompt }],
     });
 
@@ -94,60 +94,56 @@ Resume text:\n\n${rawText.slice(0, 6000)}`;
       );
     }
 
-    await client.database
-      .from("resume_versions")
-      .update({
-        ats_score: parsedAnalysis.atsScore,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", resumeVersionId);
+    await prisma.resumeVersion.update({
+      where: { id: resumeVersionId },
+      data: { atsScore: parsedAnalysis.atsScore },
+    });
 
-    await client.database
-      .from("resume_suggestions")
-      .delete()
-      .eq("resume_version_id", resumeVersionId);
+    await prisma.resumeSuggestion.deleteMany({
+      where: { resumeVersionId },
+    });
 
-    for (const s of parsedAnalysis.suggestions) {
-      await client.database.from("resume_suggestions").insert({
-        resume_version_id: resumeVersionId,
+    await prisma.resumeSuggestion.createMany({
+      data: parsedAnalysis.suggestions.map((s) => ({
+        resumeVersionId,
         type: s.type,
         section: s.section,
         title: s.title,
         description: s.description,
-      });
-    }
+      })),
+    });
 
-    const { data: updated } = await client.database
-      .from("resume_versions")
-      .select("*, resume_suggestions(*)")
-      .eq("id", resumeVersionId)
-      .single();
+    const updated = await prisma.resumeVersion.findUnique({
+      where: { id: resumeVersionId },
+      include: { suggestions: true },
+    });
 
     return NextResponse.json({
-      id: updated.id,
-      userId: updated.user_id,
-      title: updated.title,
-      roleTarget: updated.role_target,
-      fileUrl: updated.file_url,
-      fileKey: updated.file_key,
-      atsScore: updated.ats_score,
-      status: updated.status,
-      createdAt: updated.created_at,
-      updatedAt: updated.updated_at,
-      suggestions: (updated.resume_suggestions ?? []).map(
-        (s: Record<string, unknown>) => ({
-          id: s.id,
-          resumeVersionId: s.resume_version_id,
-          type: s.type,
-          section: s.section,
-          title: s.title,
-          description: s.description,
-          applied: s.applied,
-          createdAt: s.created_at,
-        })
-      ),
+      id: updated!.id,
+      userId: updated!.userId,
+      title: updated!.title,
+      roleTarget: updated!.roleTarget,
+      fileUrl: updated!.fileUrl,
+      fileKey: updated!.filePath,
+      atsScore: updated!.atsScore,
+      status: updated!.status,
+      createdAt: updated!.createdAt.toISOString(),
+      updatedAt: updated!.updatedAt.toISOString(),
+      suggestions: updated!.suggestions.map((s) => ({
+        id: s.id,
+        resumeVersionId: s.resumeVersionId,
+        type: s.type,
+        section: s.section,
+        title: s.title,
+        description: s.description,
+        applied: s.applied,
+        createdAt: s.createdAt.toISOString(),
+      })),
     });
   } catch (e) {
+    if (e instanceof UnauthorizedError) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     console.error(e);
     return NextResponse.json(
       { error: "Analysis failed" },

@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/lib/insforge-server";
-import { RESUMES_BUCKET } from "@/lib/insforge";
+import { withAuth, UnauthorizedError } from "@/lib/auth-helpers";
+import { prisma } from "@/lib/db";
+import { uploadResume } from "@/lib/azure-storage";
 
 export async function POST(req: Request) {
   try {
-    const { client, user } = await requireAuth();
+    const { dbUser } = await withAuth();
 
     const formData = await req.formData();
     const file = formData.get("file") as File | null;
@@ -17,53 +18,40 @@ export async function POST(req: Request) {
       );
     }
 
-    const { data: version } = await client.database
-      .from("resume_versions")
-      .select("id")
-      .eq("id", resumeVersionId)
-      .eq("user_id", user.id)
-      .maybeSingle();
+    const version = await prisma.resumeVersion.findFirst({
+      where: { id: resumeVersionId, userId: dbUser.id },
+      select: { id: true },
+    });
 
     if (!version) {
       return NextResponse.json({ error: "Resume not found" }, { status: 404 });
     }
 
-    const path = `${user.id}/${resumeVersionId}/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.-]/g, "_")}`;
-    const { data: uploadData, error } = await client.storage
-      .from(RESUMES_BUCKET)
-      .upload(path, file);
+    const buffer = Buffer.from(await file.arrayBuffer());
+    const blobPath = await uploadResume(
+      dbUser.id,
+      resumeVersionId,
+      buffer,
+      file.type || "application/pdf"
+    );
 
-    if (error || !uploadData) {
-      return NextResponse.json(
-        { error: error?.message || "Upload failed" },
-        { status: 500 }
-      );
-    }
-
-    const { data: updated, error: updateError } = await client.database
-      .from("resume_versions")
-      .update({
-        file_url: uploadData.url,
-        file_key: uploadData.key,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", resumeVersionId)
-      .select()
-      .single();
-
-    if (updateError) {
-      return NextResponse.json(
-        { error: updateError.message || "Update failed" },
-        { status: 500 }
-      );
-    }
+    const updated = await prisma.resumeVersion.update({
+      where: { id: resumeVersionId },
+      data: { filePath: blobPath },
+    });
 
     return NextResponse.json({
       id: updated.id,
-      fileUrl: updated.file_url,
-      fileKey: updated.file_key,
+      filePath: updated.filePath,
     });
-  } catch {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  } catch (e) {
+    if (e instanceof UnauthorizedError) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    console.error("Upload error:", e);
+    return NextResponse.json(
+      { error: e instanceof Error ? e.message : "Upload failed" },
+      { status: 500 }
+    );
   }
 }

@@ -1,6 +1,8 @@
 import crypto from "crypto";
+import { getPipelineEnv } from "@/config/pipeline-env";
+import { ollamaEmbed } from "@/lib/ollama-client";
 
-const EMBEDDING_DIMENSIONS = 128;
+const HASH_EMBEDDING_DIMENSIONS = 128;
 
 function hashToUnitValue(input: string): number {
   const digest = crypto.createHash("sha256").update(input).digest();
@@ -8,18 +10,17 @@ function hashToUnitValue(input: string): number {
   return int / 0xffffffff;
 }
 
-// Deterministic embedding fallback keeps behavior stable when external AI providers are unavailable.
-export async function generateEmbedding(text: string): Promise<number[]> {
+async function generateHashEmbedding(text: string): Promise<number[]> {
   const normalized = text.trim().toLowerCase();
   if (!normalized) {
-    return Array.from({ length: EMBEDDING_DIMENSIONS }, () => 0);
+    return Array.from({ length: HASH_EMBEDDING_DIMENSIONS }, () => 0);
   }
 
   const tokens = normalized.split(/\s+/).filter(Boolean);
-  const vector = Array.from({ length: EMBEDDING_DIMENSIONS }, () => 0);
+  const vector = Array.from({ length: HASH_EMBEDDING_DIMENSIONS }, () => 0);
 
   for (const token of tokens) {
-    for (let i = 0; i < EMBEDDING_DIMENSIONS; i += 1) {
+    for (let i = 0; i < HASH_EMBEDDING_DIMENSIONS; i += 1) {
       const value = hashToUnitValue(`${token}:${i}`);
       vector[i] += value;
     }
@@ -29,6 +30,19 @@ export async function generateEmbedding(text: string): Promise<number[]> {
   if (magnitude === 0) return vector;
 
   return vector.map((value) => value / magnitude);
+}
+
+/** Generate embedding — Ollama when enabled, hash fallback otherwise. */
+export async function generateEmbedding(text: string): Promise<number[]> {
+  const env = getPipelineEnv();
+  if (env.USE_OLLAMA_EMBEDDINGS) {
+    try {
+      return await ollamaEmbed(text);
+    } catch (e) {
+      console.warn("[embedding] Ollama fallback to hash:", e);
+    }
+  }
+  return generateHashEmbedding(text);
 }
 
 export function cosineSimilarity(vectorA: number[], vectorB: number[]): number {
@@ -56,4 +70,10 @@ export function embeddingChecksum(text: string): string {
   return crypto.createHash("sha256").update(text).digest("hex");
 }
 
-export const embeddingDimensions = EMBEDDING_DIMENSIONS;
+export function getEmbeddingDimensions(): number {
+  const env = getPipelineEnv();
+  return env.USE_OLLAMA_EMBEDDINGS ? env.EMBED_VECTOR_DIMENSIONS : HASH_EMBEDDING_DIMENSIONS;
+}
+
+/** @deprecated Use getEmbeddingDimensions() — kept for hash-fallback path only. */
+export const embeddingDimensions = HASH_EMBEDDING_DIMENSIONS;

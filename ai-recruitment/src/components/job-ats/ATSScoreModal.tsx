@@ -138,11 +138,23 @@ export function ATSScoreModal() {
                     <div className="flex flex-col sm:flex-row gap-6 items-center sm:items-start">
                       <ScoreRing score={score} />
                       <div className="flex-1 text-center sm:text-left">
-                        {typeof currentResult.scoreLabel === "string" && (
-                          <p className="text-sm font-bold text-violet-700 mb-1">
-                            {currentResult.scoreLabel}
-                          </p>
-                        )}
+                        <div className="flex flex-wrap items-center gap-2 mb-1">
+                          {typeof currentResult.scoreLabel === "string" && (
+                            <p className="text-sm font-bold text-violet-700">
+                              {currentResult.scoreLabel}
+                            </p>
+                          )}
+                          {typeof currentResult.grade === "string" && (
+                            <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-violet-100 text-violet-800">
+                              Grade {currentResult.grade}
+                            </span>
+                          )}
+                          {typeof currentResult.recommendation === "string" && (
+                            <span className="text-xs font-medium text-slate-500">
+                              {currentResult.recommendation.replace(/_/g, " ")}
+                            </span>
+                          )}
+                        </div>
                         {typeof currentResult.matchSummary === "string" && (
                           <p className="text-sm text-gray-600 leading-relaxed">
                             {currentResult.matchSummary}
@@ -165,16 +177,62 @@ export function ATSScoreModal() {
                         />
                       )}
 
-                    {currentResult.breakdown &&
-                      typeof currentResult.breakdown === "object" && (
+                    {(() => {
+                      const bd =
+                        currentResult.scoreBreakdown ?? currentResult.breakdown;
+                      if (!bd || typeof bd !== "object") return null;
+                      return (
                         <BreakdownBars
                           breakdown={
-                            currentResult.breakdown as Record<
+                            bd as Record<
                               string,
                               { score: number; weight: number; reason: string }
                             >
                           }
                         />
+                      );
+                    })()}
+
+                    {Array.isArray(currentResult.dealbreakers) &&
+                      currentResult.dealbreakers.length > 0 && (
+                        <div className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-800">
+                          <p className="font-semibold text-xs uppercase tracking-wide mb-1">
+                            Dealbreakers
+                          </p>
+                          <ul className="list-disc pl-4 space-y-0.5">
+                            {currentResult.dealbreakers.map((d) => (
+                              <li key={d}>{d}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+
+                    {Array.isArray(currentResult.topStrengths) &&
+                      currentResult.topStrengths.length > 0 && (
+                        <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50/80 p-3 text-sm">
+                          <p className="font-semibold text-emerald-800 text-xs uppercase mb-1">
+                            Top strengths
+                          </p>
+                          <ul className="list-disc pl-4 text-emerald-900 space-y-0.5">
+                            {currentResult.topStrengths.map((s) => (
+                              <li key={s}>{s}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+
+                    {Array.isArray(currentResult.topGaps) &&
+                      currentResult.topGaps.length > 0 && (
+                        <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50/80 p-3 text-sm">
+                          <p className="font-semibold text-amber-900 text-xs uppercase mb-1">
+                            Top gaps
+                          </p>
+                          <ul className="list-disc pl-4 text-amber-950 space-y-0.5">
+                            {currentResult.topGaps.map((s) => (
+                              <li key={s}>{s}</li>
+                            ))}
+                          </ul>
+                        </div>
                       )}
 
                     {currentResult.sectionScores &&
@@ -255,12 +313,26 @@ export function ATSScoreModal() {
                       )}
 
                     {currentResult.recommendations &&
-                      typeof currentResult.recommendations === "object" && (
+                      typeof currentResult.recommendations === "object" &&
+                      !Array.isArray(currentResult.recommendations) && (
                         <RecommendationsPanel
                           recommendations={
                             currentResult.recommendations as RecommendationBuckets
                           }
                         />
+                      )}
+                    {Array.isArray(currentResult.recommendations) &&
+                      currentResult.recommendations.length > 0 && (
+                        <div className="mt-4 rounded-xl border border-slate-200 p-3 text-sm text-slate-700">
+                          <p className="font-semibold text-xs uppercase text-slate-500 mb-2">
+                            Insights
+                          </p>
+                          <ul className="list-disc pl-4 space-y-1">
+                            {currentResult.recommendations.map((r) => (
+                              <li key={r}>{r}</li>
+                            ))}
+                          </ul>
+                        </div>
                       )}
 
                     {typeof currentResult.tailoredSummary === "string" && (

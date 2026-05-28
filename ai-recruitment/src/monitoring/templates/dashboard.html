@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SmartHire Extraction Quality Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: system-ui, -apple-system, sans-serif; background: #0f172a; color: #e2e8f0; padding: 2rem; }
+    h1 { font-size: 1.5rem; margin-bottom: 0.25rem; }
+    .subtitle { color: #94a3b8; font-size: 0.875rem; margin-bottom: 2rem; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1.5rem; }
+    .card { background: #1e293b; border-radius: 12px; padding: 1.25rem; border: 1px solid #334155; }
+    .card h2 { font-size: 0.875rem; text-transform: uppercase; letter-spacing: 0.05em; color: #94a3b8; margin-bottom: 1rem; }
+    .stat { font-size: 2rem; font-weight: 700; color: #38bdf8; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
+    th, td { text-align: left; padding: 0.5rem; border-bottom: 1px solid #334155; }
+    th { color: #94a3b8; }
+    canvas { max-height: 260px; }
+    .note { margin-top: 2rem; font-size: 0.75rem; color: #64748b; }
+  </style>
+</head>
+<body>
+  <h1>Extraction Quality Dashboard</h1>
+  <p class="subtitle">Primary signal for prompt A/B test decisions — last 7 days</p>
+
+  <div class="grid">
+    <div class="card">
+      <h2>Field Accuracy by Domain</h2>
+      <canvas id="accuracyChart"></canvas>
+    </div>
+    <div class="card">
+      <h2>Pass Distribution</h2>
+      <canvas id="passChart"></canvas>
+    </div>
+    <div class="card">
+      <h2>Avg Parse Confidence</h2>
+      <canvas id="confidenceChart"></canvas>
+    </div>
+    <div class="card">
+      <h2>Pydantic Rejection Rate</h2>
+      <canvas id="rejectionChart"></canvas>
+    </div>
+    <div class="card">
+      <h2>Redis Queue Depth</h2>
+      <p class="stat" id="queueCurrent">—</p>
+      <canvas id="queueChart"></canvas>
+    </div>
+    <div class="card">
+      <h2>Low-Confidence Fields (Top 5)</h2>
+      <table>
+        <thead><tr><th>Field</th><th>Count</th></tr></thead>
+        <tbody id="lowConfTable"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <p class="note">Refreshes on load. Use this dashboard to decide when to run a new prompt A/B test.</p>
+
+  <script>
+    const data = __DASHBOARD_JSON__;
+    const chartDefaults = {
+      responsive: true,
+      plugins: { legend: { labels: { color: '#94a3b8' } } },
+      scales: {
+        x: { ticks: { color: '#94a3b8' }, grid: { color: '#334155' } },
+        y: { ticks: { color: '#94a3b8' }, grid: { color: '#334155' } },
+      },
+    };
+
+    new Chart(document.getElementById('accuracyChart'), {
+      type: 'bar',
+      data: {
+        labels: data.dates,
+        datasets: data.accuracyByDomain.map((d, i) => ({
+          label: d.domain,
+          data: d.values.map(v => v != null ? (v * 100).toFixed(1) : null),
+          backgroundColor: ['#38bdf8', '#34d399', '#a78bfa'][i],
+        })),
+      },
+      options: { ...chartDefaults, scales: { ...chartDefaults.scales, y: { ...chartDefaults.scales.y, max: 100, title: { display: true, text: '%', color: '#94a3b8' } } } },
+    });
+
+    new Chart(document.getElementById('passChart'), {
+      type: 'pie',
+      data: {
+        labels: ['Pass 1 only', 'Pass 2 triggered', 'Pass 3 corrected'],
+        datasets: [{
+          data: [data.passDistribution.pass1Only, data.passDistribution.pass2Triggered, data.passDistribution.pass3Corrected],
+          backgroundColor: ['#38bdf8', '#fbbf24', '#f87171'],
+        }],
+      },
+      options: { responsive: true, plugins: { legend: { labels: { color: '#94a3b8' } } } },
+    });
+
+    new Chart(document.getElementById('confidenceChart'), {
+      type: 'line',
+      data: {
+        labels: data.dates,
+        datasets: [{ label: 'Parse confidence', data: data.parseConfidenceTrend, borderColor: '#34d399', tension: 0.3 }],
+      },
+      options: chartDefaults,
+    });
+
+    new Chart(document.getElementById('rejectionChart'), {
+      type: 'line',
+      data: {
+        labels: data.dates,
+        datasets: [{ label: 'Rejection rate', data: data.pydanticRejectionTrend?.map(v => v != null ? (v * 100).toFixed(2) : null), borderColor: '#f87171', tension: 0.3 }],
+      },
+      options: chartDefaults,
+    });
+
+    document.getElementById('queueCurrent').textContent = data.queueDepthCurrent;
+
+    const queueLabels = data.queueDepthTrend.map(p => new Date(p.at).toLocaleTimeString());
+    const queueValues = data.queueDepthTrend.map(p => p.value);
+    new Chart(document.getElementById('queueChart'), {
+      type: 'line',
+      data: {
+        labels: queueLabels.length ? queueLabels : ['now'],
+        datasets: [{ label: 'Queue depth (24h)', data: queueValues.length ? queueValues : [data.queueDepthCurrent], borderColor: '#38bdf8', tension: 0.3 }],
+      },
+      options: chartDefaults,
+    });
+
+    const tbody = document.getElementById('lowConfTable');
+    if (data.topLowConfidenceFields.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="2">No low-confidence fields recorded</td></tr>';
+    } else {
+      tbody.innerHTML = data.topLowConfidenceFields.map(r =>
+        `<tr><td>${r.field}</td><td>${r.count}</td></tr>`
+      ).join('');
+    }
+  </script>
+</body>
+</html>

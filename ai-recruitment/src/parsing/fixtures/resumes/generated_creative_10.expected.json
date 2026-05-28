@@ -1,0 +1,61 @@
+{
+  "personalInfo": {
+    "name": "Blake Harris",
+    "email": "blake.harris@email.com",
+    "phone": null,
+    "location": "San Francisco, CA",
+    "linkedIn": null,
+    "github": null,
+    "portfolio": null
+  },
+  "summary": "Product Designer with 5 years of experience in tech roles.",
+  "industryDomain": "TECH",
+  "seniorityBand": "L4",
+  "yearsOfExperience": 5,
+  "skills": [
+    {
+      "name": "Figma",
+      "domain": "BACKEND",
+      "proficiencyLevel": 4
+    },
+    {
+      "name": "UX Research",
+      "domain": "BACKEND",
+      "proficiencyLevel": 4
+    }
+  ],
+  "experience": [
+    {
+      "company": "Netflix",
+      "title": "Product Designer",
+      "startDate": "2019-03",
+      "endDate": null,
+      "isCurrent": true,
+      "durationMonths": 60,
+      "responsibilities": [
+        "Led key initiatives",
+        "Collaborated cross-functionally"
+      ],
+      "achievements": [
+        "Improved systems serving 350k users"
+      ],
+      "techStack": [
+        "Figma",
+        "UX Research"
+      ]
+    }
+  ],
+  "education": [
+    {
+      "institution": "NUS",
+      "degree": "BS",
+      "field": "Computer Science",
+      "startYear": 2014,
+      "endYear": 2018,
+      "gpa": 3.7
+    }
+  ],
+  "projects": [],
+  "certifications": [],
+  "achievements": []
+}

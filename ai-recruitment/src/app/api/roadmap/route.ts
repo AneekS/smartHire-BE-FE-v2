@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/lib/insforge-server";
+import { withAuth, UnauthorizedError } from "@/lib/auth-helpers";
+import { prisma } from "@/lib/db";
 import { z } from "zod";
 
 const milestoneSchema = z.object({
@@ -17,108 +18,111 @@ const skillSchema = z.object({
   targetLevel: z.number().int().min(0).max(100).optional(),
 });
 
-function mapMilestone(m: Record<string, unknown>) {
-  return {
-    id: m.id,
-    userId: m.user_id,
-    title: m.title,
-    description: m.description,
-    targetDate: m.target_date,
-    completed: m.completed,
-    order: m.order,
-    createdAt: m.created_at,
-    updatedAt: m.updated_at,
-  };
-}
-
-function mapSkill(s: Record<string, unknown>) {
-  return {
-    id: s.id,
-    userId: s.user_id,
-    name: s.name,
-    category: s.category,
-    currentLevel: s.current_level,
-    targetLevel: s.target_level,
-    createdAt: s.created_at,
-    updatedAt: s.updated_at,
-  };
-}
-
 export async function GET() {
   try {
-    const { client, user } = await requireAuth();
+    const { dbUser } = await withAuth();
 
-    const [milestonesRes, skillsRes] = await Promise.all([
-      client.database
-        .from("career_milestones")
-        .select("*")
-        .eq("user_id", user.id)
-        .order("order", { ascending: true }),
-      client.database
-        .from("skill_goals")
-        .select("*")
-        .eq("user_id", user.id),
+    const [milestones, skills] = await Promise.all([
+      prisma.careerMilestone.findMany({
+        where: { userId: dbUser.id },
+        orderBy: { order: "asc" },
+      }),
+      prisma.skillGoal.findMany({
+        where: { userId: dbUser.id },
+      }),
     ]);
 
-    const milestones = (milestonesRes.data ?? []).map(mapMilestone);
-    const skills = (skillsRes.data ?? []).map(mapSkill);
-
-    return NextResponse.json({ milestones, skills });
-  } catch {
+    return NextResponse.json({
+      milestones: milestones.map((m) => ({
+        id: m.id,
+        userId: m.userId,
+        title: m.title,
+        description: m.description,
+        targetDate: m.targetDate?.toISOString() ?? null,
+        completed: m.completed,
+        order: m.order,
+        createdAt: m.createdAt.toISOString(),
+        updatedAt: m.updatedAt.toISOString(),
+      })),
+      skills: skills.map((s) => ({
+        id: s.id,
+        userId: s.userId,
+        name: s.name,
+        category: s.category,
+        currentLevel: s.currentLevel,
+        targetLevel: s.targetLevel,
+        createdAt: s.createdAt.toISOString(),
+        updatedAt: s.updatedAt.toISOString(),
+      })),
+    });
+  } catch (e) {
+    if (e instanceof UnauthorizedError) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 }
 
 export async function POST(req: Request) {
   try {
-    const { client, user } = await requireAuth();
+    const { dbUser } = await withAuth();
     const body = await req.json();
 
     if (body.type === "milestone") {
       const data = milestoneSchema.parse(body);
-      const { data: existing } = await client.database
-        .from("career_milestones")
-        .select("id")
-        .eq("user_id", user.id);
-      const order = data.order ?? (existing?.length ?? 0);
+      const existing = await prisma.careerMilestone.findMany({
+        where: { userId: dbUser.id },
+        select: { id: true },
+      });
+      const order = data.order ?? existing.length;
 
-      const { data: milestone, error } = await client.database
-        .from("career_milestones")
-        .insert({
-          user_id: user.id,
+      const milestone = await prisma.careerMilestone.create({
+        data: {
+          userId: dbUser.id,
           title: data.title,
           description: data.description ?? null,
-          target_date: data.targetDate ?? null,
+          targetDate: data.targetDate ? new Date(data.targetDate) : null,
           completed: data.completed ?? false,
           order,
-        })
-        .select()
-        .single();
+        },
+      });
 
-      if (error) {
-        return NextResponse.json({ error: error.message }, { status: 500 });
-      }
-      return NextResponse.json(mapMilestone(milestone));
+      return NextResponse.json({
+        id: milestone.id,
+        userId: milestone.userId,
+        title: milestone.title,
+        description: milestone.description,
+        targetDate: milestone.targetDate?.toISOString() ?? null,
+        completed: milestone.completed,
+        order: milestone.order,
+        createdAt: milestone.createdAt.toISOString(),
+        updatedAt: milestone.updatedAt.toISOString(),
+      });
     }
 
     if (body.type === "skill") {
       const data = skillSchema.parse(body);
-      const { data: skill, error } = await client.database
-        .from("skill_goals")
-        .insert({
-          user_id: user.id,
+
+      const skill = await prisma.skillGoal.create({
+        data: {
+          userId: dbUser.id,
           name: data.name,
           category: data.category ?? null,
-          current_level: data.currentLevel ?? 0,
-          target_level: data.targetLevel ?? 100,
-        })
-        .select()
-        .single();
+          currentLevel: data.currentLevel ?? 0,
+          targetLevel: data.targetLevel ?? 100,
+        },
+      });
 
-      if (error) {
-        return NextResponse.json({ error: error.message }, { status: 500 });
-      }
-      return NextResponse.json(mapSkill(skill));
+      return NextResponse.json({
+        id: skill.id,
+        userId: skill.userId,
+        name: skill.name,
+        category: skill.category,
+        currentLevel: skill.currentLevel,
+        targetLevel: skill.targetLevel,
+        createdAt: skill.createdAt.toISOString(),
+        updatedAt: skill.updatedAt.toISOString(),
+      });
     }
 
     return NextResponse.json({ error: "Invalid type" }, { status: 400 });
@@ -128,6 +132,9 @@ export async function POST(req: Request) {
         { error: e.issues.map((x) => x.message).join(", ") },
         { status: 400 }
       );
+    }
+    if (e instanceof UnauthorizedError) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }

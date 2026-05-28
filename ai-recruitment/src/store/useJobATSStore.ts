@@ -18,7 +18,36 @@ export interface JobListing {
   existingScore: { score: number; label: string | null } | null;
 }
 
-export type JobATSResult = Record<string, unknown>;
+export interface ScoreComponentBreakdownUI {
+  score: number;
+  weight: number;
+  contribution: number;
+  reason: string;
+  matched?: string[];
+  missing?: string[];
+  bonus?: string[];
+}
+
+export interface JobATSResult {
+  id?: string;
+  overallScore: number;
+  grade?: string;
+  recommendation?: string;
+  scoreLabel?: string;
+  scoreBreakdown?: Record<string, ScoreComponentBreakdownUI>;
+  breakdown?: Record<string, ScoreComponentBreakdownUI>;
+  matchedSkills?: string[];
+  missingSkills?: string[];
+  dealbreakers?: string[];
+  flags?: string[];
+  topStrengths?: string[];
+  topGaps?: string[];
+  matchSummary?: string | null;
+  recommendations?: string[];
+  cached?: boolean;
+  pipeline?: string;
+  [key: string]: unknown;
+}
 
 interface JobATSStore {
   listings: JobListing[];
@@ -54,14 +83,15 @@ export const useJobATSStore = create<JobATSStore>((set, get) => ({
       const res = await fetch("/api/v1/jobs/listings", { credentials: "include" });
       const json = await res.json().catch(() => ({ success: false, data: [] }));
       if (!res.ok || !json.success) {
-        console.error("loadListings failed:", json.error ?? res.status);
+        if (process.env.NODE_ENV === "development") {
+          console.warn("loadListings:", json.error ?? res.status);
+        }
         set({ listings: [], isLoadingListings: false });
         return;
       }
       set({ listings: json.data ?? [], isLoadingListings: false });
-    } catch (e) {
-      console.error("loadListings failed:", e);
-      set({ isLoadingListings: false });
+    } catch {
+      set({ listings: [], isLoadingListings: false });
     }
   },
 

@@ -11,6 +11,13 @@ export function useProfile() {
     async () => {
       const raw = await candidatesApi.getProfile();
       return adaptCandidate(raw);
+    },
+    {
+      revalidateOnFocus: false,
+      revalidateOnReconnect: false,
+      dedupingInterval: 60_000,
+      errorRetryCount: 1,
+      shouldRetryOnError: false,
     }
   );
 
@@ -25,10 +32,18 @@ export function useProfile() {
     }
   };
 
+  const loadError =
+    error instanceof Error
+      ? error.message
+      : error
+        ? "Failed to load profile"
+        : null;
+
   return {
     profile: data ?? null,
     isLoading,
     error,
+    loadError,
     updateProfile,
     mutate,
   };

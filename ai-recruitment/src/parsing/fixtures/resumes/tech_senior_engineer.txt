@@ -1,0 +1,18 @@
+Alex Chen
+Senior Backend Engineer
+alex.chen@email.com | San Francisco, CA
+
+SUMMARY
+Backend engineer with 6 years building scalable APIs and microservices.
+
+EXPERIENCE
+Stripe — Senior Backend Engineer — 2019-03 to Present
+- Reduced API response time by 40% via query optimization
+- Led migration to microservices serving 2M+ daily users
+Tech: Node.js, PostgreSQL, Docker, AWS
+
+SKILLS
+Node.js, PostgreSQL, Docker, AWS
+
+EDUCATION
+BS Computer Science — UC Berkeley — 2018

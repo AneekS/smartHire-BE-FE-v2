@@ -1,0 +1,67 @@
+{
+  "personalInfo": {
+    "name": "Dr. Reese Moore",
+    "email": "dr..reese.moore@email.com",
+    "phone": null,
+    "location": "San Francisco, CA",
+    "linkedIn": null,
+    "github": null,
+    "portfolio": null
+  },
+  "summary": "Research Scientist with 7 years of experience in academic roles.",
+  "industryDomain": "ACADEMIC",
+  "seniorityBand": "L4",
+  "yearsOfExperience": 7,
+  "skills": [
+    {
+      "name": "Python",
+      "domain": "BACKEND",
+      "proficiencyLevel": 4
+    },
+    {
+      "name": "ML",
+      "domain": "BACKEND",
+      "proficiencyLevel": 4
+    },
+    {
+      "name": "NLP",
+      "domain": "BACKEND",
+      "proficiencyLevel": 4
+    }
+  ],
+  "experience": [
+    {
+      "company": "Stanford",
+      "title": "Research Scientist",
+      "startDate": "2017-03",
+      "endDate": null,
+      "isCurrent": true,
+      "durationMonths": 84,
+      "responsibilities": [
+        "Led key initiatives",
+        "Collaborated cross-functionally"
+      ],
+      "achievements": [
+        "Improved systems serving 450k users"
+      ],
+      "techStack": [
+        "Python",
+        "ML",
+        "NLP"
+      ]
+    }
+  ],
+  "education": [
+    {
+      "institution": "Stanford",
+      "degree": "PhD",
+      "field": "Computer Science",
+      "startYear": 2014,
+      "endYear": 2018,
+      "gpa": 3.7
+    }
+  ],
+  "projects": [],
+  "certifications": [],
+  "achievements": []
+}

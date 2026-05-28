@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/lib/insforge-server";
+import { withAuth, UnauthorizedError } from "@/lib/auth-helpers";
+import { prisma } from "@/lib/db";
 import { z } from "zod";
 
 const updateSchema = z.object({
@@ -15,15 +16,13 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { client, user } = await requireAuth();
+    const { dbUser } = await withAuth();
     const { id } = await params;
 
-    const { data: existing } = await client.database
-      .from("career_milestones")
-      .select("id")
-      .eq("id", id)
-      .eq("user_id", user.id)
-      .maybeSingle();
+    const existing = await prisma.careerMilestone.findFirst({
+      where: { id, userId: dbUser.id },
+      select: { id: true },
+    });
 
     if (!existing) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -31,36 +30,32 @@ export async function PATCH(
 
     const body = await req.json();
     const data = updateSchema.parse(body);
-    const update: Record<string, unknown> = {};
-    if (data.title !== undefined) update.title = data.title;
-    if (data.description !== undefined) update.description = data.description;
+
+    const updateData: Record<string, unknown> = {};
+    if (data.title !== undefined) updateData.title = data.title;
+    if (data.description !== undefined) updateData.description = data.description;
     if (data.targetDate !== undefined)
-      update.target_date = data.targetDate ? new Date(data.targetDate) : null;
-    if (data.completed !== undefined) update.completed = data.completed;
-    if (data.order !== undefined) update.order = data.order;
-    update.updated_at = new Date().toISOString();
+      updateData.targetDate = data.targetDate
+        ? new Date(data.targetDate)
+        : null;
+    if (data.completed !== undefined) updateData.completed = data.completed;
+    if (data.order !== undefined) updateData.order = data.order;
 
-    const { data: milestone, error } = await client.database
-      .from("career_milestones")
-      .update(update)
-      .eq("id", id)
-      .select()
-      .single();
-
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
-    }
+    const milestone = await prisma.careerMilestone.update({
+      where: { id },
+      data: updateData,
+    });
 
     return NextResponse.json({
       id: milestone.id,
-      userId: milestone.user_id,
+      userId: milestone.userId,
       title: milestone.title,
       description: milestone.description,
-      targetDate: milestone.target_date,
+      targetDate: milestone.targetDate?.toISOString() ?? null,
       completed: milestone.completed,
       order: milestone.order,
-      createdAt: milestone.created_at,
-      updatedAt: milestone.updated_at,
+      createdAt: milestone.createdAt.toISOString(),
+      updatedAt: milestone.updatedAt.toISOString(),
     });
   } catch (e) {
     if (e instanceof z.ZodError) {
@@ -68,6 +63,9 @@ export async function PATCH(
         { error: e.issues.map((x) => x.message).join(", ") },
         { status: 400 }
       );
+    }
+    if (e instanceof UnauthorizedError) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -78,21 +76,25 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { client, user } = await requireAuth();
+    const { dbUser } = await withAuth();
     const { id } = await params;
 
-    const { error } = await client.database
-      .from("career_milestones")
-      .delete()
-      .eq("id", id)
-      .eq("user_id", user.id);
+    const existing = await prisma.careerMilestone.findFirst({
+      where: { id, userId: dbUser.id },
+      select: { id: true },
+    });
 
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+    if (!existing) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
 
+    await prisma.careerMilestone.delete({ where: { id } });
+
     return NextResponse.json({ ok: true });
-  } catch {
+  } catch (e) {
+    if (e instanceof UnauthorizedError) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 }

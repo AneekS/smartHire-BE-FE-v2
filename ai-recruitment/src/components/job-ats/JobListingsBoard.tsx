@@ -46,8 +46,8 @@ export function JobListingsBoard() {
         activeCategory === "All" || job.category === activeCategory;
       const matchesSearch =
         !q ||
-        job.job_title.toLowerCase().includes(q) ||
-        job.company_name.toLowerCase().includes(q) ||
+        (job.job_title ?? "").toLowerCase().includes(q) ||
+        (job.company_name ?? "").toLowerCase().includes(q) ||
         job.tech_stack?.some((t) => t.toLowerCase().includes(q));
       return matchesCategory && matchesSearch;
     });

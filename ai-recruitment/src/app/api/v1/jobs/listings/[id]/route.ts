@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { ok, err } from "@/lib/api-response";
 import { UnauthorizedError, withAuth } from "@/lib/auth-helpers";
-import { insforge } from "@/lib/insforge";
+import { prisma } from "@/lib/db";
 
 export async function GET(
   req: NextRequest,
@@ -11,26 +11,26 @@ export async function GET(
     const { dbUser } = await withAuth(req);
     const { id } = await params;
 
-    const { data, error } = await insforge.database
-      .from("job_listings")
-      .select("*")
-      .eq("id", id)
-      .eq("is_active", true)
-      .maybeSingle();
+    const listing = await prisma.jobListing.findFirst({
+      where: { id, isActive: true },
+    });
 
-    if (error) return err(error.message, 500);
-    if (!data) return err("Job not found", 404);
+    if (!listing) return err("Job not found", 404);
 
-    const { data: existingScore } = await insforge.database
-      .from("job_ats_scores")
-      .select("*")
-      .eq("candidate_id", dbUser.id)
-      .eq("job_listing_id", id)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
+    const candidate = await prisma.candidate.findUnique({
+      where: { userId: dbUser.id },
+      select: { id: true },
+    });
 
-    return ok({ ...data, existingScore: existingScore ?? null });
+    let existingScore = null;
+    if (candidate) {
+      existingScore = await prisma.jobAtsScore.findFirst({
+        where: { candidateId: candidate.id, listingId: id },
+        orderBy: { createdAt: "desc" },
+      });
+    }
+
+    return ok({ ...listing, existingScore });
   } catch (error) {
     if (error instanceof UnauthorizedError) {
       return err(error.message, 401);

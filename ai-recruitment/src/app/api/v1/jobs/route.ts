@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { insforge } from "@/lib/insforge";
+import { prisma } from "@/lib/db";
 
 export async function GET(req: NextRequest) {
   try {
@@ -7,18 +7,14 @@ export async function GET(req: NextRequest) {
     const page = parseInt(searchParams.get("page") ?? "1");
     const limit = Math.min(parseInt(searchParams.get("limit") ?? "20"), 50);
 
-    const { data: jobs, error } = await insforge.database
-      .from("jobs")
-      .select("*")
-      .eq("status", "ACTIVE")
-      .order("created_at", { ascending: false })
-      .range((page - 1) * limit, page * limit - 1);
+    const jobs = await prisma.job.findMany({
+      where: { status: "ACTIVE" },
+      orderBy: { createdAt: "desc" },
+      skip: (page - 1) * limit,
+      take: limit,
+    });
 
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
-    }
-
-    return NextResponse.json({ jobs: jobs ?? [], page, limit });
+    return NextResponse.json({ jobs, page, limit });
   } catch (e) {
     console.error(e);
     return NextResponse.json(

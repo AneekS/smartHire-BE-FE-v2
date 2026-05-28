@@ -1,0 +1,11 @@
+AVERY WILLIAMS
+Software Engineer at Databricks
+TypeScript | Node.js | PostgreSQL | AWS
+
+EXPERIENCE
+Databricks — Software Engineer | Mar 2019 - Present
+- Built scalable systems and APIs
+- TypeScript and Node.js expertise
+
+EDUCATION
+MIT | BS Computer Science | 2014-2018

@@ -1,0 +1,49 @@
+{
+  "personalInfo": {
+    "name": "Maria Lopez",
+    "email": null,
+    "phone": null,
+    "location": null,
+    "linkedIn": null,
+    "github": null,
+    "portfolio": null
+  },
+  "summary": "Former teacher transitioning to product management",
+  "industryDomain": "GENERAL",
+  "seniorityBand": "L3",
+  "yearsOfExperience": 7,
+  "skills": [
+    { "name": "Communication", "domain": "SOFT_SKILLS", "proficiencyLevel": 4 },
+    { "name": "Curriculum Design", "domain": "OTHER", "proficiencyLevel": 4 },
+    { "name": "Notion", "domain": "OTHER", "proficiencyLevel": 3 }
+  ],
+  "experience": [
+    {
+      "company": "Lincoln High School",
+      "title": "Teacher",
+      "startDate": "2015-08",
+      "endDate": "2022-06",
+      "isCurrent": false,
+      "durationMonths": 82,
+      "responsibilities": ["Managed classroom of 30 students"],
+      "achievements": [],
+      "techStack": []
+    },
+    {
+      "company": "Product Bootcamp",
+      "title": "Fellow",
+      "startDate": "2022-09",
+      "endDate": "2023-03",
+      "isCurrent": false,
+      "durationMonths": 6,
+      "responsibilities": [],
+      "achievements": [],
+      "techStack": []
+    }
+  ],
+  "education": [],
+  "projects": [],
+  "certifications": [],
+  "achievements": [],
+  "languages": []
+}

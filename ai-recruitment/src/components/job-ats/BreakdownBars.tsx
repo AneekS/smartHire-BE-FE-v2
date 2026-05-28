@@ -24,18 +24,28 @@ export function BreakdownBars({
 
   const labelFor = (key: string) => {
     switch (key) {
-      case "keywordMatch":
-        return "Keyword Match";
+      case "semanticMatch":
+        return "Semantic Match";
+      case "skillMatch":
+        return "Skill Match";
       case "experienceMatch":
         return "Experience Match";
-      case "skillsMatch":
-        return "Skills Match";
+      case "seniorityBand":
+        return "Seniority Band";
       case "educationMatch":
         return "Education Match";
+      case "achievementScore":
+        return "Achievements";
+      case "keywordMatch":
+        return "Keyword Match";
+      case "skillsAlignment":
+      case "skillsMatch":
+        return "Skills Match";
+      case "formatting":
       case "formattingScore":
         return "Formatting";
       default:
-        return key;
+        return key.replace(/([A-Z])/g, " $1").trim();
     }
   };
 

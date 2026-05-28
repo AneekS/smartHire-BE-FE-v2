@@ -3,7 +3,8 @@ import { Plus_Jakarta_Sans, Bricolage_Grotesque } from "next/font/google";
 import { Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/sonner";
-import { InsforgeProvider } from "@/components/providers/InsforgeProvider";
+import { ClerkProvider } from "@clerk/nextjs";
+import { shadcn } from "@clerk/ui/themes";
 
 const plusJakarta = Plus_Jakarta_Sans({
   variable: "--font-plus-jakarta",
@@ -37,10 +38,17 @@ export default function RootLayout({
       <body
         className={`${plusJakarta.variable} ${bricolage.variable} ${geistMono.variable} font-sans antialiased`}
       >
-        <InsforgeProvider>
+        <ClerkProvider
+          appearance={{ theme: shadcn }}
+          signInUrl="/login"
+          signUpUrl="/register"
+          signInFallbackRedirectUrl="/dashboard"
+          signUpFallbackRedirectUrl="/dashboard"
+          signOutFallbackRedirectUrl="/"
+        >
           {children}
           <Toaster />
-        </InsforgeProvider>
+        </ClerkProvider>
       </body>
     </html>
   );

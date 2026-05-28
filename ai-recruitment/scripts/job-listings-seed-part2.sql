@@ -1,9 +1,11 @@
 INSERT INTO job_listings
-  (job_title, company_name, location, job_type, experience_level,
+  (id, job_title, company_name, location, job_type, experience_level,
    salary_range, tech_stack, category, is_featured,
-   job_description, requirements, responsibilities, nice_to_have)
+   job_description, requirements, responsibilities, nice_to_have,
+   is_active, "createdAt", "updatedAt")
 VALUES
 (
+  gen_random_uuid()::text,
   'AI Engineer (LLM Applications)',
   'Anthropic',
   'San Francisco, CA',
@@ -35,9 +37,13 @@ VALUES
   'Nice to have:
 - Published AI safety research
 - Experience with fine-tuning LLMs
-- RLHF implementation experience'
+- RLHF implementation experience',
+  true,
+  NOW(),
+  NOW()
 ),
 (
+  gen_random_uuid()::text,
   'MLOps Engineer',
   'Hugging Face',
   'Remote (Global)',
@@ -69,9 +75,13 @@ VALUES
   'Nice to have:
 - Experience with Hugging Face Transformers
 - Custom CUDA kernel development
-- Open source contributions to ML projects'
+- Open source contributions to ML projects',
+  true,
+  NOW(),
+  NOW()
 ),
 (
+  gen_random_uuid()::text,
   'Blockchain Engineer (Solidity)',
   'Coinbase',
   'Remote (US)',
@@ -103,9 +113,13 @@ VALUES
   'Nice to have:
 - Layer 2 development experience (Optimism, Arbitrum)
 - Formal verification tools (Certora, Slither)
-- ZK-proof systems knowledge'
+- ZK-proof systems knowledge',
+  true,
+  NOW(),
+  NOW()
 ),
 (
+  gen_random_uuid()::text,
   'Senior QA / SDET Engineer',
   'Microsoft',
   'Redmond, WA (Hybrid)',
@@ -137,9 +151,13 @@ VALUES
   'Nice to have:
 - Azure certifications
 - Experience with chaos engineering
-- Security testing knowledge'
+- Security testing knowledge',
+  true,
+  NOW(),
+  NOW()
 ),
 (
+  gen_random_uuid()::text,
   'Staff Engineer (Platform)',
   'Figma',
   'San Francisco, CA (Hybrid)',
@@ -171,9 +189,13 @@ VALUES
   'Nice to have:
 - Experience with real-time collaborative editing (CRDTs, OT)
 - WebGL or GPU programming
-- Open source leadership'
+- Open source leadership',
+  true,
+  NOW(),
+  NOW()
 ),
 (
+  gen_random_uuid()::text,
   'Backend Engineer (Go)',
   'GitHub',
   'Remote (Global)',
@@ -205,9 +227,13 @@ VALUES
   'Nice to have:
 - Ruby on Rails experience (existing codebase)
 - Experience building developer tools
-- Open source project maintainer experience'
+- Open source project maintainer experience',
+  true,
+  NOW(),
+  NOW()
 ),
 (
+  gen_random_uuid()::text,
   'Site Reliability Engineer',
   'PagerDuty',
   'Remote (US/CA)',
@@ -239,9 +265,13 @@ VALUES
   'Nice to have:
 - Chaos engineering experience (Chaos Monkey, Litmus)
 - eBPF performance tooling
-- Incident command system (ICS) training'
+- Incident command system (ICS) training',
+  true,
+  NOW(),
+  NOW()
 ),
 (
+  gen_random_uuid()::text,
   'Developer Advocate / Technical Writer',
   'HashiCorp',
   'Remote (Global)',
@@ -273,9 +303,13 @@ VALUES
   'Nice to have:
 - Existing developer community following
 - HashiCorp certifications
-- Experience with Vault, Consul, or Nomad'
+- Experience with Vault, Consul, or Nomad',
+  true,
+  NOW(),
+  NOW()
 ),
 (
+  gen_random_uuid()::text,
   'Software Engineer II (Java)',
   'Amazon',
   'Austin, TX (Hybrid)',
@@ -297,9 +331,13 @@ VALUES
 - Improve reliability, latency, and cost efficiency
 - Participate in operational reviews and on-call',
   'Nice to have:
-- Experience with high-traffic e-commerce or logistics systems'
+- Experience with high-traffic e-commerce or logistics systems',
+  true,
+  NOW(),
+  NOW()
 ),
 (
+  gen_random_uuid()::text,
   'Android Engineer (Kotlin)',
   'Uber',
   'Sunnyvale, CA (Hybrid)',
@@ -321,9 +359,13 @@ VALUES
 - Improve app performance and crash rates
 - Collaborate with iOS and backend teams',
   'Nice to have:
-- Experience with maps and location-heavy apps'
+- Experience with maps and location-heavy apps',
+  true,
+  NOW(),
+  NOW()
 ),
 (
+  gen_random_uuid()::text,
   'Product Engineer',
   'Notion',
   'San Francisco, CA (Hybrid)',
@@ -344,9 +386,13 @@ VALUES
 - Instrument and iterate based on usage data
 - Maintain high code quality through reviews and tests',
   'Nice to have:
-- Electron or desktop app experience'
+- Electron or desktop app experience',
+  true,
+  NOW(),
+  NOW()
 ),
 (
+  gen_random_uuid()::text,
   'Engineering Manager (Infrastructure)',
   'Atlassian',
   'Remote (US)',
@@ -367,5 +413,8 @@ VALUES
 - Partner with product on roadmap and technical strategy
 - Drive SLOs, incident response, and platform investments',
   'Nice to have:
-- Experience with multi-tenant SaaS at scale'
+- Experience with multi-tenant SaaS at scale',
+  true,
+  NOW(),
+  NOW()
 );
