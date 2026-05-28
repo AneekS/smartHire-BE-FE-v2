@@ -50,9 +50,10 @@ describe("WeightRecalibrator", () => {
         semanticMatch: { score: i % 2 === 0 ? 80 : 40 },
         skillMatch: { score: 70 },
         experienceMatch: { score: 60 },
-        seniorityBand: { score: 50 },
+        atsCompliance: { score: 50 },
+        projectRelevance: { score: 45 },
         educationMatch: { score: 55 },
-        achievementScore: { score: 65 },
+        resumeQuality: { score: 65 },
       },
       signalType: i % 2 === 0 ? "POSITIVE" : "NEGATIVE",
     }));

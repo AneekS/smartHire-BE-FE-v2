@@ -6,13 +6,27 @@ export const SCORE_COMPONENTS = [
   "semanticMatch",
   "skillMatch",
   "experienceMatch",
-  "seniorityBand",
+  "atsCompliance",
+  "projectRelevance",
   "educationMatch",
-  "achievementScore",
+  "resumeQuality",
 ] as const;
 
 export type ScoreComponent = (typeof SCORE_COMPONENTS)[number];
 
+export const INDUSTRY_DOMAINS = [
+  "TECH",
+  "FINANCE",
+  "HEALTHCARE",
+  "SALES",
+  "CREATIVE",
+  "LEGAL",
+  "GENERAL",
+] as const;
+
+export type IndustryDomainType = (typeof INDUSTRY_DOMAINS)[number];
+
+/** @deprecated Use industryDomain — kept for DB column compatibility */
 export const ROLE_TYPES = ["IC", "MANAGER", "EXECUTIVE", "SALES", "HEALTHCARE"] as const;
 export type RoleType = (typeof ROLE_TYPES)[number];
 
@@ -39,6 +53,8 @@ export interface RecordDecisionInput {
   scoreBreakdown?: unknown;
   recruiterId: string;
   candidateId?: string;
+  industryDomain?: string;
+  /** @deprecated */
   roleType?: string;
 }
 

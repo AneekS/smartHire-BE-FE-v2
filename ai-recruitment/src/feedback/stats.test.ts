@@ -33,12 +33,13 @@ describe("feedback/stats", () => {
 
   it("weightsToFractions and fractionsToWeights round-trip approximately", () => {
     const weights = {
-      semanticMatch: 25,
-      skillMatch: 30,
+      semanticMatch: 20,
+      skillMatch: 25,
       experienceMatch: 20,
-      seniorityBand: 10,
+      atsCompliance: 15,
+      projectRelevance: 5,
       educationMatch: 5,
-      achievementScore: 10,
+      resumeQuality: 10,
     };
     const fractions = weightsToFractions(weights);
     const back = fractionsToWeights(fractions);

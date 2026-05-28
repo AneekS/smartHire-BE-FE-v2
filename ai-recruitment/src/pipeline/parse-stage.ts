@@ -16,7 +16,7 @@ import {
   wrapExtractionResult,
 } from "@/parsing/extractor";
 import { DedupCache, fileHash } from "@/parsing/dedup";
-import { computeBaseScore } from "@/scoring/base-score";
+import { AtsEngineV3 } from "@/scoring/v3/ats-engine";
 import type { PreprocessResult } from "@/parsing/preprocess.types";
 import type { ExtractionResumeSchemaType } from "@/models/extraction.schema";
 import type { FormatType, ParsingMethod } from "@/parsing/preprocess.types";
@@ -187,15 +187,18 @@ export async function runParseStage(input: ParseStageInput): Promise<ParseStageR
           console.warn("[parse-stage] improvements skipped:", e);
           return [];
         });
-    const { overallScore, breakdown } = computeBaseScore(parseResult.resume);
+    const generalScore = await AtsEngineV3.scoreGeneral(
+      parseResult.resume,
+      parseResult.parseConfidence
+    );
 
     await prisma.resumeVersion.update({
       where: { id: input.resumeId },
       data: {
         status: "ACTIVE",
-        atsScore: overallScore,
+        atsScore: generalScore.overallScore,
         parsedContent: JSON.stringify(parseResult.ui),
-        scoreBreakdown: JSON.stringify(breakdown),
+        scoreBreakdown: JSON.stringify(generalScore.scoreBreakdown),
         improvements: JSON.stringify(improvements),
         pipelineStatus: "SCORED",
       },
@@ -246,7 +249,7 @@ export async function runParseStage(input: ParseStageInput): Promise<ParseStageR
       resumeId: input.resumeId,
       rawText: pre.rawText,
       extraction: parseResult.schema,
-      atsScore: overallScore,
+      atsScore: generalScore.overallScore,
       formatType: pre.formatType,
       parsingMethod: pre.parsingMethod,
       embedJobId,

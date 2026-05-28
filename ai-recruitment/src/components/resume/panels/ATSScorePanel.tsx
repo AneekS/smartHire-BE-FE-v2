@@ -78,11 +78,16 @@ export function ATSScorePanel({ onViewSection }: { onViewSection?: (sectionId: s
         return "bg-rose-400";
     };
 
+    const breakdownRecord = scoreBreakdown as Record<string, { score?: number }> | null;
+    const componentScore = (key: string) =>
+        breakdownRecord?.[key]?.score ?? (scoreBreakdown as Record<string, number> | null)?.[key] ?? 0;
+
     const breakdowns = [
-        { label: "Keyword Match", val: scoreBreakdown?.keywordMatch || 0, target: 100 },
-        { label: "Formatting", val: scoreBreakdown?.formatting || 0, target: 100 },
-        { label: "Experience Match", val: scoreBreakdown?.experienceMatch || 0, target: 100 },
-        { label: "Skills Alignment", val: scoreBreakdown?.skillsAlignment || 0, target: 100 }
+        { label: "Resume Quality", val: componentScore("resumeQuality"), target: 100 },
+        { label: "ATS Compliance", val: componentScore("atsCompliance"), target: 100 },
+        { label: "Skill Match", val: componentScore("skillMatch"), target: 100 },
+        { label: "Experience Match", val: componentScore("experienceMatch"), target: 100 },
+        { label: "Education Match", val: componentScore("educationMatch"), target: 100 },
     ];
 
     const timeAgo = (dateStr: string | null) => {

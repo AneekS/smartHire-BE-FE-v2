@@ -30,12 +30,14 @@ export function BreakdownBars({
         return "Skill Match";
       case "experienceMatch":
         return "Experience Match";
-      case "seniorityBand":
-        return "Seniority Band";
+      case "atsCompliance":
+        return "ATS Compliance";
+      case "projectRelevance":
+        return "Project Relevance";
+      case "resumeQuality":
+        return "Resume Quality";
       case "educationMatch":
         return "Education Match";
-      case "achievementScore":
-        return "Achievements";
       case "keywordMatch":
         return "Keyword Match";
       case "skillsAlignment":

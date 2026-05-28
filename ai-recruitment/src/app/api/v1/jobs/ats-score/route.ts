@@ -1,14 +1,13 @@
 import { NextRequest } from "next/server";
-import OpenAI from "openai";
 import { prisma } from "@/lib/db";
-import { buildJobATSPrompt } from "@/lib/prompts/jobATSPrompt";
 import { ok, err } from "@/lib/api-response";
 import { UnauthorizedError, withAuth } from "@/lib/auth-helpers";
 import { parseResumeSchema } from "@/models/resume.schema";
 import { resolveJobSchema } from "@/scoring/jd-parser";
-import { scoreResumeAgainstJob } from "@/retrieval/match-service";
+import { AtsEngineV3 } from "@/scoring/v3/ats-engine";
 import { scoreLabelFromRecommendation } from "@/models/scoring.schema";
 import type { ScoreResult } from "@/models/scoring.schema";
+import type { JobScoreResult } from "@/scoring/v3/types";
 import {
   checkRateLimit,
   getScoreLimit,
@@ -17,11 +16,6 @@ import {
 import { logExtractionEvent } from "@/monitoring/logger";
 
 export const maxDuration = 120;
-
-const openai = new OpenAI();
-const SCORING_FALLBACK_LLM =
-  process.env.SCORING_FALLBACK_LLM === "true" ||
-  process.env.SCORING_FALLBACK_LLM === "1";
 
 function logScoringComplete(resumeId: string, tenantId: string | null, startedMs: number) {
   logExtractionEvent({
@@ -36,36 +30,8 @@ function logScoringComplete(resumeId: string, tenantId: string | null, startedMs
   });
 }
 
-async function tryIntelligentScore(
-  candidateId: string,
-  resumeVersionId: string,
-  jobListingId: string | null,
-  jobTitle: string,
-  companyName: string,
-  jobDescription: string
-) {
-  const parsedRow = await prisma.parsedResume.findUnique({
-    where: { resumeVersionId },
-  });
-  if (!parsedRow?.parsedData) return null;
-
-  const resume = parseResumeSchema(parsedRow.parsedData);
-  const job = await resolveJobSchema({
-    jobId: jobListingId,
-    jdText: jobDescription,
-    jobTitle,
-    companyName,
-    strategy: "heuristic",
-  });
-
-  const result = await scoreResumeAgainstJob(resume, job, candidateId, {
-    skipNarrative: true,
-  });
-  return { result, job, resumeVersionId };
-}
-
 function mapScoreResultToResponse(
-  result: ScoreResult,
+  result: JobScoreResult,
   meta: {
     jobTitle: string;
     companyName: string;
@@ -89,7 +55,10 @@ function mapScoreResultToResponse(
     matchSummary: result.explanation ?? null,
     recommendations: result.reasons,
     scoreLabel,
-    pipeline: "intelligent-scorer",
+    scoreConfidence: result.scoreConfidence,
+    requiresManualReview: result.requiresManualReview,
+    industryDomain: result.industryDomain,
+    pipeline: result.pipeline ?? "ats-v3",
     jobTitle: meta.jobTitle,
     companyName: meta.companyName || null,
     resumeId: meta.resumeVersionId,
@@ -185,11 +154,11 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const parsed =
-      (latestResume.parsedContent &&
-        (JSON.parse(latestResume.parsedContent) as Record<string, unknown>)) ||
-      null;
-    if (!parsed) {
+    const parsedRow = await prisma.parsedResume.findUnique({
+      where: { resumeVersionId: latestResume.id },
+    });
+
+    if (!parsedRow?.parsedData) {
       return err(
         "Resume not yet parsed. Please re-upload your resume in Resume Optimizer.",
         404
@@ -213,193 +182,71 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    if (candidate) {
-      try {
-        const scored = await tryIntelligentScore(
-          candidate.id,
-          latestResume.id,
-          listingId,
-          jobTitle.trim(),
-          companyName.trim(),
-          jobDescription
-        );
-
-        if (scored) {
-          const { result } = scored;
-          const responsePayload = mapScoreResultToResponse(result, {
-            jobTitle: jobTitle.trim(),
-            companyName: companyName.trim(),
-            resumeVersionId: latestResume.id,
-            listingId,
-          });
-
-          const details = JSON.parse(JSON.stringify(responsePayload));
-
-          let saved: { id: string } | null = null;
-          if (listingId) {
-            saved = await prisma.jobAtsScore.upsert({
-              where: {
-                candidateId_listingId: {
-                  candidateId: candidate.id,
-                  listingId,
-                },
-              },
-              create: {
-                candidateId: candidate.id,
-                listingId,
-                score: result.overallScore,
-                details,
-              },
-              update: {
-                score: result.overallScore,
-                details,
-              },
-              select: { id: true },
-            });
-          }
-
-          logScoringComplete(
-            latestResume.id,
-            latestResume.tenantId ?? candidate.id,
-            scoreStarted
-          );
-
-          return ok({
-            id: saved?.id,
-            ...responsePayload,
-            cached: false,
-            resumeFileName: latestResume.title,
-          });
-        }
-      } catch (hybridErr) {
-        console.warn("[job-ats] Intelligent scorer failed:", hybridErr);
-        const msg =
-          hybridErr instanceof Error
-            ? hybridErr.message
-            : "Scoring failed. Ensure resume is parsed and pipeline is complete.";
-        if (!SCORING_FALLBACK_LLM) {
-          return err(
-            msg.includes("timeout")
-              ? "Scoring timed out. Ensure Ollama is running, or try again in a moment."
-              : msg,
-            500
-          );
-        }
-      }
+    if (!candidate) {
+      return err("Candidate profile not found", 404);
     }
 
-    if (!SCORING_FALLBACK_LLM) {
-      return err(
-        "Resume scoring unavailable. Upload and parse your resume, or enable SCORING_FALLBACK_LLM.",
-        503
-      );
-    }
-
-    const resumeRaw = await prisma.resumeRaw.findFirst({
-      where: { profile: { candidate: { userId: dbUser.id } } },
-      orderBy: { uploadedAt: "desc" },
-    });
-    const resumeText = resumeRaw?.extractedText ?? "";
-
-    const prompt = buildJobATSPrompt(
-      resumeText,
-      parsed,
-      jobTitle.trim(),
-      companyName.trim(),
-      jobDescription
-    );
-
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
-      temperature: 0.1,
-      max_tokens: 4000,
-      messages: [
-        {
-          role: "system",
-          content:
-            "You are a precise ATS scoring engine and senior technical recruiter. Be strict, accurate, and specific. Return only valid JSON. Zero markdown.",
-        },
-        { role: "user", content: prompt },
-      ],
-    });
-
-    const raw = completion.choices[0].message.content ?? "";
-    const clean = raw
-      .replace(/```json\n?/g, "")
-      .replace(/```\n?/g, "")
-      .trim();
-
-    let analysis: Record<string, unknown>;
-    try {
-      analysis = JSON.parse(clean) as Record<string, unknown>;
-    } catch {
-      return err("AI returned invalid JSON. Please try again.", 500);
-    }
-
-    if (typeof analysis.overallScore !== "number") {
-      return err("AI returned incomplete analysis. Please try again.", 500);
-    }
-
-    const details = JSON.parse(JSON.stringify({
+    const resume = parseResumeSchema(parsedRow.parsedData);
+    const job = await resolveJobSchema({
+      jobId: listingId,
+      jdText: jobDescription,
       jobTitle: jobTitle.trim(),
-      companyName: companyName.trim() || null,
-      resumeId: latestResume.id,
-      breakdown: analysis.breakdown,
-      keywordAnalysis: analysis.keywordAnalysis,
-      sectionScores: analysis.sectionScores,
-      recommendations: analysis.recommendations,
-      matchSummary: analysis.matchSummary,
-      scoreLabel: analysis.scoreLabel ?? null,
-      competitiveAnalysis: analysis.competitiveAnalysis ?? null,
-      tailoredSummary: analysis.tailoredSummary ?? null,
-      topMissingKeywordsToAdd: Array.isArray(analysis.topMissingKeywordsToAdd)
-        ? analysis.topMissingKeywordsToAdd
-        : null,
-      pipeline: "openai-fallback",
-    }));
+      companyName: companyName.trim(),
+      strategy: "heuristic",
+    });
+
+    const skipNarrative = process.env.SCORING_FALLBACK_LLM !== "true" &&
+      process.env.SCORING_FALLBACK_LLM !== "1";
+
+    const result = await AtsEngineV3.scoreForJob(resume, job, candidate.id, {
+      tenantId: latestResume.tenantId ?? undefined,
+      parseConfidence: parsedRow.parseConfidence ?? resume.parseConfidence,
+      skipNarrative,
+    });
+
+    const responsePayload = mapScoreResultToResponse(result, {
+      jobTitle: jobTitle.trim(),
+      companyName: companyName.trim(),
+      resumeVersionId: latestResume.id,
+      listingId,
+    });
+
+    const details = JSON.parse(JSON.stringify(responsePayload));
 
     let saved: { id: string } | null = null;
-    if (candidate && listingId) {
-      try {
-        saved = await prisma.jobAtsScore.upsert({
-          where: {
-            candidateId_listingId: {
-              candidateId: candidate.id,
-              listingId,
-            },
-          },
-          create: {
+    if (listingId) {
+      saved = await prisma.jobAtsScore.upsert({
+        where: {
+          candidateId_listingId: {
             candidateId: candidate.id,
             listingId,
-            score: analysis.overallScore as number,
-            details,
           },
-          update: {
-            score: analysis.overallScore as number,
-            details,
-          },
-          select: { id: true },
-        });
-      } catch (saveErr) {
-        console.error("[job-ats] Save error (non-blocking):", saveErr);
-      }
+        },
+        create: {
+          candidateId: candidate.id,
+          listingId,
+          score: result.overallScore,
+          details,
+        },
+        update: {
+          score: result.overallScore,
+          details,
+        },
+        select: { id: true },
+      });
     }
 
     logScoringComplete(
       latestResume.id,
-      latestResume.tenantId ?? candidate?.id ?? null,
+      latestResume.tenantId ?? candidate.id,
       scoreStarted
     );
 
     return ok({
       id: saved?.id,
-      jobTitle,
-      companyName,
-      jobListingId: listingId,
-      ...(analysis as Record<string, unknown>),
+      ...responsePayload,
       cached: false,
       resumeFileName: latestResume.title,
-      pipeline: "openai-fallback",
     });
   } catch (error: unknown) {
     if (error instanceof UnauthorizedError) {
@@ -408,7 +255,12 @@ export async function POST(req: NextRequest) {
     const msg =
       error instanceof Error ? error.message : "Scoring failed. Please try again.";
     console.error("[job-ats] Route error:", msg, error);
-    return err(msg, 500);
+    return err(
+      msg.includes("timeout")
+        ? "Scoring timed out. Ensure resume is parsed and try again."
+        : msg,
+      500
+    );
   }
 }
 
@@ -528,6 +380,9 @@ function mapScoreRow(row: {
     competitiveAnalysis: d.competitiveAnalysis ?? null,
     tailoredSummary: d.tailoredSummary ?? null,
     topMissingKeywordsToAdd: d.topMissingKeywordsToAdd ?? [],
+    scoreConfidence: d.scoreConfidence ?? null,
+    requiresManualReview: d.requiresManualReview ?? false,
+    industryDomain: d.industryDomain ?? null,
     createdAt: row.createdAt,
   };
 }

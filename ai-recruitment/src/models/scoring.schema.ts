@@ -4,9 +4,10 @@ export const ScoreComponentKeySchema = z.enum([
   "semanticMatch",
   "skillMatch",
   "experienceMatch",
-  "seniorityBand",
+  "atsCompliance",
+  "projectRelevance",
   "educationMatch",
-  "achievementScore",
+  "resumeQuality",
 ]);
 
 export type ScoreComponentKey = z.infer<typeof ScoreComponentKeySchema>;
@@ -43,15 +44,6 @@ export const GradeSchema = z.enum([
   "F",
 ]);
 
-/** Legacy flat breakdown kept for parse-stage base ATS score. */
-export const LegacyScoreBreakdownSchema = z.object({
-  keywordMatch: z.number(),
-  formatting: z.number(),
-  experienceMatch: z.number(),
-  skillsAlignment: z.number(),
-  semanticMatch: z.number().optional(),
-});
-
 export const ScoreResultSchema = z.object({
   overallScore: z.number().min(0).max(100),
   grade: GradeSchema,
@@ -65,8 +57,11 @@ export const ScoreResultSchema = z.object({
   missingSkills: z.array(z.string()).default([]),
   explanation: z.string().optional(),
   reasons: z.array(z.string()).default([]),
-  /** @deprecated use scoreBreakdown */
-  breakdown: LegacyScoreBreakdownSchema.optional(),
+  scoreConfidence: z.number().min(0).max(1).default(0.85),
+  requiresManualReview: z.boolean().default(false),
+  industryDomain: z.string().optional(),
+  generalScore: z.number().optional(),
+  pipeline: z.string().optional(),
 });
 
 export type ScoreResult = z.infer<typeof ScoreResultSchema>;
@@ -74,7 +69,6 @@ export type ScoreComponentBreakdown = z.infer<typeof ScoreComponentBreakdownSche
 export type ScoreBreakdown = z.infer<typeof ScoreBreakdownSchema>;
 export type Recommendation = z.infer<typeof RecommendationSchema>;
 export type Grade = z.infer<typeof GradeSchema>;
-export type LegacyScoreBreakdown = z.infer<typeof LegacyScoreBreakdownSchema>;
 
 export function scoreToGrade(score: number): Grade {
   if (score >= 95) return "A+";

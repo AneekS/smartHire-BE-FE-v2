@@ -1,6 +1,9 @@
 import type { JobListing } from "@prisma/client";
 import { parseJobSchema, type JobSchemaType, type RoleType } from "@/models/job.schema";
-import type { SeniorityBand } from "@/models/resume.schema";
+import { SeniorityBandSchema } from "@/models/resume.schema";
+import type { z } from "zod";
+
+type SeniorityBand = z.infer<typeof SeniorityBandSchema>;
 
 const COMMON_SKILLS = [
   "typescript",

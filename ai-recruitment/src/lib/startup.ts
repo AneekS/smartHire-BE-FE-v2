@@ -1,10 +1,43 @@
 import { checkEmbedPool, checkExtractionPool, warmupExtractionModel } from "@/lib/ollama-extraction-client";
 import { env } from "@/config/pipeline-env";
-import { assertRedisHealthy } from "@/queue/redis-queue";
+import { validateEnv } from "@/lib/env";
+import { pingBlobStorage, isAzureSearchConfigured } from "@/lib/azureClients";
+import { assertRedisHealthy, pingRedis } from "@/lib/bullmq";
+import { prisma } from "@/lib/prisma";
 import { OllamaPool } from "@/embedding/ollama-pool";
 import { SkillCanonicalizer } from "@/scoring/canonicalizer";
+import { getLogger } from "@/monitoring/logger";
 
 export async function runStartupChecks(): Promise<void> {
+  const log = getLogger();
+  try {
+    validateEnv();
+    log.info("[startup] Environment validated");
+  } catch (e) {
+    log.error({ err: e }, "[startup] Environment validation failed");
+    throw e;
+  }
+
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    log.info("[startup] Database OK");
+  } catch (e) {
+    log.error({ err: e }, "[startup] Database unreachable");
+    throw e;
+  }
+
+  const blobOk = await pingBlobStorage();
+  log.info({ blobOk }, "[startup] Blob storage check");
+
+  const redisOk = await pingRedis();
+  log.info({ redisOk }, "[startup] Redis check");
+
+  if (isAzureSearchConfigured()) {
+    log.info("[startup] Azure Search configured");
+  } else {
+    log.warn("[startup] Azure Search not configured — semantic scoring uses heuristics");
+  }
+
   console.log("[startup] Checking Ollama extraction pool...");
   const poolStatus = await checkExtractionPool();
 

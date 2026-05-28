@@ -1,4 +1,4 @@
-import { RRF_K } from "@/scoring/weights";
+import { RRF_K } from "@/retrieval/constants";
 import {
   keywordSearch,
   vectorSearch,

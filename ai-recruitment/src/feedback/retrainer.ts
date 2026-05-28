@@ -3,16 +3,16 @@ import type { Prisma } from "@prisma/client";
 import {
   GLOBAL_TENANT_ID,
   SCORE_COMPONENTS,
-  ROLE_TYPES,
+  INDUSTRY_DOMAINS,
   type FractionWeightProfile,
-  type RoleType,
+  type IndustryDomainType,
 } from "@/feedback/types";
 import {
   pearsonr,
   normalizeWeights,
   weightsToFractions,
 } from "@/feedback/stats";
-import { WEIGHT_PROFILES, type WeightProfile } from "@/scoring/weights";
+import { INDUSTRY_WEIGHT_PROFILES } from "@/scoring/v3/industry-weights";
 import { sendOpsAlert } from "@/lib/ops-alerts";
 
 const LEARNING_RATE = 0.05;
@@ -40,21 +40,21 @@ function outcomeLabel(signalType: string): number {
   return 0;
 }
 
-function getBaseFractions(roleType: RoleType): FractionWeightProfile {
+function getBaseFractions(industryDomain: IndustryDomainType): FractionWeightProfile {
   const profile =
-    roleType in WEIGHT_PROFILES
-      ? WEIGHT_PROFILES[roleType as keyof typeof WEIGHT_PROFILES]
-      : WEIGHT_PROFILES.IC;
-  return weightsToFractions(profile as WeightProfile);
+    industryDomain in INDUSTRY_WEIGHT_PROFILES
+      ? INDUSTRY_WEIGHT_PROFILES[industryDomain as keyof typeof INDUSTRY_WEIGHT_PROFILES]
+      : INDUSTRY_WEIGHT_PROFILES.GENERAL;
+  return weightsToFractions(profile);
 }
 
 export class WeightRecalibrator {
   static async recalibrateWeights(): Promise<{
     profilesUpdated: number;
-    runs: Array<{ tenantId: string; roleType: string }>;
+    runs: Array<{ tenantId: string; industryDomain: string }>;
   }> {
     const since = new Date(Date.now() - LOOKBACK_DAYS * 24 * 60 * 60 * 1000);
-    const runs: Array<{ tenantId: string; roleType: string }> = [];
+    const runs: Array<{ tenantId: string; industryDomain: string }> = [];
     let profilesUpdated = 0;
 
     const tenantRolePairs = await prisma.recruiterDecision.groupBy({
@@ -69,11 +69,11 @@ export class WeightRecalibrator {
     }
 
     for (const tenantId of tenantIds) {
-      for (const roleType of ROLE_TYPES) {
+      for (const industryDomain of INDUSTRY_DOMAINS) {
         const decisions = await prisma.recruiterDecision.findMany({
           where: {
             ...(tenantId === GLOBAL_TENANT_ID ? {} : { tenantId }),
-            roleType,
+            roleType: industryDomain,
             decidedAt: { gte: since },
           },
           select: {
@@ -85,7 +85,7 @@ export class WeightRecalibrator {
         if (decisions.length < MIN_DECISIONS) continue;
 
         const outcomes = decisions.map((d) => outcomeLabel(d.signalType));
-        const oldFractions = await WeightRecalibrator.loadFractions(tenantId, roleType);
+        const oldFractions = await WeightRecalibrator.loadFractions(tenantId, industryDomain);
         const correlations: Record<string, number> = {};
         const adjusted: FractionWeightProfile = { ...oldFractions };
 
@@ -117,11 +117,11 @@ export class WeightRecalibrator {
 
         await prisma.tenantWeightProfile.upsert({
           where: {
-            tenantId_roleType: { tenantId, roleType },
+            tenantId_roleType: { tenantId, roleType: industryDomain },
           },
           create: {
             tenantId,
-            roleType,
+            roleType: industryDomain,
             weights: normalized as unknown as Prisma.InputJsonValue,
           },
           update: {
@@ -132,7 +132,7 @@ export class WeightRecalibrator {
         await prisma.weightRecalibrationRun.create({
           data: {
             tenantId,
-            roleType,
+            roleType: industryDomain,
             componentDeltas: deltas as Prisma.InputJsonValue,
             correlations: correlations as Prisma.InputJsonValue,
           },
@@ -147,14 +147,14 @@ export class WeightRecalibrator {
 
         console.log("[retrainer]", {
           tenantId,
-          roleType,
+          industryDomain,
           decisionCount: decisions.length,
           gained,
           lost,
           correlations,
         });
 
-        runs.push({ tenantId, roleType });
+        runs.push({ tenantId, industryDomain });
         profilesUpdated++;
       }
     }
@@ -162,7 +162,7 @@ export class WeightRecalibrator {
     if (profilesUpdated > 0) {
       await sendOpsAlert({
         subject: "Weekly weight recalibration complete",
-        body: `Updated ${profilesUpdated} tenant/role weight profiles. Runs: ${runs.map((r) => `${r.tenantId}/${r.roleType}`).join(", ")}`,
+        body: `Updated ${profilesUpdated} tenant/industry weight profiles. Runs: ${runs.map((r) => `${r.tenantId}/${r.industryDomain}`).join(", ")}`,
         severity: "info",
       });
     }
@@ -172,14 +172,14 @@ export class WeightRecalibrator {
 
   static async loadFractions(
     tenantId: string,
-    roleType: RoleType
+    industryDomain: IndustryDomainType
   ): Promise<FractionWeightProfile> {
     const row = await prisma.tenantWeightProfile.findUnique({
-      where: { tenantId_roleType: { tenantId, roleType } },
+      where: { tenantId_roleType: { tenantId, roleType: industryDomain } },
     });
     if (row?.weights && typeof row.weights === "object") {
       return row.weights as FractionWeightProfile;
     }
-    return getBaseFractions(roleType);
+    return getBaseFractions(industryDomain);
   }
 }

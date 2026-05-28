@@ -1,4 +1,5 @@
 import { getPipelineEnv } from "@/config/pipeline-env";
+import { OllamaConcurrencyManager } from "@/lib/ollama-concurrency";
 import { OllamaPool } from "@/embedding/ollama-pool";
 import {
   generateEmbedding as hashEmbedding,
@@ -20,6 +21,16 @@ export function l2Normalize(vector: number[]): number[] {
 }
 
 async function ollamaEmbedBatchAt(
+  baseUrl: string,
+  texts: string[],
+  model: string
+): Promise<number[][]> {
+  return OllamaConcurrencyManager.run(() =>
+    ollamaEmbedBatchAtInner(baseUrl, texts, model)
+  );
+}
+
+async function ollamaEmbedBatchAtInner(
   baseUrl: string,
   texts: string[],
   model: string

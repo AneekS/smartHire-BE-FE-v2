@@ -1,4 +1,5 @@
 import { env, EMBED_POOL_URLS, EXTRACTION_POOL_URLS } from "@/config/pipeline-env";
+import { OllamaConcurrencyManager } from "@/lib/ollama-concurrency";
 import { logExtractionEvent } from "@/monitoring/logger";
 import * as Sentry from "@sentry/nextjs";
 
@@ -69,6 +70,15 @@ function predictTokensForPass(passNumber: 1 | 2 | 3): number {
 }
 
 export async function ollamaExtract(params: {
+  system: string;
+  user: string;
+  passNumber: 1 | 2 | 3;
+  resumeId?: string;
+}): Promise<string> {
+  return OllamaConcurrencyManager.run(() => ollamaExtractInner(params));
+}
+
+async function ollamaExtractInner(params: {
   system: string;
   user: string;
   passNumber: 1 | 2 | 3;
