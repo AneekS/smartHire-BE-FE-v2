@@ -1,7 +1,7 @@
-import { MetricsCollector } from "@/monitoring/metrics";
-
-export { MetricsCollector };
-
-export async function buildDashboardPayload(days = 7) {
-  return MetricsCollector.getDashboardData(days);
-}
+/** @deprecated Import from @/monitoring/OpsDashboard */
+export {
+  OpsDashboard,
+  buildDashboardPayload,
+  MetricsCollector,
+  type DashboardPayload,
+} from "@/monitoring/OpsDashboard";

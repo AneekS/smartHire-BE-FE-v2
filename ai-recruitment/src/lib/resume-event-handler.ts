@@ -1,4 +1,4 @@
-import { downloadResumeBlob, downloadResumeFromUrl } from "@/lib/azure-storage";
+import { BlobStorageService } from "@/lib/BlobStorageService";
 import { runParseStageFromBlob } from "@/pipeline/parse-stage";
 import { prisma } from "@/lib/db";
 import type { ResumeUploadedEventData } from "@/lib/event-grid";
@@ -27,9 +27,11 @@ export async function handleResumeUploadedEvent(
 
   let buffer: Buffer;
   if (blobPath) {
-    buffer = await downloadResumeBlob(blobPath);
+    buffer = await BlobStorageService.download(blobPath);
   } else {
-    buffer = await downloadResumeFromUrl(blobUrl);
+    const res = await fetch(blobUrl, { signal: AbortSignal.timeout(120_000) });
+    if (!res.ok) throw new Error(`Failed to download blob: ${res.status}`);
+    buffer = Buffer.from(await res.arrayBuffer());
   }
 
   const resolvedUserId = userId ?? version.userId;

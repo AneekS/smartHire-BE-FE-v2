@@ -38,23 +38,48 @@ interface OllamaChatResponse {
 /** Pre-load extraction model into Ollama memory to avoid cold-start timeouts on first upload. */
 export async function warmupExtractionModel(): Promise<void> {
   const baseUrl = EXTRACTION_POOL_URLS()[0];
-  if (!baseUrl) return;
+  if (!baseUrl || process.env.OLLAMA_SKIP_WARMUP === "1") return;
+
+  const modelBase = env.OLLAMA_EXTRACTION_MODEL.split(":")[0];
 
   try {
-    const res = await fetch(`${baseUrl}/api/chat`, {
+    const tagsRes = await fetch(`${baseUrl}/api/tags`, {
+      signal: AbortSignal.timeout(15_000),
+    });
+    if (!tagsRes.ok) {
+      console.warn(`[ollama] warmup skipped: /api/tags returned ${tagsRes.status}`);
+      return;
+    }
+    const tagsBody = (await tagsRes.json()) as {
+      models?: Array<{ name?: string }>;
+    };
+    const names = (tagsBody.models ?? [])
+      .map((m) => m.name ?? "")
+      .filter(Boolean);
+    const hasModel = names.some((n) => n === env.OLLAMA_EXTRACTION_MODEL || n.startsWith(modelBase));
+    if (!hasModel) {
+      console.warn(
+        `[ollama] warmup: model ${env.OLLAMA_EXTRACTION_MODEL} not in local tags (${names.length} models)`
+      );
+      return;
+    }
+
+    const res = await fetch(`${baseUrl}/api/generate`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      signal: AbortSignal.timeout(Math.min(env.OLLAMA_EXTRACTION_TIMEOUT_MS, 180_000)),
+      signal: AbortSignal.timeout(Math.min(env.OLLAMA_EXTRACTION_TIMEOUT_MS, 120_000)),
       body: JSON.stringify({
         model: env.OLLAMA_EXTRACTION_MODEL,
         keep_alive: env.OLLAMA_KEEP_ALIVE,
         stream: false,
-        messages: [{ role: "user", content: "ready" }],
+        prompt: "ok",
         options: { num_predict: 1, temperature: 0 },
       }),
     });
     if (!res.ok) {
-      console.warn(`[ollama] warmup failed: ${res.status}`);
+      console.warn(
+        `[ollama] warmup generate returned ${res.status} (pool healthy; first real request may be slower)`
+      );
       return;
     }
     console.log(`[ollama] extraction model warmed: ${env.OLLAMA_EXTRACTION_MODEL}`);

@@ -1,15 +1,24 @@
 import { NextRequest } from "next/server";
-import { ok, err } from "@/lib/api-response";
-import { UnauthorizedError, withAuth } from "@/lib/auth-helpers";
+import { withAuth, UnauthorizedError } from "@/lib/auth-helpers";
 import { prisma } from "@/lib/db";
+import { ok, err } from "@/lib/api-response";
+import { jobToListingDto } from "@/lib/job-bridge";
 
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { dbUser } = await withAuth(req);
+    await withAuth(req);
     const { id } = await params;
+
+    const job = await prisma.job.findFirst({
+      where: { id, status: "ACTIVE" },
+    });
+
+    if (job) {
+      return ok(jobToListingDto(job));
+    }
 
     const listing = await prisma.jobListing.findFirst({
       where: { id, isActive: true },
@@ -17,20 +26,7 @@ export async function GET(
 
     if (!listing) return err("Job not found", 404);
 
-    const candidate = await prisma.candidate.findUnique({
-      where: { userId: dbUser.id },
-      select: { id: true },
-    });
-
-    let existingScore = null;
-    if (candidate) {
-      existingScore = await prisma.jobAtsScore.findFirst({
-        where: { candidateId: candidate.id, listingId: id },
-        orderBy: { createdAt: "desc" },
-      });
-    }
-
-    return ok({ ...listing, existingScore });
+    return ok(listing);
   } catch (error) {
     if (error instanceof UnauthorizedError) {
       return err(error.message, 401);

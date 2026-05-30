@@ -1,0 +1,198 @@
+# Deploy SmartHire (Next.js + workers + Azure Functions) on push to main.
+# Zero-downtime: only backward-compatible migrations in automated migrate deploy.
+# Search index: run `npm run search:setup` manually after deploy (4096-dim HNSW).
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "ai-recruitment/**"
+  workflow_dispatch:
+
+defaults:
+  run:
+    working-directory: ai-recruitment
+
+env:
+  NODE_VERSION: "20"
+
+jobs:
+  build:
+    name: Build & Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: ai-recruitment/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Prisma generate
+        run: npx prisma generate
+
+      - name: Clean stale Next.js types
+        run: rm -rf .next
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Unit tests
+        run: npx vitest run --exclude '**/extractor.accuracy.test.ts'
+
+      - name: Build (CI)
+        run: npm run build:ci
+        env:
+          DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
+          CLERK_SECRET_KEY: sk_test_ci_placeholder
+          NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: pk_test_ci_placeholder
+
+  deploy:
+    name: Deploy
+    needs: build
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: ai-recruitment/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Prisma generate
+        run: npx prisma generate
+
+      - name: Database migrations
+        run: npx prisma migrate deploy
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DIRECT_DATABASE_URL: ${{ secrets.DIRECT_DATABASE_URL }}
+
+      - name: Build application
+        run: npm run build:ci
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
+          NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
+
+      - name: Azure login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Log in to Azure Container Registry
+        if: secrets.ACR_LOGIN_SERVER != ''
+        uses: azure/docker-login@v2
+        with:
+          login-server: ${{ secrets.ACR_LOGIN_SERVER }}
+          username: ${{ secrets.ACR_USERNAME }}
+          password: ${{ secrets.ACR_PASSWORD }}
+
+      - name: Build and push Docker image
+        if: secrets.ACR_LOGIN_SERVER != ''
+        run: |
+          IMAGE="${{ secrets.ACR_LOGIN_SERVER }}/smarthire:${{ github.sha }}"
+          docker build -t "$IMAGE" -t "${{ secrets.ACR_LOGIN_SERVER }}/smarthire:latest" .
+          docker push "$IMAGE"
+          docker push "${{ secrets.ACR_LOGIN_SERVER }}/smarthire:latest"
+          echo "DEPLOY_IMAGE=$IMAGE" >> "$GITHUB_ENV"
+
+      - name: Deploy container to App Service
+        if: secrets.ACR_LOGIN_SERVER != ''
+        run: |
+          az webapp config container set \
+            --name "${{ secrets.AZURE_WEBAPP_NAME }}" \
+            --resource-group "${{ secrets.AZURE_RESOURCE_GROUP }}" \
+            --docker-custom-image-name "$DEPLOY_IMAGE" \
+            --docker-registry-server-url "https://${{ secrets.ACR_LOGIN_SERVER }}" \
+            --docker-registry-server-user "${{ secrets.ACR_USERNAME }}" \
+            --docker-registry-server-password "${{ secrets.ACR_PASSWORD }}"
+          az webapp restart \
+            --name "${{ secrets.AZURE_WEBAPP_NAME }}" \
+            --resource-group "${{ secrets.AZURE_RESOURCE_GROUP }}"
+
+      - name: Configure App Service settings
+        run: |
+          az webapp config appsettings set \
+            --name "${{ secrets.AZURE_WEBAPP_NAME }}" \
+            --resource-group "${{ secrets.AZURE_RESOURCE_GROUP }}" \
+            --settings \
+              DATABASE_URL="${{ secrets.DATABASE_URL }}" \
+              DIRECT_DATABASE_URL="${{ secrets.DIRECT_DATABASE_URL }}" \
+              REDIS_URL="${{ secrets.AZURE_REDIS_URL }}" \
+              AZURE_SEARCH_ENDPOINT="${{ secrets.AZURE_AI_SEARCH_ENDPOINT }}" \
+              AZURE_SEARCH_ADMIN_KEY="${{ secrets.AZURE_AI_SEARCH_KEY }}" \
+              AZURE_STORAGE_CONNECTION_STRING="${{ secrets.AZURE_STORAGE_CONNECTION_STRING }}" \
+              CLERK_SECRET_KEY="${{ secrets.CLERK_SECRET_KEY }}" \
+              NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY="${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}" \
+              OPENAI_API_KEY="${{ secrets.OPENAI_API_KEY }}" \
+              PII_ENCRYPTION_KEY="${{ secrets.PII_ENCRYPTION_KEY }}" \
+              NODE_ENV=production \
+              WEBSITES_PORT=3000
+
+      - name: Deploy App Service (zip fallback)
+        if: secrets.ACR_LOGIN_SERVER == ''
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ secrets.AZURE_WEBAPP_NAME }}
+          package: ai-recruitment
+
+      - name: Build Azure Functions
+        run: |
+          for fn in weekly-retrain drift-checker alert-checker resume-trigger; do
+            echo "Building function: $fn"
+            (cd "functions/$fn" && npm ci && npm run build)
+          done
+
+      - name: Deploy weekly-retrain function
+        uses: Azure/functions-action@v1
+        with:
+          app-name: ${{ secrets.AZURE_FUNCTION_WEEKLY_RETRAIN }}
+          package: ai-recruitment/functions/weekly-retrain
+          publish-profile: ${{ secrets.AZURE_FUNCTION_WEEKLY_RETRAIN_PUBLISH_PROFILE }}
+
+      - name: Deploy drift-checker function
+        uses: Azure/functions-action@v1
+        with:
+          app-name: ${{ secrets.AZURE_FUNCTION_DRIFT_CHECKER }}
+          package: ai-recruitment/functions/drift-checker
+          publish-profile: ${{ secrets.AZURE_FUNCTION_DRIFT_CHECKER_PUBLISH_PROFILE }}
+
+      - name: Deploy alert-checker function
+        uses: Azure/functions-action@v1
+        with:
+          app-name: ${{ secrets.AZURE_FUNCTION_ALERT_CHECKER }}
+          package: ai-recruitment/functions/alert-checker
+          publish-profile: ${{ secrets.AZURE_FUNCTION_ALERT_CHECKER_PUBLISH_PROFILE }}
+
+      - name: Deploy resume-trigger function
+        uses: Azure/functions-action@v1
+        with:
+          app-name: ${{ secrets.AZURE_FUNCTION_RESUME_TRIGGER }}
+          package: ai-recruitment/functions/resume-trigger
+          publish-profile: ${{ secrets.AZURE_FUNCTION_RESUME_TRIGGER_PUBLISH_PROFILE }}
+
+      - name: Health check
+        id: health
+        run: sh scripts/ci-health-check.sh "https://${{ secrets.AZURE_WEBAPP_NAME }}.azurewebsites.net"
+
+      - name: Rollback on failure
+        if: failure()
+        run: sh scripts/rollback.sh
+        env:
+          ROLLBACK_MIGRATION_NAME: ${{ secrets.ROLLBACK_MIGRATION_NAME }}
+          ACR_IMAGE_PREVIOUS: ${{ secrets.ACR_IMAGE_PREVIOUS }}
+          AZURE_WEBAPP_NAME: ${{ secrets.AZURE_WEBAPP_NAME }}
+          AZURE_RESOURCE_GROUP: ${{ secrets.AZURE_RESOURCE_GROUP }}
+          OPS_SLACK_WEBHOOK_URL: ${{ secrets.OPS_SLACK_WEBHOOK_URL }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}

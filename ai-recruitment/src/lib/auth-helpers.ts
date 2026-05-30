@@ -1,27 +1,19 @@
-import type { NextRequest } from "next/server";
-import { auth } from "@clerk/nextjs/server";
-import type { User as DbUser } from "@prisma/client";
-import {
-  ensureApplicationUser,
-  isDatabaseConnectionError,
+/** @deprecated Import from @/lib/auth-middleware */
+export {
+  withAuthContext,
   UnauthorizedError,
-} from "@/lib/ensure-application-user";
+  isDatabaseConnectionError,
+  type AuthContext as AuthenticatedContext,
+} from "@/lib/auth-middleware";
 
-export { isDatabaseConnectionError };
+import type { NextRequest } from "next/server";
+import { withAuthContext, type AuthContext } from "@/lib/auth-middleware";
 
-export { UnauthorizedError };
-
-export type AuthenticatedContext = {
+/** Legacy shape: { clerkId, dbUser } */
+export async function withAuth(_req?: NextRequest): Promise<{
   clerkId: string;
-  dbUser: DbUser;
-};
-
-export async function withAuth(_req?: NextRequest): Promise<AuthenticatedContext> {
-  const { userId: clerkId } = await auth();
-  if (!clerkId) {
-    throw new UnauthorizedError();
-  }
-
-  const dbUser = await ensureApplicationUser(clerkId);
-  return { clerkId, dbUser };
+  dbUser: AuthContext["dbUser"];
+}> {
+  const ctx = await withAuthContext(_req);
+  return { clerkId: ctx.clerkId, dbUser: ctx.dbUser };
 }

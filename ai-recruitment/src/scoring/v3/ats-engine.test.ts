@@ -3,6 +3,20 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 vi.mock("@/lib/prisma", () => ({
   prisma: {
     recruiterDecision: { findMany: vi.fn().mockResolvedValue([]) },
+    weightCalibration: { findFirst: vi.fn().mockResolvedValue(null) },
+    job: { findFirst: vi.fn().mockResolvedValue({ id: "job-1" }) },
+    jobListing: { findFirst: vi.fn().mockResolvedValue(null) },
+    resumeVersionV2: {
+      findUnique: vi.fn().mockResolvedValue({ id: "rv-v2-1" }),
+      findFirst: vi.fn().mockResolvedValue(null),
+    },
+    resume: { findFirst: vi.fn().mockResolvedValue(null) },
+  },
+}));
+
+vi.mock("@/scoring/ATSEngine", () => ({
+  ATSEngine: {
+    compute: vi.fn(),
   },
 }));
 
@@ -24,6 +38,7 @@ vi.mock("@/embedding/search", () => ({
 }));
 
 import { AtsEngineV3 } from "@/scoring/v3/ats-engine";
+import { ATSEngine } from "@/scoring/ATSEngine";
 import { computeFinalAts } from "@/scoring/v3/final-score";
 import { INDUSTRY_WEIGHT_PROFILES } from "@/scoring/v3/industry-weights";
 import type { ResumeSchemaType } from "@/models/resume.schema";
@@ -98,9 +113,33 @@ const sampleJob: JobSchemaType = {
   requirements: [],
 };
 
+const mockPersistedScore = {
+  finalScore: 72,
+  confidence: 0.88,
+  requiresManualReview: false,
+  industryProfile: "TECH",
+  semanticScore: 70,
+  skillScore: 80,
+  experienceScore: 75,
+  complianceScore: 85,
+  projectScore: 60,
+  educationScore: 90,
+  qualityScore: 88,
+  skillGaps: [{ missingSkill: "GraphQL" }],
+  careerReadiness: {
+    strengthAreas: ["TypeScript", "React"],
+    developmentAreas: ["Develop proficiency in GraphQL"],
+  },
+  skillScoreReliable: true,
+  percentileRank: 65,
+  dealbreakers: ["Dealbreaker: missing required skill GraphQL"],
+  dealbreakerCapApplied: true,
+};
+
 describe("AtsEngineV3", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(ATSEngine.compute).mockResolvedValue(mockPersistedScore as never);
   });
 
   it("scoreGeneral is deterministic for the same resume", async () => {
@@ -110,11 +149,12 @@ describe("AtsEngineV3", () => {
     expect(a.scoreBreakdown).toEqual(b.scoreBreakdown);
   });
 
-  it("scoreForJob is deterministic for the same resume and JD", async () => {
+  it("scoreForJob delegates to ATSEngine.compute and returns persisted finalScore", async () => {
     const opts = {
-      parseConfidence: 0.9,
+      tenantId: "tenant-1",
+      jobId: "job-1",
+      resumeVersionId: "rv-v2-1",
       skipNarrative: true,
-      currentYear: FIXED_YEAR,
     };
     const a = await AtsEngineV3.scoreForJob(
       sampleResume,
@@ -128,9 +168,14 @@ describe("AtsEngineV3", () => {
       "candidate-1",
       opts
     );
+
+    expect(ATSEngine.compute).toHaveBeenCalledWith("rv-v2-1", "job-1", "tenant-1");
+    expect(a.overallScore).toBe(72);
     expect(a.overallScore).toBe(b.overallScore);
-    expect(a.scoreBreakdown).toEqual(b.scoreBreakdown);
     expect(a.pipeline).toBe("ats-v3");
+    expect(a.dealbreakers).toEqual(mockPersistedScore.dealbreakers);
+    expect(a.flags).toContain("DEALBREAKER_CAP_APPLIED");
+    expect(a.percentileRank).toBe(65);
   });
 
   it("computeFinalAts uses all seven v3 components", () => {

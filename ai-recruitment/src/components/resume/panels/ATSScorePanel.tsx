@@ -144,7 +144,7 @@ export function ATSScorePanel({ onViewSection }: { onViewSection?: (sectionId: s
                                     {displayedScore}
                                 </span>
                             )}
-                            <span className="text-xs font-semibold uppercase tracking-wider text-gray-400">Score</span>
+                            <span className="text-xs font-semibold uppercase tracking-wider text-gray-400">Resume health</span>
                         </div>
                     </div>
                     <p className="mt-2 text-sm font-medium text-gray-500">

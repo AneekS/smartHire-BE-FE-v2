@@ -14,7 +14,10 @@ export function useResumes() {
     "/api/v1/resumes",
     async () => {
       const raw = await resumesApi.list();
-      return (raw as unknown as Record<string, unknown>[]).map(adaptResumeVersion);
+      const rows = Array.isArray(raw)
+        ? raw
+        : ((raw as { data?: unknown[] }).data ?? []);
+      return (rows as Record<string, unknown>[]).map(adaptResumeVersion);
     }
   );
 
@@ -32,31 +35,11 @@ export function useResumes() {
     }
   };
 
-  const analyzeResume = async (resumeId: string): Promise<void> => {
-    try {
-      const res = await fetch("/api/v1/resumes/analyze", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ resumeId }),
-      });
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || "Analysis failed");
-      }
-      toast.success("AI Analysis complete!");
-      await mutate();
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Analysis failed");
-      throw e;
-    }
-  };
-
   return {
     resumes: data ?? [],
     isLoading,
     error,
     uploadResume,
-    analyzeResume,
     mutate,
   };
 }

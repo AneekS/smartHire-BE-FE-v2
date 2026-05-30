@@ -136,10 +136,16 @@ export async function applyToJob(
     submittedAt: new Date().toISOString(),
   };
 
+  const { resolveCanonicalJobScore } = await import(
+    "@/services/applications/application-ats-sync"
+  );
+  const canonicalScore = await resolveCanonicalJobScore(candidateId, jobId);
+
   const application = await createApplication({
     jobId,
     candidateId,
     aiNotes: JSON.stringify(profileSnapshot),
+    aiScore: canonicalScore ?? undefined,
   });
 
   return application;
@@ -157,7 +163,14 @@ export async function getCandidateApplications(
 
   const rows = await findApplicationsByCandidate(candidateId, options);
   const hasMore = rows.length > limit;
-  const applications = hasMore ? rows.slice(0, limit) : rows;
+  const applications = (hasMore ? rows.slice(0, limit) : rows).map((row) => {
+    const canonical = row.applicationAtsScore?.finalScore;
+    if (canonical == null) return row;
+    return {
+      ...row,
+      aiScore: Math.round(canonical),
+    };
+  });
   const nextCursor = hasMore ? applications[applications.length - 1].id : null;
 
   return { applications, nextCursor };

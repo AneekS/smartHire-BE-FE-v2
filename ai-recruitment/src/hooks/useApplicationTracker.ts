@@ -38,8 +38,12 @@ export function useApplications(params?: { status?: TrackerApplicationStatus }) 
       }
     );
 
-  const applications = data?.flatMap((page) => page.applications) ?? [];
-  const hasMore = data?.[data.length - 1]?.nextCursor !== null;
+  const applications =
+    data
+      ?.flatMap((page) => page?.applications ?? [])
+      .filter((app): app is TrackerApplication => Boolean(app?.id)) ?? [];
+  const lastPage = data?.[data.length - 1];
+  const hasMore = lastPage?.nextCursor != null;
   const isLoadingMore =
     isLoading || (size > 0 && data && typeof data[size - 1] === "undefined");
 

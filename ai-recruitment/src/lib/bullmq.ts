@@ -1,5 +1,6 @@
 import type { Queue } from "bullmq";
 import Redis from "ioredis";
+import { getBullConnectionOptions } from "@/lib/redis-options";
 import {
   EMBED_QUEUE_NAMES,
   RedisJobQueue,
@@ -21,6 +22,19 @@ export function getRedisConnection(): Redis | null {
     });
   }
   return redisClient;
+}
+
+/** BullMQ worker connection options (Azure Redis TLS). */
+export function getWorkerConnection() {
+  const redisUrl = process.env.REDIS_URL;
+  if (!redisUrl) {
+    throw new Error("REDIS_URL is required for BullMQ workers");
+  }
+  const connection = getBullConnectionOptions(redisUrl);
+  if (!connection) {
+    throw new Error("Failed to parse REDIS_URL for BullMQ worker");
+  }
+  return connection;
 }
 
 export function getQueue(name: string): Queue | null {

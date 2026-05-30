@@ -1,0 +1,246 @@
+# Azure DevOps pipeline — mirrors .github/workflows/deploy.yml
+# Variable group `smarthire-production` should define secrets (see deploy.yml secret mapping).
+# Search index: run `npm run search:setup` manually post-deploy.
+trigger:
+  branches:
+    include:
+      - main
+  paths:
+    include:
+      - ai-recruitment/*
+
+pr: none
+
+variables:
+  - group: smarthire-production
+  - name: workingDirectory
+    value: ai-recruitment
+  - name: nodeVersion
+    value: "20.x"
+
+stages:
+  - stage: Build
+    displayName: Build and Test
+    jobs:
+      - job: BuildTest
+        pool:
+          vmImage: ubuntu-latest
+        steps:
+          - checkout: self
+
+          - task: NodeTool@0
+            inputs:
+              versionSpec: $(nodeVersion)
+            displayName: Use Node.js
+
+          - script: npm ci
+            workingDirectory: $(workingDirectory)
+            displayName: npm ci
+
+          - script: npx prisma generate
+            workingDirectory: $(workingDirectory)
+            displayName: Prisma generate
+
+          - script: npm run typecheck
+            workingDirectory: $(workingDirectory)
+            displayName: Typecheck
+
+          - script: npx vitest run --exclude '**/extractor.accuracy.test.ts'
+            workingDirectory: $(workingDirectory)
+            displayName: Unit tests
+
+          - script: npm run build:ci
+            workingDirectory: $(workingDirectory)
+            displayName: Build (CI)
+            env:
+              DATABASE_URL: $(DATABASE_URL)
+              CLERK_SECRET_KEY: $(CLERK_SECRET_KEY)
+              NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: $(NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY)
+
+  - stage: Deploy
+    displayName: Deploy
+    dependsOn: Build
+    condition: succeeded()
+    jobs:
+      - deployment: DeployProduction
+        displayName: Deploy to Azure
+        environment: production
+        pool:
+          vmImage: ubuntu-latest
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - checkout: self
+
+                - task: NodeTool@0
+                  inputs:
+                    versionSpec: $(nodeVersion)
+                  displayName: Use Node.js
+
+                - script: npm ci
+                  workingDirectory: $(workingDirectory)
+                  displayName: npm ci
+
+                - script: npx prisma generate
+                  workingDirectory: $(workingDirectory)
+                  displayName: Prisma generate
+
+                - script: npx prisma migrate deploy
+                  workingDirectory: $(workingDirectory)
+                  displayName: Database migrations
+                  env:
+                    DATABASE_URL: $(DATABASE_URL)
+                    DIRECT_DATABASE_URL: $(DIRECT_DATABASE_URL)
+
+                - script: npm run build:ci
+                  workingDirectory: $(workingDirectory)
+                  displayName: Build application
+                  env:
+                    DATABASE_URL: $(DATABASE_URL)
+                    CLERK_SECRET_KEY: $(CLERK_SECRET_KEY)
+                    NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: $(NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY)
+
+                - task: AzureCLI@2
+                  displayName: Build and push Docker image
+                  condition: and(succeeded(), ne(variables['ACR_LOGIN_SERVER'], ''))
+                  inputs:
+                    azureSubscription: $(AZURE_SERVICE_CONNECTION)
+                    scriptType: bash
+                    scriptLocation: inlineScript
+                    workingDirectory: $(workingDirectory)
+                    inlineScript: |
+                      set -e
+                      IMAGE="$(ACR_LOGIN_SERVER)/smarthire:$(Build.SourceVersion)"
+                      docker build -t "$IMAGE" -t "$(ACR_LOGIN_SERVER)/smarthire:latest" .
+                      az acr login --name "$(ACR_NAME)"
+                      docker push "$IMAGE"
+                      docker push "$(ACR_LOGIN_SERVER)/smarthire:latest"
+                      echo "##vso[task.setvariable variable=DEPLOY_IMAGE]$IMAGE"
+
+                - task: AzureCLI@2
+                  displayName: Deploy container to App Service
+                  condition: and(succeeded(), ne(variables['ACR_LOGIN_SERVER'], ''))
+                  inputs:
+                    azureSubscription: $(AZURE_SERVICE_CONNECTION)
+                    scriptType: bash
+                    scriptLocation: inlineScript
+                    inlineScript: |
+                      set -e
+                      az webapp config container set \
+                        --name "$(AZURE_WEBAPP_NAME)" \
+                        --resource-group "$(AZURE_RESOURCE_GROUP)" \
+                        --docker-custom-image-name "$(DEPLOY_IMAGE)"
+                      az webapp restart \
+                        --name "$(AZURE_WEBAPP_NAME)" \
+                        --resource-group "$(AZURE_RESOURCE_GROUP)"
+
+                - task: AzureCLI@2
+                  displayName: Configure App Service settings
+                  inputs:
+                    azureSubscription: $(AZURE_SERVICE_CONNECTION)
+                    scriptType: bash
+                    scriptLocation: inlineScript
+                    inlineScript: |
+                      az webapp config appsettings set \
+                        --name "$(AZURE_WEBAPP_NAME)" \
+                        --resource-group "$(AZURE_RESOURCE_GROUP)" \
+                        --settings \
+                          DATABASE_URL="$(DATABASE_URL)" \
+                          DIRECT_DATABASE_URL="$(DIRECT_DATABASE_URL)" \
+                          REDIS_URL="$(AZURE_REDIS_URL)" \
+                          AZURE_SEARCH_ENDPOINT="$(AZURE_AI_SEARCH_ENDPOINT)" \
+                          AZURE_SEARCH_ADMIN_KEY="$(AZURE_AI_SEARCH_KEY)" \
+                          AZURE_STORAGE_CONNECTION_STRING="$(AZURE_STORAGE_CONNECTION_STRING)" \
+                          CLERK_SECRET_KEY="$(CLERK_SECRET_KEY)" \
+                          NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY="$(NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY)" \
+                          OPENAI_API_KEY="$(OPENAI_API_KEY)" \
+                          PII_ENCRYPTION_KEY="$(PII_ENCRYPTION_KEY)" \
+                          NODE_ENV=production \
+                          WEBSITES_PORT=3000
+
+                - task: AzureWebApp@1
+                  displayName: Deploy App Service (zip fallback)
+                  condition: and(succeeded(), eq(variables['ACR_LOGIN_SERVER'], ''))
+                  inputs:
+                    azureSubscription: $(AZURE_SERVICE_CONNECTION)
+                    appName: $(AZURE_WEBAPP_NAME)
+                    package: $(workingDirectory)
+
+                - script: |
+                    for fn in weekly-retrain drift-checker alert-checker resume-trigger; do
+                      echo "Building function: $fn"
+                      (cd "functions/$fn" && npm ci && npm run build)
+                    done
+                  workingDirectory: $(workingDirectory)
+                  displayName: Build Azure Functions
+
+                - task: AzureFunctionApp@1
+                  displayName: Deploy weekly-retrain
+                  inputs:
+                    azureSubscription: $(AZURE_SERVICE_CONNECTION)
+                    appType: functionApp
+                    appName: $(AZURE_FUNCTION_WEEKLY_RETRAIN)
+                    package: $(workingDirectory)/functions/weekly-retrain
+
+                - task: AzureFunctionApp@1
+                  displayName: Deploy drift-checker
+                  inputs:
+                    azureSubscription: $(AZURE_SERVICE_CONNECTION)
+                    appType: functionApp
+                    appName: $(AZURE_FUNCTION_DRIFT_CHECKER)
+                    package: $(workingDirectory)/functions/drift-checker
+
+                - task: AzureFunctionApp@1
+                  displayName: Deploy alert-checker
+                  inputs:
+                    azureSubscription: $(AZURE_SERVICE_CONNECTION)
+                    appType: functionApp
+                    appName: $(AZURE_FUNCTION_ALERT_CHECKER)
+                    package: $(workingDirectory)/functions/alert-checker
+
+                - task: AzureFunctionApp@1
+                  displayName: Deploy resume-trigger
+                  inputs:
+                    azureSubscription: $(AZURE_SERVICE_CONNECTION)
+                    appType: functionApp
+                    appName: $(AZURE_FUNCTION_RESUME_TRIGGER)
+                    package: $(workingDirectory)/functions/resume-trigger
+
+                - script: sh scripts/ci-health-check.sh "https://$(AZURE_WEBAPP_NAME).azurewebsites.net"
+                  workingDirectory: $(workingDirectory)
+                  displayName: Health check
+
+  - stage: Rollback
+    displayName: Rollback
+    dependsOn: Deploy
+    condition: failed()
+    jobs:
+      - job: RollbackJob
+        pool:
+          vmImage: ubuntu-latest
+        steps:
+          - checkout: self
+
+          - task: NodeTool@0
+            inputs:
+              versionSpec: $(nodeVersion)
+
+          - script: npm ci
+            workingDirectory: $(workingDirectory)
+
+          - task: AzureCLI@2
+            displayName: Rollback
+            inputs:
+              azureSubscription: $(AZURE_SERVICE_CONNECTION)
+              scriptType: bash
+              scriptLocation: inlineScript
+              workingDirectory: $(workingDirectory)
+              inlineScript: |
+                export ROLLBACK_MIGRATION_NAME="$(ROLLBACK_MIGRATION_NAME)"
+                export ACR_IMAGE_PREVIOUS="$(ACR_IMAGE_PREVIOUS)"
+                export AZURE_WEBAPP_NAME="$(AZURE_WEBAPP_NAME)"
+                export AZURE_RESOURCE_GROUP="$(AZURE_RESOURCE_GROUP)"
+                export OPS_SLACK_WEBHOOK_URL="$(OPS_SLACK_WEBHOOK_URL)"
+                export DATABASE_URL="$(DATABASE_URL)"
+                sh scripts/rollback.sh

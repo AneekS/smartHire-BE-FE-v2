@@ -77,6 +77,16 @@ export class CrossFieldValidator {
     const years = resume.yearsOfExperience;
     const [lo, hi] = SENIORITY_YEAR_RANGES[band] ?? [0, 99];
 
+    if (!resume.personalInfo.email?.trim() && !resume.personalInfo.phone?.trim()) {
+      issues.push("Missing contact: no email or phone");
+      flags.push("MISSING_CONTACT");
+    }
+
+    if (!resume.experience.length) {
+      issues.push("Empty experience section");
+      flags.push("EMPTY_EXPERIENCE");
+    }
+
     if (years < lo - 1 || years > hi + 1) {
       const correctedBand =
         Object.entries(SENIORITY_YEAR_RANGES).find(

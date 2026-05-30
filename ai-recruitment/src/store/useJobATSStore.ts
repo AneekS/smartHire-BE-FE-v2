@@ -1,22 +1,15 @@
 // Browser-only: use fetch() to API routes; never import server libs.
 import { create } from "zustand";
+import { ATSResponseTransformer } from "@/lib/transformers/ATSResponseTransformer";
+import type { JobAtsScore } from "@/types/ats.types";
+import type { JobListing as JobListingType } from "@/types/job.types";
 
-export interface JobListing {
-  id: string;
-  job_title: string;
-  company_name: string;
-  company_logo?: string | null;
-  location: string;
-  job_type: string;
-  experience_level: string;
-  salary_range: string | null;
-  tech_stack: string[];
-  category: string;
-  is_featured: boolean;
-  posted_at: string;
-  requirements?: string;
-  existingScore: { score: number; label: string | null } | null;
+function normalizeAtsPayload(data: unknown): JobATSResult {
+  const normalized = ATSResponseTransformer.toClientAts(data);
+  return { ...normalized, ...((data as Record<string, unknown>) ?? {}) };
 }
+
+export type JobListing = JobListingType;
 
 export interface ScoreComponentBreakdownUI {
   score: number;
@@ -28,26 +21,17 @@ export interface ScoreComponentBreakdownUI {
   bonus?: string[];
 }
 
-export interface JobATSResult {
+/** Unified ATS result — alias of JobAtsScore with legacy API fields. */
+export type JobATSResult = Partial<JobAtsScore> & {
   id?: string;
-  overallScore: number;
-  grade?: string;
-  recommendation?: string;
-  scoreLabel?: string;
-  scoreBreakdown?: Record<string, ScoreComponentBreakdownUI>;
-  breakdown?: Record<string, ScoreComponentBreakdownUI>;
-  matchedSkills?: string[];
-  missingSkills?: string[];
+  overallScore?: number;
+  finalScore?: number;
   dealbreakers?: string[];
   flags?: string[];
   topStrengths?: string[];
   topGaps?: string[];
-  matchSummary?: string | null;
-  recommendations?: string[];
-  cached?: boolean;
-  pipeline?: string;
-  [key: string]: unknown;
-}
+  recommendations?: string[] | Record<string, unknown>;
+};
 
 interface JobATSStore {
   listings: JobListing[];
@@ -120,7 +104,10 @@ export const useJobATSStore = create<JobATSStore>((set, get) => ({
         );
         const json = await res.json();
         if (res.ok && json.success && json.data) {
-          set({ currentResult: json.data, isLoadingDetail: false });
+          set({
+            currentResult: normalizeAtsPayload(json.data),
+            isLoadingDetail: false,
+          });
           return;
         }
       } catch {
@@ -159,13 +146,17 @@ export const useJobATSStore = create<JobATSStore>((set, get) => ({
         throw new Error(json.error ?? `Error ${res.status}`);
       }
 
+      const result = normalizeAtsPayload(json.data);
       set({
-        currentResult: json.data,
+        currentResult: result,
         isScoring: false,
         scoringJobId: null,
       });
 
-      const overall = json.data?.overallScore as number | undefined;
+      const overall =
+        typeof result.overallScore === "number"
+          ? result.overallScore
+          : (json.data?.overallScore as number | undefined);
       const label = (json.data?.scoreLabel as string | null) ?? null;
       if (typeof overall === "number") {
         set((state) => ({

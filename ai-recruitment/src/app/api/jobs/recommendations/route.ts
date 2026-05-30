@@ -13,6 +13,7 @@ import { prisma } from '@/lib/db';
 import { uniqueNonEmptyStrings, candidateOrWhere } from '@/lib/prisma-safe';
 import { safeInQuery } from '@/lib/db/safeInQuery';
 import { JobRecommendationService, type RecommendationResponse } from '@/services/recommendations/job-recommendation.service';
+import { enrichJobsWithCanonicalAtsScores } from '@/services/recommendations/enrich-canonical-ats';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -143,6 +144,16 @@ export async function GET(req: AuthenticatedRequest) {
 
           const jobMap = new Map(jobs.map((j) => [j.id, j as SlimJob]));
           const response = buildPrecomputedResponse(precomputed, jobMap);
+          response.recommendedJobs = await enrichJobsWithCanonicalAtsScores(
+            candidateId,
+            response.recommendedJobs
+          );
+          response.highMatchJobs = response.recommendedJobs.filter(
+            (j) => j.matchScore >= 75
+          );
+          response.trendingJobs = response.recommendedJobs.filter(
+            (j) => j.matchScore >= 60
+          );
 
           return NextResponse.json({
             success:   true,

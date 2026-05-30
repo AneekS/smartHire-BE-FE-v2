@@ -108,4 +108,37 @@ export class RecruiterDecisionService {
     });
     return active?.id ?? null;
   }
+
+  static async countRecentDecisions(tenantId: string, since: Date): Promise<number> {
+    return prisma.recruiterOutcomeSignal.count({
+      where: { tenantId, outcomeDate: { gte: since } },
+    });
+  }
+
+  static async getLastCalibrationAt(tenantId: string): Promise<Date | null> {
+    const row = await prisma.weightCalibration.findFirst({
+      where: { tenantId, isActive: true },
+      orderBy: { calibratedAt: "desc" },
+      select: { calibratedAt: true },
+    });
+    return row?.calibratedAt ?? null;
+  }
+
+  static mapOutcomeToDecision(
+    outcome: string
+  ): "HIRED" | "REJECTED" | "SHORTLISTED" | "PASSED_TO_INTERVIEW" {
+    switch (outcome) {
+      case "HIRED":
+        return "HIRED";
+      case "REJECTED":
+      case "WITHDRAWN":
+      case "OFFER_DECLINED":
+        return "REJECTED";
+      case "INTERVIEW_STAGE1":
+      case "INTERVIEW_STAGE2":
+        return "PASSED_TO_INTERVIEW";
+      default:
+        return "SHORTLISTED";
+    }
+  }
 }

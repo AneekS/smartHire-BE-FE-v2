@@ -13,6 +13,7 @@ export const QUEUE_NAMES = {
   EMBED_HIGH: EMBED_QUEUE_NAMES.HIGH,
   EMBED_NORMAL: EMBED_QUEUE_NAMES.NORMAL,
   EMBED_RETRY: EMBED_QUEUE_NAMES.RETRY,
+  APP_TRACKER: "{app-tracker}",
 } as const;
 
 export type QueueName = (typeof QUEUE_NAMES)[keyof typeof QUEUE_NAMES];

@@ -1,11 +1,35 @@
 import type { NextConfig } from "next";
 import { withSentryConfig } from "@sentry/nextjs";
 
-const nextConfig: NextConfig = {
+const securityHeaders = [
+  { key: "X-Frame-Options", value: "DENY" },
+  { key: "X-Content-Type-Options", value: "nosniff" },
+  {
+    key: "Content-Security-Policy",
+    value: [
+      "default-src 'self'",
+      "connect-src 'self' https://*.clerk.accounts.dev https://*.clerk.com",
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.clerk.accounts.dev",
+      "style-src 'self' 'unsafe-inline'",
+      "img-src 'self' data: blob: https:",
+      "frame-src https://*.clerk.accounts.dev",
+    ].join("; "),
+  },
+];
 
-  /* config options here */
+const nextConfig: NextConfig = {
   turbopack: {
-    root: __dirname
+    root: __dirname,
+  },
+  async headers() {
+    const headers = [...securityHeaders];
+    if (process.env.NODE_ENV === "production") {
+      headers.push({
+        key: "Strict-Transport-Security",
+        value: "max-age=31536000; includeSubDomains",
+      });
+    }
+    return [{ source: "/:path*", headers }];
   },
   webpack: (config, { isServer }) => {
     if (!isServer) {
@@ -16,11 +40,29 @@ const nextConfig: NextConfig = {
         crypto: false,
         stream: false,
         buffer: false,
-      }
+      };
     }
-    return config
+    if (isServer) {
+      config.externals = [
+        ...(Array.isArray(config.externals) ? config.externals : []),
+        'applicationinsights',
+        'diagnostic-channel-publishers',
+      ];
+    }
+    return config;
   },
-  serverExternalPackages: ['pdf-parse', 'mammoth', 'tesseract.js', 'pdfjs-dist', '@napi-rs/canvas'],
+  serverExternalPackages: [
+    'pdf-parse',
+    'mammoth',
+    'tesseract.js',
+    'pdfjs-dist',
+    '@napi-rs/canvas',
+    'applicationinsights',
+    'diagnostic-channel',
+    'diagnostic-channel-publishers',
+    'ioredis',
+    'bullmq',
+  ],
 };
 
 export default withSentryConfig(nextConfig, {

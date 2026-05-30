@@ -15,7 +15,7 @@ function parsePool(raw: string | undefined, fallback: string): string[] {
 }
 
 const PipelineEnvSchema = z.object({
-  CONFIDENCE_THRESHOLD: z.coerce.number().min(0).max(1).default(0.7),
+  CONFIDENCE_THRESHOLD: z.coerce.number().min(0).max(1).default(0.75),
   MAX_PARALLEL_WORKERS: z.coerce.number().int().positive().default(50),
   CACHE_TTL_FILE: z.coerce.number().int().positive().default(31536000),
   CACHE_TTL_EXTRACTION: z.coerce.number().int().positive().default(86400),

@@ -48,6 +48,16 @@ describe("DealBreakerDetector", () => {
     expect(result.triggered.length).toBeGreaterThan(0);
   });
 
+  it("flags missing must-have skill without capping score", () => {
+    const jd = parseJobSchema({
+      title: "DevOps Engineer",
+      requiredSkills: [{ skillName: "Docker", minLevel: 3, isMustHave: true }],
+    });
+    const result = DealBreakerDetector.check(baseResume, jd);
+    expect(result.capScore).toBe(false);
+    expect(result.triggered.some((t) => /Docker/i.test(t))).toBe(true);
+  });
+
   it("passes when no dealbreakers apply", () => {
     const jd = parseJobSchema({
       title: "Software Engineer",

@@ -3,12 +3,36 @@ import { withAuth, AuthenticatedRequest } from "@/lib/auth-middleware";
 import { prisma } from "@/lib/db";
 import { parseResumeSchema } from "@/models/resume.schema";
 import { resolveJobSchema } from "@/scoring/jd-parser";
+import { jobSchemaFromPrismaJob } from "@/scoring/job-schema-from-prisma";
 import { scoreResumeAgainstJob } from "@/retrieval/match-service";
 import { assembleMatchContext } from "@/retrieval/context-assembler";
 import { embedText } from "@/embedding/embedder";
 import { buildSearchFilter } from "@/embedding/search";
 import { hybridRetrieve } from "@/retrieval/hybrid";
 import { getRequiredSkillNames } from "@/models/job.schema";
+
+async function resolveResumeVersionV2Id(
+  legacyId: string,
+  tenantId: string
+): Promise<string | null> {
+  const direct = await prisma.resumeVersionV2.findFirst({
+    where: { id: legacyId, tenantId },
+    select: { id: true },
+  });
+  if (direct) return direct.id;
+
+  const bridge = await prisma.resumeVersionV2.findFirst({
+    where: { legacyResumeVersionId: legacyId, tenantId },
+    select: { id: true },
+  });
+  if (bridge) return bridge.id;
+
+  const legacy = await prisma.resumeVersion.findFirst({
+    where: { id: legacyId, tenantId },
+    include: { resumeVersionV2: { select: { id: true } } },
+  });
+  return legacy?.resumeVersionV2?.id ?? null;
+}
 
 export async function POST(req: AuthenticatedRequest) {
   return withAuth(req, async (authedReq) => {
@@ -37,13 +61,56 @@ export async function POST(req: AuthenticatedRequest) {
         );
       }
 
+      const tenantId = latestResume.tenantId ?? candidate.id;
+
+      // Bridge legacy resumeVersion → v2 id for scoreForJob
+      const resumeVersionV2Id = await resolveResumeVersionV2Id(
+        latestResume.id,
+        tenantId
+      );
+
       const resume = parseResumeSchema(latestResume.parsedResume.parsedData);
-      const job = await resolveJobSchema({
-        jobId: jobListingId ?? null,
-        jdText: jobDescription ?? "",
-        jobTitle,
-        companyName,
-      });
+
+      // Prefer Prisma Job (DB-authoritative schema + JobSkill) over listing/raw JD
+      let job: Awaited<ReturnType<typeof resolveJobSchema>>;
+      if (jobListingId) {
+        const prismaJob = await prisma.job.findFirst({
+          where: { id: jobListingId, tenantId },
+          include: { jobSkills: true },
+        });
+        if (prismaJob) {
+          job = jobSchemaFromPrismaJob({
+            id: prismaJob.id,
+            title: prismaJob.title,
+            description: prismaJob.description,
+            requirements: prismaJob.requirements,
+            requiredSkills: prismaJob.requiredSkills,
+            industryProfile: prismaJob.industryProfile,
+            experienceMin: prismaJob.experienceMin,
+            experienceMax: prismaJob.experienceMax,
+            seniorityBand: prismaJob.seniorityBand,
+            jobSkills: prismaJob.jobSkills.map((s) => ({
+              name: s.name,
+              normalized: s.normalized,
+              importance: s.importance,
+            })),
+          });
+        } else {
+          job = await resolveJobSchema({
+            jobId: jobListingId,
+            jdText: jobDescription ?? "",
+            jobTitle,
+            companyName,
+          });
+        }
+      } else {
+        job = await resolveJobSchema({
+          jobId: null,
+          jdText: jobDescription ?? "",
+          jobTitle,
+          companyName,
+        });
+      }
 
       const queryText = [
         job.title,
@@ -51,7 +118,6 @@ export async function POST(req: AuthenticatedRequest) {
         ...getRequiredSkillNames(job),
       ].join(" ");
       const { vector } = await embedText(queryText);
-      const tenantId = latestResume.tenantId ?? candidate.id;
       const filter = buildSearchFilter({
         tenantId,
         candidateId: candidate.id,
@@ -61,7 +127,11 @@ export async function POST(req: AuthenticatedRequest) {
         ? await hybridRetrieve(queryText, vector, { topK: 8, filter }).catch(() => [])
         : [];
 
-      const scoreResult = await scoreResumeAgainstJob(resume, job, candidate.id);
+      const scoreResult = await scoreResumeAgainstJob(resume, job, candidate.id, {
+        tenantId,
+        jobId: job.jobId,
+        resumeVersionId: resumeVersionV2Id ?? latestResume.id,
+      });
 
       const context = assembleMatchContext({
         resume,

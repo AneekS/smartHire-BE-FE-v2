@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { PromptABTester } from "@/feedback/ab-testing";
 
-vi.mock("@/lib/db", () => ({
+vi.mock("@/lib/prisma", () => ({
   prisma: {
     promptAssignment: {
       findUnique: vi.fn(),
@@ -13,6 +13,13 @@ vi.mock("@/lib/db", () => ({
       update: vi.fn(),
       updateMany: vi.fn(),
     },
+    extractionPromptAssignment: {
+      findFirst: vi.fn(),
+      create: vi.fn(),
+    },
+    extractionPromptVariant: {
+      findMany: vi.fn(),
+    },
     $queryRaw: vi.fn(),
   },
 }));
@@ -21,7 +28,7 @@ vi.mock("@/lib/ops-alerts", () => ({
   sendOpsAlert: vi.fn(),
 }));
 
-import { prisma } from "@/lib/db";
+import { prisma } from "@/lib/prisma";
 
 describe("PromptABTester", () => {
   beforeEach(() => {
@@ -41,9 +48,14 @@ describe("PromptABTester", () => {
       resumeId: "r1",
       variantId: "control-broad-v1",
     } as never);
+    vi.mocked(prisma.promptVariant.findUnique).mockResolvedValue({
+      variantId: "control-broad-v1",
+      promptText: "test prompt",
+    } as never);
 
-    const variantId = await PromptABTester.assignVariant("r1");
-    expect(variantId).toBe("control-broad-v1");
+    const result = await PromptABTester.assignVariant("r1");
+    expect(result?.variantId).toBe("control-broad-v1");
+    expect(result?.source).toBe("legacy");
     expect(prisma.promptAssignment.create).not.toHaveBeenCalled();
   });
 

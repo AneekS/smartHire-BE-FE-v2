@@ -1,12 +1,125 @@
-// SmartHire AI Recruitment - Prisma Schema
+// =============================================================================
+// SmartHire AI — Prisma Schema (Phase 1 parallel domain model)
+// =============================================================================
+//
+// TARGET  — Spec-aligned models (Groups 1–7); use for new features.
+// LEGACY  — Pre-Phase-1 models; kept until Phase 2+ cutover (do not extend).
+// BRIDGE  — Nullable FKs linking legacy ↔ target (legacyResumeVersionId, etc.).
+//
+// DATABASE_URL and DIRECT_DATABASE_URL live in prisma.config.ts (Prisma 7).
+//
+// =============================================================================
 
 generator client {
-  provider        = "prisma-client-js"
+  provider = "prisma-client-js"
 }
 
 datasource db {
   provider = "postgresql"
 }
+
+// ─── TARGET enums (spec-aligned; legacy enums kept below) ─────────────────────
+
+enum UserRole {
+  CANDIDATE
+  RECRUITER
+  HIRING_MANAGER
+  ADMIN
+}
+
+enum IndustryProfile {
+  TECH
+  FINANCE
+  HEALTHCARE
+  SALES
+  CREATIVE
+  LEGAL
+  GENERAL
+}
+
+enum SeniorityBand {
+  L1_INTERN
+  L2_JUNIOR
+  L3_MID
+  L4_SENIOR
+  L5_STAFF
+  L6_PRINCIPAL
+}
+
+enum ParseStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  REQUIRES_REVIEW
+}
+
+enum JobStatusV2 {
+  DRAFT
+  ACTIVE
+  PAUSED
+  CLOSED
+  ARCHIVED
+}
+
+enum ApplicationStatusV2 {
+  APPLIED
+  SCREENING
+  INTERVIEW
+  OFFER
+  HIRED
+  REJECTED
+  WITHDRAWN
+}
+
+enum RecruiterOutcome {
+  HIRED
+  REJECTED
+  INTERVIEW_STAGE1
+  INTERVIEW_STAGE2
+  OFFER_EXTENDED
+  OFFER_DECLINED
+  WITHDRAWN
+}
+
+// ─── TARGET Group 1: Identity ─────────────────────────────────────────────────
+
+model Tenant {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users                  User[]
+  candidates             Candidate[]
+  recruiters             Recruiter[]
+  companies              Company[]
+  resumes                Resume[]
+  resumeVersionsV2       ResumeVersionV2[]
+  parsedResumes          ParsedResume[]
+  resumeSearchEmbeddings ResumeSearchEmbedding[]
+  jobs                   Job[]
+  applications           Application[]
+  applicationAtsScores   ApplicationAtsScore[]
+  atsSkillGaps           AtsSkillGap[]
+  careerReadinessRows    CareerReadiness[]
+  mockInterviewSessionsV2 MockInterviewSessionV2[]
+  recruiterOutcomeSignals RecruiterOutcomeSignal[]
+  weightCalibrations     WeightCalibration[]
+  extractionPromptVariants ExtractionPromptVariant[]
+  extractionPromptAssignments ExtractionPromptAssignment[]
+  extractionEvents       ExtractionEvent[]
+  dailyMetrics           DailyMetric[]
+  embeddingDriftRuns     EmbeddingDriftRun[]
+  notifications          Notification[]
+  auditLogs              AuditLog[]
+
+  @@index([createdAt])
+}
+
+// ─── LEGACY + extended identity ───────────────────────────────────────────────
 
 model User {
   id               String                 @id @default(cuid())
@@ -47,8 +160,14 @@ model User {
   notifications    Notification[]
   behaviorSignals  UserBehaviorSignal[]
   salaryProfile    UserSalaryProfile?
+  tenantId         String?
+  tenant           Tenant?                @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+  isActive         Boolean                @default(true)
+  lastLoginAt      DateTime?
   createdAt        DateTime               @default(now())
   updatedAt        DateTime               @updatedAt
+
+  @@index([tenantId, createdAt])
 }
 
 model Account {
@@ -88,24 +207,29 @@ model VerificationToken {
 }
 
 model Company {
-  id             String  @id @default(cuid())
-  name           String
-  logo           String?
-  industry       String?
-  size           String?
-  averageSalaryL Int?
-  employeeRating Float?
-  users          User[]
-  jobs           Job[]
-  website        String?
-  description    String?  @db.Text
-  location       String?
-  foundedYear    Int?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  id              String           @id @default(cuid())
+  name            String
+  logo            String?
+  logoUrl         String?
+  industry        String?
+  industryProfile IndustryProfile?
+  size            String?
+  averageSalaryL  Int?
+  employeeRating  Float?
+  tenantId        String?
+  tenant          Tenant?          @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+  users           User[]
+  jobs            Job[]
+  website         String?
+  description     String?          @db.Text
+  location        String?
+  foundedYear     Int?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
 
   @@index([name])
   @@index([industry])
+  @@index([tenantId, createdAt])
 }
 
 // Recruiter profile extending User (users with role = RECRUITER)
@@ -118,11 +242,16 @@ model Recruiter {
   department String?
   bio        String?  @db.Text
   avatarUrl  String?
+  tenantId   String?
+  tenant     Tenant?  @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+  isActive   Boolean  @default(true)
   jobs       Job[]
+  recruiterOutcomeSignals RecruiterOutcomeSignal[]
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
   @@index([userId])
+  @@index([tenantId, createdAt])
 }
 
 model Job {
@@ -158,6 +287,16 @@ model Job {
   embeddings         JobEmbedding[]
   recommendationScores JobRecommendationScore[]
   salaryData          JobSalaryData?
+  tenantId            String?
+  tenant              Tenant?             @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+  industryProfile     IndustryProfile?
+  seniorityBand       SeniorityBand?
+  isRemote            Boolean?
+  expiresAt           DateTime?
+  statusV2            JobStatusV2?
+  mockInterviewSessionsV2 MockInterviewSessionV2[]
+  applicationAtsScores    ApplicationAtsScore[]
+  recruiterOutcomeSignals RecruiterOutcomeSignal[]
 
   @@index([title])
   @@index([location])
@@ -172,6 +311,7 @@ model Job {
   @@index([salaryMax])
   @@index([requiredSkills], type: Gin)
   @@index([recruiterId])
+  @@index([tenantId, createdAt])
 }
 
 model Candidate {
@@ -213,13 +353,24 @@ model Candidate {
   connectedAccounts   ConnectedAccount[]
   behaviorEvents      BehaviorEvent[]
   candidateSkills     CandidateSkill[]
-  resumeEmbeddings       ResumeEmbedding[]
+  candidateEmbeddingsLegacy CandidateEmbeddingLegacy[]
   analytics              CandidateAnalytics?
   jobRecommendationScores JobRecommendationScore[]
   preferredRoles         PreferredRole[]
   jobAtsScores           JobAtsScore[]
   listingSkillGaps       JobListingSkillGap[]
   interviewSessions      InterviewSession[]
+  tenantId               String?
+  tenant                 Tenant?           @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+  preferredTitle         String?
+  salaryExpectation      Int?
+  portfolioUrl           String?
+  linkedinUrl            String?
+  reputationScoreTarget  Float?
+  isActive               Boolean           @default(true)
+  resumes                Resume[]
+  mockInterviewSessionsV2 MockInterviewSessionV2[]
+  recruiterOutcomeSignals RecruiterOutcomeSignal[]
   createdAt              DateTime          @default(now())
   updatedAt              DateTime          @updatedAt
 
@@ -227,6 +378,7 @@ model Candidate {
   @@index([userId])
   @@index([skills], type: Gin)
   @@index([profileCompleteness])
+  @@index([tenantId, createdAt])
 }
 
 model Experience {
@@ -332,6 +484,14 @@ model Application {
   interviewProbability  Float?                     @default(0)
   applicationHealthScore Float?                    @default(0)
   readinessScore        Float?                     @default(0)
+  tenantId              String?
+  tenant                Tenant?                    @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+  resumeVersionId       String?
+  resumeVersion         ResumeVersion?             @relation(fields: [resumeVersionId], references: [id], onDelete: SetNull)
+  resumeVersionV2Id     String?
+  resumeVersionV2       ResumeVersionV2?           @relation(fields: [resumeVersionV2Id], references: [id], onDelete: SetNull)
+  appliedAt             DateTime?
+  applicationAtsScore   ApplicationAtsScore?
   interview             Interview?
   statusHistory         ApplicationStatusHistory[]
   recruiterActivities   RecruiterActivity[]
@@ -348,6 +508,7 @@ model Application {
   @@index([createdAt])
   @@index([candidateId, status])
   @@index([candidateId, createdAt])
+  @@index([tenantId, createdAt])
 }
 
 model ApplicationStatusHistory {
@@ -563,7 +724,8 @@ model BehaviorEvent {
   @@index([jobId, createdAt])
 }
 
-model ResumeEmbedding {
+/// LEGACY: pgvector-style float[] cache on Candidate (not Azure AI Search).
+model CandidateEmbeddingLegacy {
   id          String    @id @default(cuid())
   candidateId String
   candidate   Candidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
@@ -575,6 +737,7 @@ model ResumeEmbedding {
   updatedAt   DateTime  @updatedAt
 
   @@index([candidateId, createdAt])
+  @@map("ResumeEmbedding")
 }
 
 model JobEmbedding {
@@ -655,6 +818,7 @@ model Interview {
 enum Role {
   ADMIN
   RECRUITER
+  HIRING_MANAGER
   CANDIDATE
 }
 
@@ -779,6 +943,8 @@ model ResumeVersion {
   improvements    String?        @db.Text
   suggestions     ResumeSuggestion[]
   parsedResume    ParsedResume?
+  applications    Application[]
+  resumeVersionV2 ResumeVersionV2? @relation("LegacyResumeVersionBridge")
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
 }
@@ -1130,18 +1296,25 @@ model AIExplainabilityLog {
 
 // In-app notification hub — covers application events, interview reminders, offers, etc.
 model Notification {
-  id        String           @id @default(cuid())
-  userId    String
-  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  type      NotificationType
-  title     String
-  message   String           @db.Text
-  isRead    Boolean          @default(false)
-  metadata  Json?            // e.g. { jobId, applicationId, interviewId }
-  createdAt DateTime         @default(now())
+  id         String           @id @default(cuid())
+  userId     String
+  user       User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tenantId   String?
+  tenant     Tenant?          @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+  type       NotificationType
+  title      String
+  message    String           @db.Text
+  body       String?          @db.Text
+  entityId   String?
+  entityType String?
+  isRead     Boolean          @default(false)
+  readAt     DateTime?
+  metadata   Json?
+  createdAt  DateTime         @default(now())
 
   @@index([userId, isRead])
   @@index([userId, createdAt])
+  @@index([tenantId, createdAt])
 }
 
 // ---- InsForge-migrated tables (snake_case via @@map) ----
@@ -1294,12 +1467,18 @@ model TenantWeightProfile {
 
 model EmbeddingDriftRun {
   id               String   @id @default(cuid())
+  tenantId         String?
+  tenant           Tenant?  @relation(fields: [tenantId], references: [id], onDelete: SetNull)
   driftScore       Float
   sampleSize       Int
+  threshold        Float?
+  triggered        Boolean  @default(false)
   triggeredReindex Boolean  @default(false)
+  modelVersion     String?
   details          Json?
   ranAt            DateTime @default(now())
 
+  @@index([tenantId, ranAt])
   @@map("embedding_drift_runs")
 }
 
@@ -1373,48 +1552,92 @@ model QuestionBank {
 }
 
 model ParsedResume {
-  id                String        @id @default(cuid())
-  resumeVersionId   String        @unique
-  parsedData        Json
-  extractionSchema  Json?
-  parseConfidence   Float?
-  passesRun         Int[]         @default([])
-  pass3Changed      Boolean       @default(false)
-  createdAt         DateTime      @default(now())
-  resumeVersion     ResumeVersion @relation(fields: [resumeVersionId], references: [id])
+  id                  String          @id @default(cuid())
+  resumeVersionId     String          @unique
+  tenantId            String?
+  tenant              Tenant?         @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+  parsedData          Json
+  extractionSchema    Json?
+  parseConfidence     Float?
+  passesRun           Int[]           @default([])
+  pass3Changed        Boolean         @default(false)
+  fullName            String?
+  email               String?
+  phone               String?
+  location            String?
+  skills              Json?
+  experience          Json?
+  education           Json?
+  projects            Json?
+  certifications      Json?
+  languages           Json?
+  piiMaskEncrypted    String?         @db.Text
+  industryDomain      IndustryProfile?
+  seniorityBand       SeniorityBand?
+  totalYearsExp       Float?
+  pass2Triggered      Boolean         @default(false)
+  pass3Corrected      Boolean         @default(false)
+  extractionEventId   String?
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
+  resumeVersion       ResumeVersion   @relation(fields: [resumeVersionId], references: [id])
+  resumeVersionV2Link ResumeVersionV2? @relation("ParsedResumeV2Link")
 
+  @@index([tenantId, createdAt])
   @@map("parsed_resumes")
 }
 
 model ExtractionEvent {
-  id         String   @id @default(cuid())
-  resumeId   String
-  tenantId   String?
-  event      String
-  passNumber Int?
-  durationMs Int?
-  confidence Float?
-  fieldCount Int?
-  error      String?  @db.Text
-  metadata   Json?
-  createdAt  DateTime @default(now())
+  id                 String   @id @default(cuid())
+  resumeId           String
+  resumeVersionV2Id  String?
+  resumeVersionV2    ResumeVersionV2? @relation(fields: [resumeVersionV2Id], references: [id], onDelete: SetNull)
+  tenantId           String?
+  tenant             Tenant?  @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+  event              String
+  passNumber         Int?
+  durationMs         Int?
+  pass1DurationMs    Int?
+  pass2DurationMs    Int?
+  pass3DurationMs    Int?
+  pass2Triggered     Boolean  @default(false)
+  pass3Triggered     Boolean  @default(false)
+  confidence         Float?
+  finalConfidence    Float?
+  fieldCount         Int?
+  zodRejected        Boolean  @default(false)
+  ollamaLatencyP95   Float?
+  error              String?  @db.Text
+  metadata           Json?
+  promptVariantId    String?
+  promptVariant      ExtractionPromptVariant? @relation(fields: [promptVariantId], references: [id], onDelete: SetNull)
+  createdAt          DateTime @default(now())
 
   @@index([event, createdAt])
   @@index([resumeId])
+  @@index([tenantId, createdAt])
   @@map("extraction_events")
 }
 
 model DailyMetric {
-  id         String   @id @default(cuid())
-  date       DateTime @db.Date
-  metricKey  String
-  value      Float
-  domain     String?
-  dimensions Json?
-  createdAt  DateTime @default(now())
+  id          String   @id @default(cuid())
+  tenantId    String?
+  tenant      Tenant?  @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+  date        DateTime @db.Date
+  metricKey   String
+  metricName  String?
+  value       Float
+  metricValue Float?
+  domain      String?
+  dimension1  String?
+  dimension2  String?
+  dimensions  Json?
+  createdAt   DateTime @default(now())
 
   @@unique([date, metricKey, domain])
+  @@unique([tenantId, date, metricName, dimension1])
   @@index([metricKey, date])
+  @@index([tenantId, date])
   @@map("daily_metrics")
 }
 
@@ -1423,4 +1646,291 @@ model AlertCooldown {
   lastFiredAt DateTime
 
   @@map("alert_cooldowns")
+}
+
+// =============================================================================
+// TARGET Group 2: Resume pipeline (v2 stack)
+// =============================================================================
+
+model Resume {
+  id               String            @id @default(cuid())
+  tenantId         String
+  tenant           Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  candidateId      String
+  candidate        Candidate         @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  currentVersionId String?           @unique
+  currentVersion   ResumeVersionV2?  @relation("CurrentResumeVersion", fields: [currentVersionId], references: [id], onDelete: SetNull)
+  isActive         Boolean           @default(true)
+  versions         ResumeVersionV2[] @relation("ResumeVersions")
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  @@index([tenantId, createdAt])
+  @@index([tenantId, candidateId])
+  @@map("resumes")
+}
+
+model ResumeVersionV2 {
+  id                    String                @id @default(cuid())
+  resumeId              String
+  resume                Resume                @relation("ResumeVersions", fields: [resumeId], references: [id], onDelete: Cascade)
+  tenantId              String
+  tenant                Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  blobUrl               String?
+  blobPath              String?
+  fileHash              String?
+  textHash              String?
+  mimeType              String?
+  fileSizeBytes         Int?
+  parsedResumeId        String?               @unique
+  parsedResume          ParsedResume?         @relation("ParsedResumeV2Link", fields: [parsedResumeId], references: [id], onDelete: SetNull)
+  searchEmbedding       ResumeSearchEmbedding?
+  parseStatus           ParseStatus           @default(PENDING)
+  parseConfidence       Float?
+  requiresManualReview  Boolean               @default(false)
+  versionNumber         Int                   @default(1)
+  legacyResumeVersionId String?               @unique
+  legacyResumeVersion   ResumeVersion?        @relation("LegacyResumeVersionBridge", fields: [legacyResumeVersionId], references: [id], onDelete: SetNull)
+  currentForResume      Resume?               @relation("CurrentResumeVersion")
+  applications          Application[]
+  applicationAtsScores  ApplicationAtsScore[]
+  extractionEvents      ExtractionEvent[]
+  promptAssignments     ExtractionPromptAssignment[]
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @updatedAt
+
+  @@index([tenantId, createdAt])
+  @@index([resumeId])
+  @@map("resume_versions_v2")
+}
+
+model ResumeSearchEmbedding {
+  id               String           @id @default(cuid())
+  resumeVersionId  String           @unique
+  resumeVersion    ResumeVersionV2  @relation(fields: [resumeVersionId], references: [id], onDelete: Cascade)
+  tenantId         String
+  tenant           Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  searchIndexId    String?
+  embeddingModel   String           @default("qwen3-embedding:8b")
+  vectorDimensions Int              @default(4096)
+  chunkCount       Int              @default(0)
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  @@index([tenantId, createdAt])
+  @@map("resume_search_embeddings")
+}
+
+// =============================================================================
+// TARGET Group 3: Application ATS scores (spec JobAtsScore)
+// =============================================================================
+
+model ApplicationAtsScore {
+  id                   String            @id @default(cuid())
+  tenantId             String
+  tenant               Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  applicationId        String            @unique
+  application          Application       @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  resumeVersionId      String
+  resumeVersion        ResumeVersionV2   @relation(fields: [resumeVersionId], references: [id], onDelete: Cascade)
+  jobId                String
+  job                  Job               @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  listingId            String?
+  finalScore           Float
+  semanticScore        Float
+  skillScore           Float
+  experienceScore      Float
+  complianceScore      Float
+  projectScore         Float
+  educationScore       Float
+  qualityScore         Float
+  confidence           Float
+  requiresManualReview Boolean           @default(false)
+  scoreHash            String?
+  industryProfile      IndustryProfile   @default(GENERAL)
+  seniorityBand        SeniorityBand?
+  scoreVersion         String            @default("v3")
+  computedAt           DateTime          @default(now())
+  skillGaps            AtsSkillGap[]
+  careerReadiness      CareerReadiness?
+  recruiterOutcomes    RecruiterOutcomeSignal[]
+  createdAt            DateTime          @default(now())
+
+  @@index([tenantId, computedAt])
+  @@index([jobId])
+  @@index([resumeVersionId])
+  @@map("application_ats_scores")
+}
+
+model AtsSkillGap {
+  id             String              @id @default(cuid())
+  jobAtsScoreId  String
+  jobAtsScore    ApplicationAtsScore @relation(fields: [jobAtsScoreId], references: [id], onDelete: Cascade)
+  tenantId       String
+  tenant         Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  missingSkill   String
+  importance     Float               @default(1)
+  canonicalSkill String?
+  createdAt      DateTime            @default(now())
+
+  @@index([jobAtsScoreId])
+  @@index([tenantId, createdAt])
+  @@map("ats_skill_gaps")
+}
+
+model CareerReadiness {
+  id               String              @id @default(cuid())
+  jobAtsScoreId    String              @unique
+  jobAtsScore      ApplicationAtsScore @relation(fields: [jobAtsScoreId], references: [id], onDelete: Cascade)
+  tenantId         String
+  tenant           Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  overallReadiness Float
+  strengthAreas    Json                @default("[]")
+  developmentAreas Json                @default("[]")
+  timeToReady      String?
+  createdAt        DateTime            @default(now())
+
+  @@index([tenantId, createdAt])
+  @@map("career_readiness")
+}
+
+// =============================================================================
+// TARGET Group 4: Interviews (v2)
+// =============================================================================
+
+model MockInterviewSessionV2 {
+  id              String     @id @default(cuid())
+  candidateId     String
+  candidate       Candidate  @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  tenantId        String
+  tenant          Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  jobId           String?
+  job             Job?       @relation(fields: [jobId], references: [id], onDelete: SetNull)
+  model           String     @default("gpt-4o-mini")
+  sessionType     String
+  status          String     @default("active")
+  transcript      Json?
+  feedbackReport  Json?
+  durationSeconds Int?
+  startedAt       DateTime   @default(now())
+  completedAt     DateTime?
+  createdAt       DateTime   @default(now())
+
+  @@index([tenantId, createdAt])
+  @@index([candidateId])
+  @@map("mock_interview_sessions_v2")
+}
+
+// =============================================================================
+// TARGET Group 5: Feedback loop
+// =============================================================================
+
+model RecruiterOutcomeSignal {
+  id                     String              @id @default(cuid())
+  tenantId               String
+  tenant                 Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  recruiterId            String
+  recruiter              Recruiter           @relation(fields: [recruiterId], references: [id], onDelete: Cascade)
+  applicationAtsScoreId  String
+  applicationAtsScore    ApplicationAtsScore @relation(fields: [applicationAtsScoreId], references: [id], onDelete: Cascade)
+  candidateId            String
+  candidate              Candidate           @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  jobId                  String
+  job                    Job                 @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  outcome                RecruiterOutcome
+  outcomeDate            DateTime            @default(now())
+  atsFinalScoreAtOutcome Float?
+  noteText               String?             @db.Text
+  createdAt              DateTime            @default(now())
+
+  @@index([tenantId, outcomeDate])
+  @@index([applicationAtsScoreId])
+  @@map("recruiter_outcome_signals")
+}
+
+model WeightCalibration {
+  id                  String          @id @default(cuid())
+  tenantId            String
+  tenant              Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  industryProfile     IndustryProfile
+  semanticWeight      Float
+  skillWeight         Float
+  experienceWeight    Float
+  complianceWeight    Float
+  projectWeight       Float
+  educationWeight     Float
+  qualityWeight       Float
+  sampleSize          Int             @default(0)
+  discriminationPower Float?
+  calibrationVersion  Int             @default(1)
+  isActive            Boolean         @default(true)
+  calibratedAt        DateTime        @default(now())
+  createdAt           DateTime        @default(now())
+
+  @@index([tenantId, industryProfile])
+  @@index([tenantId, createdAt])
+  @@map("weight_calibrations")
+}
+
+// =============================================================================
+// TARGET Group 6: Prompt A/B testing (extraction)
+// =============================================================================
+
+model ExtractionPromptVariant {
+  id                 String                      @id @default(cuid())
+  tenantId           String
+  tenant             Tenant                      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  phase              Int
+  variantName        String
+  systemPrompt       String                      @db.Text
+  userPromptTemplate String                      @db.Text
+  isActive           Boolean                     @default(true)
+  isControl          Boolean                     @default(false)
+  assignments        ExtractionPromptAssignment[]
+  extractionEvents   ExtractionEvent[]
+  createdAt          DateTime                    @default(now())
+  updatedAt          DateTime                    @updatedAt
+
+  @@index([tenantId, phase])
+  @@index([tenantId, createdAt])
+  @@map("extraction_prompt_variants")
+}
+
+model ExtractionPromptAssignment {
+  id                String                  @id @default(cuid())
+  tenantId          String
+  tenant            Tenant                  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  resumeVersionId   String
+  resumeVersion     ResumeVersionV2         @relation(fields: [resumeVersionId], references: [id], onDelete: Cascade)
+  promptVariantId   String
+  promptVariant     ExtractionPromptVariant @relation(fields: [promptVariantId], references: [id], onDelete: Cascade)
+  extractionEventId String?
+  assignedAt        DateTime                @default(now())
+
+  @@unique([resumeVersionId, promptVariantId])
+  @@index([tenantId, assignedAt])
+  @@map("extraction_prompt_assignments")
+}
+
+// =============================================================================
+// TARGET Group 7: Observability — audit log
+// =============================================================================
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  tenantId   String
+  tenant     Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  userId     String?
+  action     String
+  entityId   String?
+  entityType String?
+  metadata   Json?
+  ipAddress  String?
+  userAgent  String?  @db.Text
+  occurredAt DateTime @default(now())
+  createdAt  DateTime @default(now())
+
+  @@index([tenantId, occurredAt])
+  @@index([userId, occurredAt])
+  @@map("audit_logs")
 }

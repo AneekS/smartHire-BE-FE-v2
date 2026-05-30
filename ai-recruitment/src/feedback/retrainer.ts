@@ -49,6 +49,7 @@ function getBaseFractions(industryDomain: IndustryDomainType): FractionWeightPro
 }
 
 export class WeightRecalibrator {
+  /** @deprecated Use CalibrationScheduler.runWeekly / WeightCalibrationEngine.run */
   static async recalibrateWeights(): Promise<{
     profilesUpdated: number;
     runs: Array<{ tenantId: string; industryDomain: string }>;

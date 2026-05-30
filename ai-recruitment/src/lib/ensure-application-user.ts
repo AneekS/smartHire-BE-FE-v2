@@ -1,5 +1,6 @@
 import { currentUser } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/db";
+import { resolveTenantId } from "@/lib/tenant-context";
 import type { User as DbUser } from "@prisma/client";
 
 export class UnauthorizedError extends Error {
@@ -86,6 +87,7 @@ async function ensureCandidateForUser(
 
 async function syncFromClerk(clerkId: string): Promise<DbUserWithCandidate> {
   const profile = await getClerkProfile();
+  const tenantId = await resolveTenantId();
 
   const user = await prisma.user.upsert({
     where: { clerkId },
@@ -95,17 +97,30 @@ async function syncFromClerk(clerkId: string): Promise<DbUserWithCandidate> {
       name: profile.name,
       phone: profile.phone,
       image: profile.image,
+      tenantId,
     },
     update: {
       email: profile.email,
       name: profile.name,
       phone: profile.phone,
       image: profile.image,
+      tenantId,
     },
     include: { candidate: { select: { id: true } } },
   });
 
-  return ensureCandidateForUser(user, profile);
+  const withCandidate = await ensureCandidateForUser(user, profile);
+  if (!withCandidate.candidate) return withCandidate;
+
+  await prisma.candidate.update({
+    where: { id: withCandidate.candidate.id },
+    data: { tenantId },
+  });
+
+  return prisma.user.findUniqueOrThrow({
+    where: { id: user.id },
+    include: { candidate: { select: { id: true } } },
+  });
 }
 
 export type EnsureUserOptions = {

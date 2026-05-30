@@ -1,9 +1,5 @@
-import {
-  BlobServiceClient,
-  StorageSharedKeyCredential,
-  generateBlobSASQueryParameters,
-  BlobSASPermissions,
-} from "@azure/storage-blob";
+import { BlobServiceClient } from "@azure/storage-blob";
+import { SASUrlGenerator } from "@/security/SASUrlGenerator";
 
 function getBlobServiceClient(): BlobServiceClient {
   const connectionString = process.env.AZURE_STORAGE_CONNECTION_STRING;
@@ -94,25 +90,10 @@ export async function getBlobSasUrl(
   blobPath: string,
   expiryDays?: number
 ): Promise<string> {
-  const accountName = process.env.AZURE_STORAGE_ACCOUNT_NAME!;
-  const accountKey = process.env.AZURE_STORAGE_ACCOUNT_KEY!;
   const containerName = process.env.AZURE_STORAGE_CONTAINER_RESUMES!;
-  const credential = new StorageSharedKeyCredential(accountName, accountKey);
-  const ms =
-    expiryDays != null
-      ? expiryDays * 24 * 60 * 60 * 1000
-      : 60 * 60 * 1000;
-  const expiresOn = new Date(Date.now() + ms);
-  const sasToken = generateBlobSASQueryParameters(
-    {
-      containerName,
-      blobName: blobPath,
-      permissions: BlobSASPermissions.parse("r"),
-      expiresOn,
-    },
-    credential
-  ).toString();
-  return `https://${accountName}.blob.core.windows.net/${containerName}/${blobPath}?${sasToken}`;
+  const expiresInSec =
+    expiryDays != null ? expiryDays * 24 * 60 * 60 : 60 * 60;
+  return SASUrlGenerator.generateReadSas(containerName, blobPath, expiresInSec);
 }
 
 /** @deprecated Use getBlobSasUrl(blobPath, 1) */
@@ -124,21 +105,8 @@ export async function getResumeSasUrl(blobPath: string): Promise<string> {
  * Generate a 1-hour SAS URL for an avatar blob.
  */
 export async function getAvatarSasUrl(blobPath: string): Promise<string> {
-  const accountName = process.env.AZURE_STORAGE_ACCOUNT_NAME!;
-  const accountKey = process.env.AZURE_STORAGE_ACCOUNT_KEY!;
   const containerName = process.env.AZURE_STORAGE_CONTAINER_AVATARS!;
-  const credential = new StorageSharedKeyCredential(accountName, accountKey);
-  const expiresOn = new Date(Date.now() + 60 * 60 * 1000);
-  const sasToken = generateBlobSASQueryParameters(
-    {
-      containerName,
-      blobName: blobPath,
-      permissions: BlobSASPermissions.parse("r"),
-      expiresOn,
-    },
-    credential
-  ).toString();
-  return `https://${accountName}.blob.core.windows.net/${containerName}/${blobPath}?${sasToken}`;
+  return SASUrlGenerator.generateReadSas(containerName, blobPath, 60 * 60);
 }
 
 /**
@@ -156,20 +124,8 @@ export async function deleteResume(blobPath: string): Promise<void> {
  * Download resume bytes from blob storage by path.
  */
 export async function downloadResumeBlob(blobPath: string): Promise<Buffer> {
-  const client = getBlobServiceClient();
-  const container = client.getContainerClient(
-    process.env.AZURE_STORAGE_CONTAINER_RESUMES!
-  );
-  const blockBlob = container.getBlockBlobClient(blobPath);
-  const download = await blockBlob.download(0);
-  const chunks: Buffer[] = [];
-  if (!download.readableStreamBody) {
-    throw new Error(`Empty blob stream for ${blobPath}`);
-  }
-  for await (const chunk of download.readableStreamBody) {
-    chunks.push(Buffer.from(chunk));
-  }
-  return Buffer.concat(chunks);
+  const { BlobStorageService } = await import("@/lib/BlobStorageService");
+  return BlobStorageService.download(blobPath);
 }
 
 /**

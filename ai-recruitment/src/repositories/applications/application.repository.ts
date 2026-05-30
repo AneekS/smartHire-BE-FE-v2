@@ -10,6 +10,9 @@ const APPLICATION_LIST_SELECT = {
   candidateId: true,
   status: true,
   aiScore: true,
+  applicationAtsScore: {
+    select: { finalScore: true },
+  },
   interviewProbability: true,
   applicationHealthScore: true,
   readinessScore: true,

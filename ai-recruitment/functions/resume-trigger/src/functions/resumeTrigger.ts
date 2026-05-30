@@ -1,4 +1,5 @@
 import { app, InvocationContext } from "@azure/functions";
+import { resumeTriggerHandler } from "../../../index";
 
 interface EventGridEvent {
   id: string;
@@ -18,24 +19,11 @@ interface EventGridEvent {
   dataVersion: string;
 }
 
-async function resumeTriggerHandler(
-  event: EventGridEvent,
-  context: InvocationContext
-): Promise<void> {
+async function handler(event: EventGridEvent, context: InvocationContext): Promise<void> {
   context.log("Resume upload event:", event.subject, event.data?.resumeId);
-
-  if (event.eventType !== "SmartHire.Resume.Uploaded") {
-    context.warn("Ignoring unknown event type:", event.eventType);
-    return;
-  }
-
-  const { handleResumeUploadedEvent } = await import(
-    "../../../../src/lib/resume-event-handler"
-  );
-
-  await handleResumeUploadedEvent(event.data);
+  await resumeTriggerHandler(event);
 }
 
 app.eventGrid("resumeTrigger", {
-  handler: resumeTriggerHandler,
+  handler,
 });

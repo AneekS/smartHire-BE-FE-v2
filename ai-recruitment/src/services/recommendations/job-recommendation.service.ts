@@ -20,6 +20,7 @@ import {
   generateEmbedding,
   getEmbeddingDimensions,
 } from "@/utils/recommendations/embedding";
+import { enrichJobsWithCanonicalAtsScores } from "@/services/recommendations/enrich-canonical-ats";
 
 const LOOKBACK_DAYS = 45;
 
@@ -265,11 +266,16 @@ export class JobRecommendationService {
     });
 
     scoredJobs.sort((a, b) => b.matchScore - a.matchScore);
+    const enrichedJobs = await enrichJobsWithCanonicalAtsScores(
+      candidate.id,
+      scoredJobs
+    );
+    enrichedJobs.sort((a, b) => b.matchScore - a.matchScore);
 
     if (candidate.profileId) {
       await this.repository.persistJobRecommendations({
         profileId: candidate.profileId,
-        rows: scoredJobs.slice(0, 50).map((job) => ({
+        rows: enrichedJobs.slice(0, 50).map((job) => ({
           jobId: job.id,
           matchScore: job.matchScore,
           skillMatch: job.skillMatch,
@@ -284,10 +290,13 @@ export class JobRecommendationService {
     }
 
     const response: RecommendationResponse = {
-      recommendedJobs: scoredJobs,
-      highMatchJobs: scoredJobs.filter((job) => job.matchScore >= 75),
-      trendingJobs: scoredJobs.filter((job) => job.applicants >= 30),
-      newJobs: scoredJobs.filter((job) => Date.now() - new Date(job.postedAt).getTime() <= 7 * 24 * 60 * 60 * 1000),
+      recommendedJobs: enrichedJobs,
+      highMatchJobs: enrichedJobs.filter((job) => job.matchScore >= 75),
+      trendingJobs: enrichedJobs.filter((job) => job.applicants >= 30),
+      newJobs: enrichedJobs.filter(
+        (job) =>
+          Date.now() - new Date(job.postedAt).getTime() <= 7 * 24 * 60 * 60 * 1000
+      ),
       marketIntelligence,
       nextCursor: hasMore
         ? encodeCursor({

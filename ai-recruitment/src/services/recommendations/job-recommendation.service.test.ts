@@ -9,6 +9,7 @@ const fakeRepository = {
     experience: 2,
     skills: ["React", "TypeScript", "Node.js"],
     preferredRoles: ["Frontend Engineer"],
+    preferredRoleSignals: [{ role: "Frontend Engineer", priority: 1, confidenceScore: 0.9 }],
     preferredIndustries: ["SaaS"],
     preferredLocations: ["Bangalore"],
     preferredWorkMode: "HYBRID",

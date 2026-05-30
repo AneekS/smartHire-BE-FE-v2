@@ -9,6 +9,7 @@ import {
   type KeywordAnalysis,
 } from "./KeywordMatchPanel";
 import { BreakdownBars } from "./BreakdownBars";
+import { ATSResponseTransformer } from "@/lib/transformers/ATSResponseTransformer";
 import { SectionScoresGrid } from "./SectionScoresGrid";
 import {
   RecommendationsPanel,
@@ -94,7 +95,7 @@ export function ATSScoreModal() {
               <div className="flex items-start justify-between gap-3 px-5 py-4 border-b border-gray-100 shrink-0">
                 <div className="min-w-0">
                   <p className="text-xs font-semibold text-violet-600 uppercase tracking-wide">
-                    ATS score
+                    Job match score
                   </p>
                   <h2 className="text-lg font-bold text-gray-900 truncate">
                     {selectedJob?.job_title ?? "Job"}
@@ -178,19 +179,33 @@ export function ATSScoreModal() {
                       )}
 
                     {(() => {
-                      const bd =
-                        currentResult.scoreBreakdown ?? currentResult.breakdown;
-                      if (!bd || typeof bd !== "object") return null;
-                      return (
-                        <BreakdownBars
-                          breakdown={
-                            bd as Record<
-                              string,
-                              { score: number; weight: number; reason: string }
-                            >
-                          }
-                        />
+                      const chartPoints =
+                        ATSResponseTransformer.toBreakdownChart(currentResult);
+                      if (!chartPoints.length) return null;
+
+                      const normalized =
+                        ATSResponseTransformer.toClientAts(currentResult);
+                      const rawBd =
+                        normalized.breakdown ?? normalized.scoreBreakdown ?? {};
+
+                      const breakdown = Object.fromEntries(
+                        chartPoints.map((pt) => {
+                          const comp = rawBd[pt.name as keyof typeof rawBd];
+                          return [
+                            pt.name,
+                            {
+                              score: pt.score,
+                              weight: pt.weight,
+                              reason:
+                                comp && typeof comp.reason === "string"
+                                  ? comp.reason
+                                  : "",
+                            },
+                          ];
+                        })
                       );
+
+                      return <BreakdownBars breakdown={breakdown} />;
                     })()}
 
                     {Array.isArray(currentResult.dealbreakers) &&
@@ -317,7 +332,7 @@ export function ATSScoreModal() {
                       !Array.isArray(currentResult.recommendations) && (
                         <RecommendationsPanel
                           recommendations={
-                            currentResult.recommendations as RecommendationBuckets
+                            currentResult.recommendations as unknown as RecommendationBuckets
                           }
                         />
                       )}

@@ -1,17 +1,13 @@
 import { NextResponse } from "next/server";
-import { getDetailedHealth } from "@/monitoring/health-probes";
+import { HealthChecker } from "@/monitoring/HealthChecker";
 
 export async function GET() {
-  const health = await getDetailedHealth();
-  return NextResponse.json(
-    {
-      db: health.db,
-      redis: health.redis,
-      azure_search: health.azure_search,
-      ollama_pool: health.ollama_pool,
-      checkedAt: health.checkedAt,
-      ok: health.ok,
-    },
-    { status: health.ok ? 200 : 503 }
-  );
+  const health = await HealthChecker.getDetailed();
+  const body = {
+    ...HealthChecker.buildPublicHealthBody(health, health.queue),
+    ollama_pool: health.ollama_pool,
+    checkedAt: health.checkedAt,
+    ok: health.ok,
+  };
+  return NextResponse.json(body, { status: health.ok ? 200 : 503 });
 }

@@ -64,12 +64,10 @@ async function waitForResumePipeline(
   );
 }
 
-export interface ScoreBreakdown {
-    keywordMatch: number;
-    formatting: number;
-    experienceMatch: number;
-    skillsAlignment: number;
-}
+/** v3 breakdown from API or legacy flat keys */
+export type ScoreBreakdown =
+    | Record<string, { score?: number; weight?: number; contribution?: number; reason?: string }>
+    | Record<string, number>;
 
 export interface Improvement {
     id: string;
@@ -133,6 +131,46 @@ interface ResumeStore {
     updateSection: (section: string, value: unknown) => void;
 }
 
+type StudioPayloadInput = {
+    resumeId?: string;
+    id?: string;
+    fileName?: string;
+    title?: string;
+    uploadedAt?: string;
+    createdAt?: string;
+    parsed?: ParsedResume | null;
+    atsScore?: number | null;
+    scoreBreakdown?: ScoreBreakdown | null;
+    improvements?: Improvement[];
+};
+
+function hydrateFromStudioPayload(data: StudioPayloadInput) {
+    const resumeId = data.resumeId ?? data.id ?? null;
+    const parsed = data.parsed ?? null;
+    if (!resumeId || !parsed) {
+        return {
+            resumeId: null,
+            fileName: null,
+            uploadedAt: null,
+            originalContent: null as ParsedResume | null,
+            updatedContent: null as ParsedResume | null,
+            atsScore: null,
+            scoreBreakdown: null,
+            improvements: [] as Improvement[],
+        };
+    }
+    return {
+        resumeId,
+        fileName: data.fileName ?? data.title ?? null,
+        uploadedAt: data.uploadedAt ?? data.createdAt ?? null,
+        originalContent: parsed,
+        updatedContent: parsed,
+        atsScore: data.atsScore ?? null,
+        scoreBreakdown: data.scoreBreakdown ?? null,
+        improvements: data.improvements ?? [],
+    };
+}
+
 export const useResumeStore = create<ResumeStore>((set, get) => ({
     resumeId: null,
     fileName: null,
@@ -152,7 +190,9 @@ export const useResumeStore = create<ResumeStore>((set, get) => ({
     loadResumeFromAPI: async () => {
         set({ isLoading: true, error: null });
         try {
-            const res = await fetch("/api/resume", { credentials: "include" });
+            const res = await fetch("/api/v1/resumes/current", {
+                credentials: "include",
+            });
 
             if (res.status === 401) {
                 set({ isLoading: false, originalContent: null, updatedContent: null, error: null });
@@ -167,28 +207,24 @@ export const useResumeStore = create<ResumeStore>((set, get) => ({
                 return;
             }
 
-            const json = await res.json();
+            const json = (await res.json()) as { data: StudioPayloadInput | null };
 
-            if (!json.data || !json.data.resumeId) {
-                set({ isLoading: false, originalContent: null, updatedContent: null });
+            if (!json.data) {
+                set({
+                    isLoading: false,
+                    originalContent: null,
+                    updatedContent: null,
+                    resumeId: null,
+                    fileName: null,
+                    uploadedAt: null,
+                    atsScore: null,
+                    scoreBreakdown: null,
+                    improvements: [],
+                });
                 return;
             }
 
-            const parsed = json.data.parsed;
-            if (typeof window !== "undefined" && parsed) {
-                console.log("[useResumeStore] loadResumeFromAPI — parsed.projects:", (parsed as { projects?: unknown[] }).projects?.length ?? 0, (parsed as { projects?: unknown[] }).projects);
-            }
-            set({
-                resumeId: json.data.resumeId,
-                fileName: json.data.fileName,
-                uploadedAt: json.data.uploadedAt,
-                originalContent: parsed,
-                updatedContent: parsed,
-                atsScore: json.data.atsScore,
-                scoreBreakdown: json.data.scoreBreakdown,
-                improvements: json.data.improvements || [],
-                isLoading: false,
-            });
+            set({ ...hydrateFromStudioPayload(json.data), isLoading: false, error: null });
         } catch (e) {
             const message = e instanceof Error ? e.message : "Failed to load resume";
             set({ error: message, isLoading: false });
@@ -226,8 +262,21 @@ export const useResumeStore = create<ResumeStore>((set, get) => ({
 
             // Async pipeline — poll status until workers finish
             if (res.status === 202) {
-                const queued = (await res.json()) as { resumeId: string };
-                await waitForResumePipeline(queued.resumeId, (stage) =>
+                const queuedJson = (await res.json()) as {
+                    resumeId?: string;
+                    data?: { resumeId?: string };
+                };
+                const resumeId =
+                    queuedJson.data?.resumeId ?? queuedJson.resumeId;
+                if (!resumeId) {
+                    set({
+                        error: "Invalid response from server (missing resumeId)",
+                        isUploading: false,
+                        uploadStage: "idle",
+                    });
+                    return;
+                }
+                await waitForResumePipeline(resumeId, (stage) =>
                     set({ uploadStage: stage })
                 );
                 await get().loadResumeFromAPI();
@@ -245,18 +294,20 @@ export const useResumeStore = create<ResumeStore>((set, get) => ({
                 return;
             }
 
-            const parsed = data.parsed ?? data.parsedContent;
-            if (parsed) {
+            const studioData: StudioPayloadInput = {
+                resumeId,
+                fileName: data.fileName ?? data.file_name ?? file.name,
+                uploadedAt: data.uploadedAt ?? data.created_at ?? new Date().toISOString(),
+                parsed: data.parsed ?? data.parsedContent ?? null,
+                atsScore: data.atsScore ?? null,
+                scoreBreakdown: data.scoreBreakdown ?? null,
+                improvements: data.improvements ?? [],
+            };
+
+            if (studioData.parsed) {
                 set({
                     uploadStage: "done",
-                    resumeId,
-                    fileName: data.fileName ?? data.file_name ?? file.name,
-                    uploadedAt: data.uploadedAt ?? data.created_at ?? new Date().toISOString(),
-                    originalContent: parsed,
-                    updatedContent: parsed,
-                    atsScore: data.atsScore ?? null,
-                    scoreBreakdown: data.scoreBreakdown ?? null,
-                    improvements: data.improvements || [],
+                    ...hydrateFromStudioPayload(studioData),
                     appliedFixes: [],
                     changeLog: [],
                     isUploading: false,
@@ -318,7 +369,7 @@ export const useResumeStore = create<ResumeStore>((set, get) => ({
     },
 
     applyFix: (fix: Improvement, customNewText?: string) => {
-        const { updatedContent, appliedFixes, changeLog, improvements, atsScore } = get();
+        const { updatedContent, appliedFixes, changeLog, improvements } = get();
         if (!updatedContent) return;
 
         const newText = customNewText ?? fix.suggestedText;
@@ -363,7 +414,6 @@ export const useResumeStore = create<ResumeStore>((set, get) => ({
 
         set({
             updatedContent: nextContent,
-            atsScore: Math.min((atsScore || 65) + 5, 99),
             improvements: improvements.map(s => s.id === fix.id ? { ...s, applied: true } : s),
             appliedFixes: [
                 {
@@ -405,7 +455,7 @@ export const useResumeStore = create<ResumeStore>((set, get) => ({
     },
 
     undoFix: (fixId: string) => {
-        const { appliedFixes, originalContent, changeLog, improvements, atsScore } = get();
+        const { appliedFixes, originalContent, changeLog, improvements } = get();
         const fix = appliedFixes.find(f => f.id === fixId);
         if (!fix || !originalContent) return;
 
@@ -438,7 +488,6 @@ export const useResumeStore = create<ResumeStore>((set, get) => ({
 
         set({
             updatedContent: nextContent,
-            atsScore: Math.max((atsScore || 65) - 5, 20),
             appliedFixes: get().appliedFixes.filter(f => f.id !== fixId),
             changeLog: changeLog.filter(l => l.fixId !== fixId),
             improvements: improvements.map(s => s.id === fix.suggestionId ? { ...s, applied: false } : s)
@@ -454,7 +503,6 @@ export const useResumeStore = create<ResumeStore>((set, get) => ({
             appliedFixes: [],
             changeLog: [],
             improvements: get().improvements.map(s => ({ ...s, applied: false })),
-            atsScore: get().atsScore ? Math.max(get().atsScore! - get().appliedFixes.length * 5, 40) : null
         });
     },
 

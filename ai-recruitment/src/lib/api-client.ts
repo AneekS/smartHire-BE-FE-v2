@@ -3,6 +3,8 @@
  * Never call fetch() directly in components.
  */
 
+import type { V1Envelope } from "@/types/api.types";
+
 const BASE = "/api/v1";
 
 async function request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
@@ -22,6 +24,13 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
   }
 
   return res.json() as Promise<T>;
+}
+
+/** Unwrap Phase 5 `{ data: T }` envelopes returned by v1 routes. */
+function unwrapV1<T>(json: T | V1Envelope<T>): T {
+  return json && typeof json === "object" && "data" in json
+    ? (json as V1Envelope<T>).data
+    : json;
 }
 
 // ─── Types ─────────────────────────────────────────────────────────────────
@@ -525,7 +534,10 @@ export const resumesApi = {
         const err = await r.json().catch(() => ({}));
         throw new Error((err as { error?: string }).error || `HTTP ${r.status}`);
       }
-      return r.json();
+      const json = (await r.json()) as ResumeUploadResponse & {
+        data?: ResumeUploadResponse;
+      };
+      return (json.data ?? json) as ResumeUploadResponse;
     }) as Promise<ResumeUploadResponse>,
 
   getScoreForJob: (jobId: string) =>
@@ -773,7 +785,9 @@ export interface TrackerReminder {
 
 export const applicationsApi = {
   list: (params?: { status?: TrackerApplicationStatus; cursor?: string; limit?: number }) =>
-    request<{ applications: TrackerApplication[]; nextCursor: string | null }>(
+    request<
+      V1Envelope<{ applications: TrackerApplication[]; nextCursor: string | null }>
+    >(
       `/applications?${new URLSearchParams(
         Object.entries(params ?? {}).reduce((acc, [key, value]) => {
           if (value !== undefined && value !== null && value !== "") {
@@ -782,16 +796,16 @@ export const applicationsApi = {
           return acc;
         }, {} as Record<string, string>)
       )}`
-    ),
+    ).then(unwrapV1),
 
   getDetail: (id: string) =>
     request<TrackerApplicationDetail>(`/applications/${encodeURIComponent(id)}`),
 
   apply: (data: { job_id: string; cover_note?: string }) =>
-    request<{ application: TrackerApplication }>("/applications", {
+    request<V1Envelope<{ application: TrackerApplication }>>("/applications", {
       method: "POST",
       body: JSON.stringify(data),
-    }),
+    }).then(unwrapV1),
 
   updateStatus: (id: string, data: { status: TrackerApplicationStatus; metadata?: Record<string, unknown> }) =>
     request<TrackerApplicationDetail>(`/applications/${encodeURIComponent(id)}`, {

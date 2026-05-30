@@ -5,18 +5,13 @@ import { ApplicationApplySchema, ApplicationListQuerySchema } from "@/lib/valida
 import {
   applyToJob,
   getCandidateApplications,
-  getCandidateDashboardAnalytics,
-  getSmartReminders,
 } from "@/services/applications/application.service";
 import { prisma } from "@/lib/db";
 
-/**
- * POST /api/v1/applications
- * Apply to a job
- */
 export async function POST(req: AuthenticatedRequest) {
   return withAuth(req, async (authedReq) => {
     try {
+      const tenantId = authedReq.tenantId!;
       const body = await req.json();
       const { job_id, cover_note } = ApplicationApplySchema.parse(body);
 
@@ -26,6 +21,7 @@ export async function POST(req: AuthenticatedRequest) {
             { id: authedReq.user?.candidateId },
             { email: authedReq.user?.email },
           ],
+          tenantId,
         },
         select: { id: true },
       });
@@ -36,22 +32,17 @@ export async function POST(req: AuthenticatedRequest) {
 
       const application = await applyToJob(candidate.id, job_id, cover_note);
 
-      return NextResponse.json({ application }, { status: 201 });
+      return NextResponse.json({ data: { application } }, { status: 201 });
     } catch (error) {
       return handleError(error);
     }
   });
 }
 
-/**
- * GET /api/v1/applications
- * List candidate applications (pipeline view)
- *
- * Query params: status, cursor, limit
- */
 export async function GET(req: AuthenticatedRequest) {
   return withAuth(req, async (authedReq) => {
     try {
+      const tenantId = authedReq.tenantId!;
       const url = new URL(req.url);
       const params = ApplicationListQuerySchema.parse({
         status: url.searchParams.get("status") ?? undefined,
@@ -65,6 +56,7 @@ export async function GET(req: AuthenticatedRequest) {
             { id: authedReq.user?.candidateId },
             { email: authedReq.user?.email },
           ],
+          tenantId,
         },
         select: { id: true },
       });
@@ -75,7 +67,7 @@ export async function GET(req: AuthenticatedRequest) {
 
       const result = await getCandidateApplications(candidate.id, params);
 
-      return NextResponse.json(result);
+      return NextResponse.json({ data: result });
     } catch (error) {
       return handleError(error);
     }

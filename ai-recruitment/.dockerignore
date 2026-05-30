@@ -1,0 +1,14 @@
+node_modules
+.next
+.git
+.github
+*.md
+.env
+.env.*
+!.env.example
+coverage
+.vscode
+.cursor
+**/*.test.ts
+**/*.test.tsx
+functions/**/node_modules

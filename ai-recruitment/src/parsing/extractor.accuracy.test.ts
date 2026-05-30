@@ -114,8 +114,8 @@ describe("MultiPassExtractor — field accuracy", () => {
   const fixtures = discoverFixtures();
 
   beforeAll(() => {
-    process.env.EXTRACTION_FAST_MODE = "true";
-    process.env.OLLAMA_EXTRACTION_MAX_PASSES = "1";
+    process.env.EXTRACTION_FAST_MODE = "false";
+    process.env.OLLAMA_EXTRACTION_MAX_PASSES = "3";
     resetPipelineEnvCache();
     vi.spyOn(OllamaModule, "checkExtractionPool").mockResolvedValue([
       { url: "http://localhost:11434", ok: true },

@@ -1,10 +1,8 @@
 import { NextResponse } from "next/server";
-import { getHealthSummary } from "@/monitoring/health-probes";
+import { HealthChecker } from "@/monitoring/HealthChecker";
 
 export async function GET() {
-  const health = await getHealthSummary();
-  return NextResponse.json(
-    { ok: health.ok },
-    { status: health.ok ? 200 : 503 }
-  );
+  const health = await HealthChecker.getSummary();
+  const body = HealthChecker.buildPublicHealthBody(health);
+  return NextResponse.json(body, { status: health.ok ? 200 : 503 });
 }

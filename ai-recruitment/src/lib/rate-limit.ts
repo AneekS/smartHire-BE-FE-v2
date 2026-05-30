@@ -2,7 +2,7 @@ import Redis from "ioredis";
 
 let redisClient: Redis | null = null;
 
-function getRedis(): Redis | null {
+export function getRedisClient(): Redis | null {
   const url = process.env.REDIS_URL;
   if (!url) return null;
   if (!redisClient) {
@@ -20,6 +20,10 @@ export interface RateLimitResult {
   retryAfterSec: number;
 }
 
+function failOpenInDev(): boolean {
+  return process.env.NODE_ENV !== "production";
+}
+
 /**
  * Sliding-window rate limit using a sorted set of timestamps.
  */
@@ -28,9 +32,12 @@ export async function checkRateLimit(
   limit: number,
   windowSec: number
 ): Promise<RateLimitResult> {
-  const redis = getRedis();
+  const redis = getRedisClient();
   if (!redis) {
-    return { allowed: true, remaining: limit, retryAfterSec: 0 };
+    if (failOpenInDev()) {
+      return { allowed: true, remaining: limit, retryAfterSec: 0 };
+    }
+    return { allowed: false, remaining: 0, retryAfterSec: 60 };
   }
 
   const now = Date.now();
@@ -57,18 +64,23 @@ export async function checkRateLimit(
   return { allowed: true, remaining: Math.max(0, limit - count), retryAfterSec: 0 };
 }
 
-export function uploadRateLimitKey(tenantId: string): string {
-  return `upload:${tenantId}`;
+/** Per-user upload limit (Phase 5: 5/min). */
+export function uploadRateLimitKey(userId: string): string {
+  return `upload:user:${userId}`;
 }
 
-export function scoreRateLimitKey(userId: string): string {
-  return `score:${userId}`;
+/** Per-tenant scoring limit (Phase 5: 10/min). */
+export function scoreRateLimitKey(tenantId: string): string {
+  return `score:tenant:${tenantId}`;
 }
 
 export function getUploadLimit(): number {
-  return parseInt(process.env.RATE_LIMIT_UPLOAD_PER_HOUR ?? "100", 10);
+  return parseInt(process.env.RATE_LIMIT_UPLOAD_PER_MIN ?? "5", 10);
 }
 
 export function getScoreLimit(): number {
-  return parseInt(process.env.RATE_LIMIT_SCORE_PER_HOUR ?? "1000", 10);
+  return parseInt(process.env.RATE_LIMIT_SCORE_PER_TENANT_PER_MIN ?? "10", 10);
 }
+
+export const UPLOAD_WINDOW_SEC = 60;
+export const SCORE_WINDOW_SEC = 60;

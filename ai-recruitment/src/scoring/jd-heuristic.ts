@@ -157,7 +157,7 @@ export function jobSchemaFromListing(listing: JobListing): JobSchemaType {
     requiredSkills: skillNames.map((skillName) => ({
       skillName,
       minLevel: 3,
-      isMustHave: true,
+      isMustHave: false,
     })),
     niceToHaveSkills: extractSkillsFromText(listing.niceToHave ?? "").map((skillName) => ({
       skillName,
@@ -193,7 +193,7 @@ export function jobSchemaFromText(input: {
     requiredSkills: skillNames.map((skillName) => ({
       skillName,
       minLevel: 3,
-      isMustHave: true,
+      isMustHave: false,
     })),
     minYearsExperience: inferYearsExperience(trimmed),
     keyResponsibilities: extractBulletLines(trimmed).slice(0, 5),

@@ -1,6 +1,7 @@
 import type { ResumeSchemaType } from "@/models/resume.schema";
 import type { JobSchemaType } from "@/models/job.schema";
 import { SkillCanonicalizer } from "@/scoring/canonicalizer";
+import { resolveCandidateYears } from "@/scoring/experience-years";
 
 export interface DealBreakerResult {
   triggered: string[];
@@ -76,9 +77,14 @@ export class DealBreakerDetector {
       triggered.push("Dealbreaker: PhD required — candidate has no PhD");
     }
 
+    // Missing must-have skills are surfaced for the UI but do not cap the score —
+    // listings often mark the entire tech stack as required, which would pin every score at 30.
     for (const req of jd.requiredSkills.filter((s) => s.isMustHave)) {
       const skill = findResumeSkill(resume, req.skillName);
-      if (!skill) continue;
+      if (!skill) {
+        triggered.push(`Gap: missing required skill ${req.skillName}`);
+        continue;
+      }
       if (req.minLevel > 1 && skill.yearsWithSkill != null) {
         const escapedSkill = req.skillName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
         const yearsMatch = jd.dealbreakers
@@ -97,19 +103,35 @@ export class DealBreakerDetector {
 
     if (jd.experienceLevel) {
       const level = jd.experienceLevel.toLowerCase();
-      const years = resume.yearsOfExperience ?? 0;
-      if (level.includes("senior") && years < 5) {
-        triggered.push("Insufficient seniority for role (under 5 years)");
-      }
-      if (level.includes("lead") && years < 7) {
-        triggered.push("Insufficient leadership experience (under 7 years)");
+      const years = resolveCandidateYears(resume).years;
+      const levelYearsMatch = level.match(/(\d+)\s*\+?\s*years?/i);
+      const minFromLevel = levelYearsMatch
+        ? parseInt(levelYearsMatch[1], 10)
+        : null;
+      const minRequired =
+        jd.minYearsExperience && jd.minYearsExperience > 0
+          ? jd.minYearsExperience
+          : minFromLevel;
+
+      if (minRequired != null && years < minRequired) {
+        triggered.push(
+          `Dealbreaker: insufficient experience (${years}y) — role requires ${minRequired}+ years`
+        );
+      } else if (minRequired == null) {
+        if (level.includes("senior") && years < 5) {
+          triggered.push("Insufficient seniority for role (under 5 years)");
+        }
+        if (level.includes("lead") && years < 7) {
+          triggered.push("Insufficient leadership experience (under 7 years)");
+        }
       }
     }
 
     const unique = [...new Set(triggered)];
+    const capScore = unique.some((t) => /^Dealbreaker:/i.test(t));
     return {
       triggered: unique,
-      capScore: unique.length > 0,
+      capScore,
     };
   }
 }

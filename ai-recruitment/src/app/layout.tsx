@@ -44,7 +44,6 @@ export default function RootLayout({
           signUpUrl="/register"
           signInFallbackRedirectUrl="/dashboard"
           signUpFallbackRedirectUrl="/dashboard"
-          signOutFallbackRedirectUrl="/"
         >
           {children}
           <Toaster />
